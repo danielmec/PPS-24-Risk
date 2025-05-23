@@ -8,6 +8,12 @@
 ### Scala ###
 .bsp/
 .idea/
-
+.metals/
+.bloop/
+### SBT ###
 target/
+
+### Scala IDE ###
 project/target/
+project/.bloop/
+project/project/
