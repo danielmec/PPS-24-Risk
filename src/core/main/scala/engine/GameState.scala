@@ -16,7 +16,7 @@ case class GameState(
             case player => player
         )
 
-    def updateCardManager(newCardManager: CardManager): GameState = copy(cardManager = newCardManager)
+    def updateDecksManager(newDecksManager: DecksManager): GameState = copy(DecksManager = newDecksManager)
 
     def updateBoard(newBoard: Board): GameState = copy(board = newBoard)
 
