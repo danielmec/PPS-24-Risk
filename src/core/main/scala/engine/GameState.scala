@@ -22,7 +22,7 @@ case class GameState(
 
     def updateTurnManager(newTurnManager: TurnManager): GameState = copy(turnManager = newTurnManager)
 
-    def checkWinCondition: Option[Player] =
+    def checkWinCondition: Option[PlayerState] =
         states.find(player => player.objective.exists(
             obj => ObjectiveValidator.isCompleted(obj, this, player)
             )).map(_.playerId).flatMap(
