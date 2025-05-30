@@ -3,7 +3,7 @@ import engine.TurnPhase
 case class PlayerState(
     playerId: String, 
     territoryCards: Set[TerritoryCard], 
-    objectiveCards: Option[ObjectiveCard], 
+    objectiveCard: Option[ObjectiveCard], 
     phase: TurnPhase = TurnPhase.WaitingForTurn
 ):
 
