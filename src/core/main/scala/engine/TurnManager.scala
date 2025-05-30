@@ -4,10 +4,10 @@ import exceptions.InvalidPlayerException
 import engine.GameAction
 
 trait TurnManager:
-    def currentPlayer: Player, 
-    def nextPlayer(): TurnManager,
-    def currentPhase: TurnPhase,
-    def nextPhase(): TurnManager,
+    def currentPlayer: Player
+    def nextPlayer(): TurnManager
+    def currentPhase: TurnPhase
+    def nextPhase(): TurnManager
     def isValidAction(action: GameAction): Boolean
 
 case class TurnManagerImpl(
