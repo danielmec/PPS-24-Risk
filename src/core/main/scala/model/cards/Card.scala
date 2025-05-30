@@ -1,6 +1,6 @@
 trait Card
 
-enum CardSymbol:
+enum CardImg:
     case Infantry
     case Cavalry
     case Artillery 
