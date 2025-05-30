@@ -10,8 +10,6 @@ enum PlayerColor:
     case Black,
     case White
 
-
-
 /**
     * Represents a contrait for a player in the game.
     * @param id Unique identifier for the player.
@@ -34,4 +32,4 @@ case class PlayerImpl(
     id: String,
     name: String,
     color: PlayerColor,
-    playerType: PlayerType) extends Player:
+    playerType: PlayerType) extends Player

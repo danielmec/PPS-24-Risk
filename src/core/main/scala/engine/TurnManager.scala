@@ -1,12 +1,14 @@
 import engine.TurnPhase
 import engine.player.Player
 import exceptions.InvalidPlayerException
+import engine.GameAction
 
 trait TurnManager:
     def currentPlayer: Player, 
     def nextPlayer(): TurnManager,
     def currentPhase: TurnPhase,
-    def nextPhase(): TurnManager
+    def nextPhase(): TurnManager,
+    def isValidAction(action: GameAction): Boolean
 
 case class TurnManagerImpl(
     players: List[Player],
@@ -34,3 +36,10 @@ case class TurnManagerImpl(
         case TurnPhase.Attacking => copy(phase = TurnPhase.Defending)
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
         case _ => throw InvalidPhaseTransitionException()
+
+    def isValidAction(action: GameAction): Boolean = (action, phase) match
+        case (GameAction.PlaceTroops(_), TurnPhase.PlacingTroops) => true
+        case (GameAction.Reinforce(_), TurnPhase.Reinforcement) => true
+        case (GameAction.Attack(_, _), TurnPhase.Attacking) => true
+        case (GameAction.Defend(_, _), TurnPhase.Defending) => true
+        case _ => false
