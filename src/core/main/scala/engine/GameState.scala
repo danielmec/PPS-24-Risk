@@ -3,8 +3,8 @@ case class GameState(
     board: Board,
     states: List[PlayerState],
     turnManager: TurnManager,
-    territoryCards: List[Card] = List.empty,
-    objectiveCards: List[Objective] = List.empty
+    territoryCards: List[TerritoryCard] = List.empty,
+    objectiveCards: List[ObjectiveCard] = List.empty
 ):
 
     def getPlayerState(playerId: String): Option[PlayerState] =
