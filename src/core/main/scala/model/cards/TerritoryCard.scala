@@ -3,7 +3,7 @@ case class TerritoryCard(
     cardImg: CardImg
 ) extends Card:
 
-    def checkTris(this.cardImg: CardImg, card2: TerritoryCard, card3: TerritoryCard): Boolean =
+    def checkTris(card2: TerritoryCard, card3: TerritoryCard): Boolean =
         // Set eliminates duplicates, so cardsImgs.size depends on the uniqueness of the imgs
         val cardsImgs = Set(this.cardImg, card2.cardImg, card3.cardImg)
         // All same imgs or all different imgs
