@@ -2,22 +2,17 @@ import engine.TurnPhase
 
 case class PlayerState(
     playerId: String, 
-    cards: Set[Card], 
-    objective: Set[Objective], 
+    territoryCards: Set[TerritoryCard], 
+    objectiveCards: Option[ObjectiveCard], 
     phase: TurnPhase = TurnPhase.WaitingForTurn
 ):
 
     def setPhase(newPhase: TurnPhase): PlayerState = copy(phase = newPhase)
 
-    def addCard(card: Card): PlayerState = copy(cards = cards + card)
+    def addTerritoryCard(card: TerritoryCard): PlayerState = copy(territoryCards = territoryCards + card)
 
-    def removeCards(cardsToRemove: Set[Card]): PlayerState = copy(cards = cards -- cardsToRemove)
+    def removeTerritoryCards(cards: Set[TerritoryCard]): PlayerState = copy(territoryCards = territoryCards -- cards)
 
-    
+    def setObjectiveCard(card: ObjectiveCard): PlayerState = copy(objectiveCard = Some(card))
 
-
-
-
-
-
-  
+    def getObjectiveCard: Option[ObjectiveCard] = objectiveCard  
