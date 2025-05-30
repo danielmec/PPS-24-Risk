@@ -38,8 +38,17 @@ case class TurnManagerImpl(
         case _ => throw InvalidPhaseTransitionException()
 
     def isValidAction(action: GameAction): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(_), TurnPhase.PlacingTroops) => true
-        case (GameAction.Reinforce(_), TurnPhase.Reinforcement) => true
-        case (GameAction.Attack(_, _), TurnPhase.Attacking) => true
-        case (GameAction.Defend(_, _), TurnPhase.Defending) => true
+        case (GameAction.PlaceTroops(_, troops), TurnPhase.PlacingTroops) => troops > 0
+        case (GameAction.Reinforce(_, troops), TurnPhase.Reinforcement) => troops > 0
+        case (GameAction.TradeCards(_), TurnPhase.Reinforcement) => true
+        case (GameAction.Attack(from, to, troops), TurnPhase.Attacking) => 
+            from.owner.contains(currentPlayer) &&
+            !to.owner.contains(currentPlayer) &&
+            troops > 0 && troops <= 3
+        case (GameAction.EndAttack, TurnPhase.Attacking) => true
+        case (GameAction.Defend(territory, troops), TurnPhase.Defending) => 
+            territory.owner.contains(currentPlayer) && 
+            troops > 0 && troops <= 3
+        case (GameAction.EndPhase, _) => true
+        case (GameAction.EndTurn, _) => true
         case _ => false
