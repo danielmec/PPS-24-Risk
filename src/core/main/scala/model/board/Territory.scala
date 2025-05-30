@@ -1,7 +1,7 @@
 case class Territory(
   name: String, 
-  neighbors: Set[String], 
-  owner: Option[Player], 
+  neighbors: Set[Territories], 
+  owner: Option[PlayerState], 
   troops: Int
 ):
 
@@ -11,5 +11,5 @@ case class Territory(
   def removeTroops(troopsToRemove: Int): Territory = 
     copy(troops = (troops - troopsToRemove).max(0))
 
-  def changeOwner(newOwner: Player): Territory = 
+  def changeOwner(newOwner: PlayerState): Territory = 
     copy(owner = Some(newOwner))
