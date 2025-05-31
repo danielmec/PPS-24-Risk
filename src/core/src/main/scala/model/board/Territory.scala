@@ -5,7 +5,7 @@ import model.player.PlayerState
 case class Territory(
   name: String, 
   neighbors: Set[Territory], 
-  owner: Option[PlayerState], 
+  owner: Option[Player], 
   troops: Int
 ):
 
@@ -18,7 +18,7 @@ case class Territory(
     copy(troops = (troops - troopsToRemove).max(0))
 
   def isOwnedBy(playerId: String): Boolean = 
-    owner.exists(_.playerId == playerId)
+    owner.exists(_.id == playerId)
 
-  def changeOwner(newOwner: PlayerState): Territory = 
+  def changeOwner(newOwner: Player): Territory = 
     copy(owner = Some(newOwner))
