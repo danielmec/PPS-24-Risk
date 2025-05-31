@@ -18,12 +18,16 @@ object ClientApp:
     // Leggi il nome utente da tastiera
     val username = StdIn.readLine().trim
     
-    // Verifica che il nome non sia vuoto
-    if (username.isEmpty) 
-      println("Nome utente non valido. Uscita...")
-      client.shutdown()
-      return
-    
+    val isNameEmpty: String => Boolean = name => name.trim.isEmpty()
+
+    username  match
+      case name if isNameEmpty(name)  =>
+        println("Nome utente non valido. Uscita...")
+        client.shutdown()
+        return
+      case validName => 
+        println(s"avvio")
+
     println(s"Tentativo di login come '$username'...")
     val loginFuture = client.login(username)
     
