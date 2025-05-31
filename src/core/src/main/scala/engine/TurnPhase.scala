@@ -2,7 +2,7 @@ package engine
 
 enum TurnPhase: 
     case WaitingForTurn
-    case PlacingTroops 
     case Reinforcement 
+    case PlacingTroops 
     case Attacking
     case Defending

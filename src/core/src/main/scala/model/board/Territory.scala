@@ -9,11 +9,16 @@ case class Territory(
   troops: Int
 ):
 
+  def hasEnoughTroops(requiredTroops: Int): Boolean = troops >= requiredTroops
+
   def addTroops(newTroop: Int): Territory = 
     copy(troops = troops + newTroop)
 
   def removeTroops(troopsToRemove: Int): Territory = 
     copy(troops = (troops - troopsToRemove).max(0))
+
+  def isOwnedBy(playerId: String): Boolean = 
+    owner.exists(_.playerId == playerId)
 
   def changeOwner(newOwner: PlayerState): Territory = 
     copy(owner = Some(newOwner))

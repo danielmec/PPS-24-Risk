@@ -20,7 +20,7 @@ case class TurnManagerImpl(
         case Nil => throw InvalidPlayerException()
         case _ => players(currentPlayerIndex)
 
-    def nextPlayer: TurnManager = players match
+    def nextPlayer(): TurnManager = players match
         case Nil => throw InvalidPlayerException()
         case _ => 
             // if nextIndex grows beyond the list size, it wraps around
@@ -38,17 +38,21 @@ case class TurnManagerImpl(
         case _ => throw InvalidPhaseTransitionException()
 
     def isValidAction(action: GameAction): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(_, troops), TurnPhase.PlacingTroops) => troops > 0
-        case (GameAction.Reinforce(_, troops), TurnPhase.Reinforcement) => troops > 0
+        case (GameAction.PlaceTroops(playerId, troops), TurnPhase.PlacingTroops) => 
+            playerId == currentPlayer.id && troops > 0
+            
+        case (GameAction.Reinforce(playerId, troops), TurnPhase.Reinforcement) => 
+            playerId == currentPlayer.id && troops > 0
+            
         case (GameAction.TradeCards(_), TurnPhase.Reinforcement) => true
-        case (GameAction.Attack(from, to, troops), TurnPhase.Attacking) => 
-            from.owner.contains(currentPlayer) &&
-            !to.owner.contains(currentPlayer) &&
-            troops > 0 && troops <= 3
+            
+        case (GameAction.Attack(attackerId, defenderId), TurnPhase.Attacking) => 
+            attackerId == currentPlayer.id && attackerId != defenderId
+            
+        case (GameAction.Defend(defenderId, troops), TurnPhase.Defending) => 
+            defenderId != currentPlayer.id && troops > 0 && troops <= 3
+            
         case (GameAction.EndAttack, TurnPhase.Attacking) => true
-        case (GameAction.Defend(territory, troops), TurnPhase.Defending) => 
-            territory.owner.contains(currentPlayer) && 
-            troops > 0 && troops <= 3
         case (GameAction.EndPhase, _) => true
         case (GameAction.EndTurn, _) => true
         case _ => false
