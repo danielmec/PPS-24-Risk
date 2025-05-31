@@ -8,22 +8,24 @@ import akka.stream.ActorMaterializer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Failure}
 import scala.io.StdIn
+import akka.event.Logging
+
 
 object RisikoServer:
   def main(args: Array[String]): Unit =
     
     implicit val system = ActorSystem("RiskServer")
-    implicit val materializer = ActorMaterializer() 
     implicit val executionContext = system.dispatcher 
 
+    val log = Logging(system, getClass.getName())
     
     val host = "localhost"
     val port = 8080
    
-    val gameManager = system.actorOf(GameManager.props, "game-Manager")
+    //val gameManager = system.actorOf(GameManager.props, "game-Manager")
 
     
-    val webSocketHandler = WebSocketHandler(gameManager)
+    //val webSocketHandler = WebSocketHandler(gameManager)
 
     // Definisce le route per il server
     val route =
@@ -36,9 +38,9 @@ object RisikoServer:
           }
         },
         // WebSocket endpoint per la comunicazione in tempo reale
-        path("ws"){
+       /* path("ws"){
           handleWebSocketMessages(webSocketHandler.flow)
-        },
+        },*/
         // API REST per la gestione del gioco
         pathPrefix("api") { //prefisso di percorso per avere sotto-percorsi
           concat(
@@ -46,6 +48,7 @@ object RisikoServer:
               post{
                 entity(as[String]){ // entity estrae il corpo della richiesta come stringa
                   username =>
+                    log.info(s"User '$username' logged in successfully.")
                     complete(HttpEntity(ContentTypes.`application/json`, 
                       s"""{"success": true, "playerId": "${java.util.UUID.randomUUID()}"}"""))
                 }
