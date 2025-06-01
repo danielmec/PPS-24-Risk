@@ -24,11 +24,11 @@ case class DecksManagerImpl(
         case h :: t => (t, h)
         case Nil => throw exception
 
-    def drawTerritory: (DecksManager, TerritoryCard) = 
+    def drawTerritory(): (DecksManager, TerritoryCard) = 
         val (newDeck, territoryCard) = draw(territories, NoTerritoriesCardsException())
         (copy(territories = newDeck), territoryCard)
 
-    def drawObjective: (DecksManager, ObjectiveCard) = 
+    def drawObjective(): (DecksManager, ObjectiveCard) = 
         val (newDeck, objectiveCard) = draw(objectives, NoObjectivesCardsException())
         (copy(objectives = newDeck), objectiveCard)
 
