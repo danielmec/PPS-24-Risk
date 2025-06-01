@@ -50,7 +50,6 @@ class ClientNetworkManager:
                 println("Impossibile estrarre l'ID dalla risposta")
                 false
           }
-          
         case _ =>
           println(s"Errore di connessione: ${response.status}")
           Future.successful(false)

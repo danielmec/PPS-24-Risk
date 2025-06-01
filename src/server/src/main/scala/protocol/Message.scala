@@ -3,7 +3,7 @@ package protocol
 sealed trait Message 
 
 //classe Singleton per i messaggi dal cliente al server
-object ClientMessage:
+object ClientMessages:
 
   case class Login(username: String ) extends Message
 
@@ -19,6 +19,8 @@ object ClientMessage:
     action: String,
     parameters: Map[String, String] // Parametri dell'azione di gioco come mappa di stringhe
   ) extends Message
+
+  case class LeaveGame(gameId: String) extends Message
 
   case object Logout extends Message  
 

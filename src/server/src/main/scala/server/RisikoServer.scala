@@ -22,10 +22,10 @@ object RisikoServer:
     val host = "localhost"
     val port = 8080
    
-    //val gameManager = system.actorOf(GameManager.props, "game-Manager")
+    val gameManager = system.actorOf(GameManager.props, "game-Manager")
 
     
-    //val webSocketHandler = WebSocketHandler(gameManager)
+    val webSocketHandler = WebSocketHandler(gameManager)
 
     // Definisce le route per il server
     val route =
@@ -37,8 +37,8 @@ object RisikoServer:
             complete(HttpEntity(ContentTypes.`application/json`, """{\"status\":\"ok\"}"""))
           }
         },
-        // WebSocket endpoint per la comunicazione in tempo reale
-       /* path("ws"){
+        /* WebSocket endpoint per la comunicazione in tempo reale
+        path("ws"){
           handleWebSocketMessages(webSocketHandler.flow)
         },*/
         // API REST per la gestione del gioco
@@ -54,13 +54,13 @@ object RisikoServer:
                 }
               }
             },
-            // Endpoint per la creazione di un gioco
+            /* Endpoint per la creazione di un gioco
             path("games"){
               get{
                 complete(HttpEntity(ContentTypes.`application/json`, 
                   """[{"gameId": "1", "gameName": "Game 1", "creatorId": "player1"}]"""))
               }
-            }
+            }*/
           )
         }
       )
