@@ -5,7 +5,8 @@ lazy val core = (project in file("src/core"))
 .settings(
   name := "RiskCore",
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "3.2.16" % Test
+    "org.scalatest" %% "scalatest" % "3.2.16" % Test,
+    "com.typesafe.play" %% "play-json" % "2.10.0-RC5"  
   )
 )
 
