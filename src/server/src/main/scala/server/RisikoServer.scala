@@ -30,17 +30,17 @@ object RisikoServer:
     // Definisce le route per il server
     val route =
       concat(
-        //Endpoint di base per verifica server attivo
-        path("health") //percorso URL esatto
+        
+        path("health") 
         {
-          get{ //complete viene usato per rispondere a una richiesta con contenuto JSON
+          get{ 
             complete(HttpEntity(ContentTypes.`application/json`, """{\"status\":\"ok\"}"""))
           }
         },
-        /* WebSocket endpoint per la comunicazione in tempo reale
+        
         path("ws"){
-          handleWebSocketMessages(webSocketHandler.flow)
-        },*/
+          handleWebSocketMessages(webSocketHandler)
+        },
         // API REST per la gestione del gioco
         pathPrefix("api") { //prefisso di percorso per avere sotto-percorsi
           concat(
@@ -53,21 +53,14 @@ object RisikoServer:
                       s"""{"success": true, "playerId": "${java.util.UUID.randomUUID()}"}"""))
                 }
               }
-            },
-            /* Endpoint per la creazione di un gioco
-            path("games"){
-              get{
-                complete(HttpEntity(ContentTypes.`application/json`, 
-                  """[{"gameId": "1", "gameName": "Game 1", "creatorId": "player1"}]"""))
-              }
-            }*/
+            }
           )
         }
       )
     val bindingFuture = Http().newServerAt(host, port).bind(route)
     println(s"Server online at http://$host:$port/\nPress RETURN to stop...")
 
-    StdIn.readLine() // Attende l'input da console per fermare il server
+    StdIn.readLine() 
 
     // aggiunge un hook di shutdown per fermare il server in modo pulito
     // e fare unbind delle connessioni

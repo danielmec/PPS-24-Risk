@@ -16,11 +16,11 @@ object WebSocketHandler:
   case class IncomingMessage(text: String)
   case class OutgoingConnection(client: ActorRef)
   
-  /**
-   * Crea un flow WebSocket per gestire la comunicazione
-   */
+  
+    //Creata quando il client si connette al WebSocket tramite route ws
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
-    // Crea un attore per gestire questa connessione
+
+    // Crea un nuovo attore ConnectionActor per gestire questa connessione 
     val handler = system.actorOf(Props(new ConnectionActor(gameManager)))
     
     // Gestisce i messaggi in ingresso dal client
@@ -76,7 +76,7 @@ object WebSocketHandler:
     
     // Invia JSON al client
     private def sendJson(json: String): Unit =
-      clientConnection.foreach(_ ! TextMessage(json))
+      clientConnection.foreach(_ ! TextMessage(json)) // ! send a TextMessage
     
     // Gestisce i messaggi del client
     private def handleClientMessage(msg: ProtocolMessage): Unit =
