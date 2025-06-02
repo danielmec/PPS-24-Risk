@@ -27,7 +27,7 @@ lazy val server = (project in file("src/server"))
       "com.typesafe.akka" %% "akka-actor" % "2.8.3",
       "com.typesafe.akka" %% "akka-stream" % "2.8.3",
       "com.typesafe.akka" %% "akka-http" % "10.5.3",
-      "org.scalatest" %% "scalatest" % "3.2.16" % Test
+      "org.scalatest" %% "scalatest" % "3.2.17" % Test
     )
   )
 
