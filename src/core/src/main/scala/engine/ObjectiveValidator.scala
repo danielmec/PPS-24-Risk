@@ -33,5 +33,5 @@ object ObjectiveValidator:
             gameState.board.territories.find(_.name == t.name).exists(_.owner.exists(_.id == playerState.playerId))
         ownedContinents >= n
 
-      case _ => false
+      case null => false
 

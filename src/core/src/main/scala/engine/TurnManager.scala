@@ -35,7 +35,6 @@ case class TurnManagerImpl(
         case TurnPhase.Reinforcement => copy(phase = TurnPhase.Attacking)
         case TurnPhase.Attacking => copy(phase = TurnPhase.Defending)
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
-        case _ => throw InvalidPhaseTransitionException()
 
     def isValidAction(action: GameAction): Boolean = (action, phase) match
         case (GameAction.PlaceTroops(playerId, troops), TurnPhase.PlacingTroops) => 
