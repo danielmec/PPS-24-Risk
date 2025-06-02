@@ -22,3 +22,13 @@ case class Territory(
 
   def changeOwner(newOwner: Player): Territory = 
     copy(owner = Some(newOwner))
+
+  // Added to avoid infinite loops 
+  override def toString(): String = 
+    s"Territory($name, ${neighbors.size} neighbors, $owner, $troops)"
+  
+  override def equals(obj: Any): Boolean = obj match
+    case t: Territory => t.name == this.name
+    case _ => false
+  
+  override def hashCode(): Int = name.hashCode

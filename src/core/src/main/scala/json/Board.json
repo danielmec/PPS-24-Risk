@@ -53,12 +53,12 @@
     },
     {
       "name": "Australia",
-      "value": 2,
       "territories": [
         { "name": "Southeast Asia", "neighbors": ["India", "China", "Indonesia"] },
         { "name": "Indonesia", "neighbors": ["Southeast Asia", "Australia"] },
         { "name": "Australia", "neighbors": ["Indonesia"] }
-      ]
+      ],
+      "bonusTroops": 2
     }
   ]
 }
