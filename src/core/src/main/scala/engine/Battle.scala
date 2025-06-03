@@ -3,10 +3,11 @@ package engine
 import model.board.Territory
 import model.player.Player
 import utils.Dice
+import exceptions._
 
 object BattleResult extends Enumeration:
   type BattleResult = Value
-  val AttackerWins, DefenderWins, Ongoing = Value
+  val AttackerWins, DefenderWins = Value
 
 import BattleResult._
 
@@ -16,17 +17,18 @@ case class BattleState(
   attackerTerritory: Territory,
   defenderTerritory: Territory,
   attackingTroops: Int,
-  defendingTroops: Int
+  defendingTroops: Int,
 )
 
 object Battle:
 
   def resolveBattleRound(
     state: BattleState,
-    diceRoll: Int => Seq[Int] = Dice.roll
+    attackerDiceRoll: Int => Seq[Int] = Dice.roll,
+    defenderDiceRoll: Int => Seq[Int] = Dice.roll
   ): BattleState =
-    val attackerDice = diceRoll(math.min(3, state.attackingTroops))
-    val defenderDice = diceRoll(math.min(3, state.defendingTroops))
+    val attackerDice = attackerDiceRoll(math.min(3, state.attackingTroops))
+    val defenderDice = defenderDiceRoll(math.min(3, state.defendingTroops))
 
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
@@ -45,11 +47,16 @@ object Battle:
     attackerTerritory: Territory,
     defenderTerritory: Territory,
     attackingTroops: Int,
-    diceRoll: Int => Seq[Int] = Dice.roll
+    attackerDiceRoll: Int => Seq[Int] = Dice.roll,
+    defenderDiceRoll: Int => Seq[Int] = Dice.roll
   ): (BattleResult, Territory, Territory) =
-    require(attackerTerritory.owner.contains(attacker), "Attacker must own the attacking territory")
-    require(defenderTerritory.owner.contains(defender), "Defender must own the defending territory")
-    require(attackingTroops > 0 && attackingTroops < attackerTerritory.troops, "Invalid number of attacking troops")
+    
+    if (!attackerTerritory.owner.contains(attacker))
+      throw new InvalidAttackException()
+    if (!defenderTerritory.owner.contains(defender))
+      throw new InvalidAttackException()
+    if (attackingTroops <= 0 || attackingTroops >= attackerTerritory.troops)
+      throw new InvalidAttackException()
 
     var state = BattleState(
       attacker,
@@ -60,8 +67,8 @@ object Battle:
       defenderTerritory.troops
     )
 
-    while (state.attackingTroops > 0 && state.defendingTroops > 0 && state.attackingTroops + 1 <= attackerTerritory.troops)
-      state = resolveBattleRound(state, diceRoll)
+    while (state.attackingTroops > 0 && state.defendingTroops > 0)
+      state = resolveBattleRound(state, attackerDiceRoll, defenderDiceRoll)
 
     if (state.defendingTroops == 0)
       val conqueredTerritory = defenderTerritory
@@ -76,5 +83,3 @@ object Battle:
       val defenderTerritoryToUpdate = defenderTerritory
         .copy(troops = state.defendingTroops)
       (DefenderWins, attackerTerritoryToUpdate, defenderTerritoryToUpdate)
-
-

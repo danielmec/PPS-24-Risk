@@ -1,69 +1,125 @@
 package core.engine
 
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 import engine.*
-import model.player.*
-import model.board.*
+import engine.BattleResult
+import engine.BattleResult._
+import model.player._
+import model.board._
+import exceptions._
 
-class BattleTest extends AnyFunSuite:
+class BattleTest extends AnyFunSuite with Matchers:
+  
+  val attacker = PlayerImpl("1", "Attacker", PlayerColor.Red, PlayerType.Human)
+  val defender = PlayerImpl("2", "Defender", PlayerColor.Blue, PlayerType.Human)
 
-  val attacker = PlayerImpl("1", "Attaccante", PlayerColor.Red, PlayerType.Human)
-  val defender = PlayerImpl("2", "Difensore", PlayerColor.Blue, PlayerType.Human)
-
-  val territoryA = Territory(
+  val attackerTerritory = Territory(
     name = "A",
     neighbors = Set.empty,
     owner = Some(attacker),
     troops = 10
   )
-  val territoryB = Territory(
+  val defenderTerritory = Territory(
     name = "B",
     neighbors = Set.empty,
     owner = Some(defender),
     troops = 3
   )
 
-  test("Attaccante conquista il territorio se il difensore perde tutte le truppe") {
-    val alwaysSix: Int => Seq[Int] = n => Seq.fill(n)(6)
+  val attackerWinsDice: Int => Seq[Int] = n => Seq.fill(n)(6)
+  val attackerLosesDice: Int => Seq[Int] = n => Seq.fill(n)(1)
+  val defenderWinsDice: Int => Seq[Int] = n => Seq.fill(n)(6)
+  val defenderLosesDice: Int => Seq[Int] = n => Seq.fill(n)(1)
+
+  val customAttackerDice: Int => Seq[Int] = 
+    case 3 => Seq(6, 4, 2)
+    case _ => Seq(6)
+  
+  val customDefenderDice: Int => Seq[Int] = 
+    case 2 => Seq(5, 3)
+    case _ => Seq(1)
+  
+  test("Defender should loose troops if he loose the battle"):
     val result = Battle.battle(
       attacker,
       defender,
-      territoryA,
-      territoryB,
+      attackerTerritory,
+      defenderTerritory,
       attackingTroops = 3,
-      diceRoll = alwaysSix
+      attackerDiceRoll = attackerWinsDice,
+      defenderDiceRoll = defenderLosesDice
     )
-    assert(result._1 == BattleResult.AttackerWins)
-    assert(result._3.owner.contains(attacker))
-  }
-
-  test("Difensore mantiene il territorio se l'attaccante si esaurisce") {
-    val alwaysOne: Int => Seq[Int] = n => Seq.fill(n)(1)
+    result._1 shouldBe BattleResult.AttackerWins
+    result._3.owner should contain (attacker)
+    result._2.troops shouldBe (attackerTerritory.troops - 3)
+    result._3.troops shouldBe 3
+  
+  test("Defender should keep his territory if he wins"):
     val result = Battle.battle(
       attacker,
       defender,
-      territoryA.copy(troops = 3),
-      territoryB.copy(troops = 5),
+      attackerTerritory.copy(troops = 3),
+      defenderTerritory.copy(troops = 5),
       attackingTroops = 2,
-      diceRoll = alwaysOne
+      attackerDiceRoll = attackerLosesDice,
+      defenderDiceRoll = defenderWinsDice
     )
-    assert(result._1 == BattleResult.DefenderWins)
-    assert(result._3.owner.contains(defender))
-  }
-
-  test("Non si può attaccare con tutte le truppe") {
-    intercept[IllegalArgumentException] {
+    result._1 shouldBe BattleResult.DefenderWins
+    result._3.owner should contain (defender)
+    result._2.owner should contain (attacker)
+  
+  test("Cannot attack with all troops"):
+    assertThrows[InvalidAttackException]:
       Battle.battle(
         attacker,
         defender,
-        territoryA.copy(troops = 3),
-        territoryB.copy(troops = 2),
-        attackingTroops = 3 // Non valido: deve restare almeno 1 truppa
+        attackerTerritory.copy(troops = 3),
+        defenderTerritory.copy(troops = 2),
+        attackingTroops = 3 
       )
-    }
-  }
-
-
-
-
-
+    
+  test("Cannot attack from a not-owned territory"):
+    val notOwnedTerritory = Territory("C", Set.empty, Some(defender), 5)
+    assertThrows[InvalidAttackException]:
+      Battle.battle(
+        attacker,
+        defender,
+        notOwnedTerritory,  
+        defenderTerritory, 
+        attackingTroops = 3
+      )
+    
+  test("Cannot attack a not-owned territory"):
+    val neutralTerritory = Territory("D", Set.empty, None, 3)
+    assertThrows[InvalidAttackException]:
+      Battle.battle(
+        attacker,
+        defender,
+        attackerTerritory,  
+        neutralTerritory,
+        attackingTroops = 3
+      )
+  
+  test("Battle should end correctly"):
+    val state = BattleState(attacker, defender, attackerTerritory, defenderTerritory, 3, 2)
+    val newState = Battle.resolveBattleRound(state, customAttackerDice, customDefenderDice)
+    // Attacker wins
+    newState.attackingTroops shouldBe 3  
+    newState.defendingTroops shouldBe 0  
+  
+  test("Attacker should move his attacking troops on conquered territory"):
+    val attackingTroops = 3
+    val result = Battle.battle(
+      attacker,
+      defender,
+      attackerTerritory,
+      defenderTerritory,
+      attackingTroops,
+      attackerDiceRoll = attackerWinsDice,
+      defenderDiceRoll = defenderLosesDice
+    )
+    result._1 shouldBe BattleResult.AttackerWins
+    result._2.troops shouldBe (attackerTerritory.troops - attackingTroops) 
+    result._3.troops shouldBe attackingTroops                       
+    result._3.owner shouldBe Some(attacker)
