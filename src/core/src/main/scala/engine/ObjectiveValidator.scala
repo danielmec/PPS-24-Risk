@@ -6,7 +6,7 @@ import model.board.*
 
 object ObjectiveValidator:
 
-  def isCompleted(objective: ObjectiveCard, gameState: GameState, playerState: PlayerState): Boolean =
+  def done(objective: ObjectiveCard, gameState: GameState, playerState: PlayerState): Boolean =
     objective match
       case ObjectiveCard.ConquerTerritories(num, minTroops) =>
         // Conta i territori posseduti con almeno minTroops truppe
@@ -22,7 +22,7 @@ object ObjectiveValidator:
             gameState.board.territories.find(_.name == t.name).exists(_.owner.exists(_.id == playerState.playerId))
         
 
-      case ObjectiveCard.EliminatePlayer(targetColor) =>
+      case ObjectiveCard.DefeatPlayer(targetColor) =>
         // Verifica se il giocatore target non possiede più territori
         !gameState.board.territories.exists(_.owner.exists(_.color == targetColor))
 
