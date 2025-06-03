@@ -8,30 +8,23 @@ object ObjectiveValidator:
 
   def done(objective: ObjectiveCard, gameState: GameState, playerState: PlayerState): Boolean =
     objective match
-      case ObjectiveCard.ConquerTerritories(num, minTroops) =>
-        // Conta i territori posseduti con almeno minTroops truppe
-        val owned = gameState.board.territories.count: t =>
-          t.owner.exists(_.id == playerState.playerId) && t.troops >= minTroops
-        
+      case ObjectiveCard.ConquerTerritories(num, minTroopsToOwn) =>
+        val owned = gameState.board.territories.count: territory =>
+          territory.owner.exists(_.id == playerState.playerId) && territory.troops >= minTroopsToOwn
         owned >= num
 
       case ObjectiveCard.ConquerContinents(continents) =>
-        // Verifica se il giocatore possiede tutti i territori di ciascun continente richiesto
         continents.forall: continent =>
-          continent.territories.forall: t =>
-            gameState.board.territories.find(_.name == t.name).exists(_.owner.exists(_.id == playerState.playerId))
+          continent.territories.forall: territory =>
+            gameState.board.territories.find(_.name == territory.name).exists(_.owner.exists(_.id == playerState.playerId))
         
-
       case ObjectiveCard.DefeatPlayer(targetColor) =>
-        // Verifica se il giocatore target non possiede più territori
         !gameState.board.territories.exists(_.owner.exists(_.color == targetColor))
 
       case ObjectiveCard.ConquerNContinents(n) =>
-        // Conta i continenti completamente posseduti
         val ownedContinents = gameState.board.continents.count: continent =>
-          continent.territories.forall: t =>
-            gameState.board.territories.find(_.name == t.name).exists(_.owner.exists(_.id == playerState.playerId))
+          continent.territories.forall: territory =>
+            gameState.board.territories.find(_.name == territory.name).exists(_.owner.exists(_.id == playerState.playerId))
         ownedContinents >= n
 
       case null => false
-
