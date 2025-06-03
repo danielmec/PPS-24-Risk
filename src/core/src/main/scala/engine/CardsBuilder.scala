@@ -1,6 +1,7 @@
 package engine
 import model.board._
 import model.cards._
+import model.player._
 import scala.io.Source
 import scala.util.{Try, Success, Failure}
 import scala.util.Random
@@ -9,14 +10,27 @@ import play.api.libs.json._
 
 object CardsBuilder:
     
-    private val path = "src/core/src/main/scala/json/Board.json"
-  
-    private def loadData(): JsValue = 
-        val jsonContent = Source.fromFile(path).mkString
+    private val boardPath = "src/core/src/main/scala/json/Board.json"
+    private val objectivesPath = "src/core/src/main/scala/json/Objectives.json"
+
+    private def loadBoardData(): JsValue = 
+        val jsonContent = Source.fromFile(boardPath).mkString
+        Json.parse(jsonContent)
+    
+    private def loadObjectivesData(): JsValue =
+        val jsonContent = Source.fromFile(objectivesPath).mkString
         Json.parse(jsonContent)
 
+    def getTerritories(): Set[Territory] =
+        val (_, territoriesMap) = createBoard()
+        territoriesMap.values.toSet
+    
+    def getContinents(): Set[Continent] =
+        val (continents, _) = createBoard()
+        continents
+
     def createBoard(): (Set[Continent], Map[String, Territory]) = 
-        val json = loadData()
+        val json = loadBoardData()
         val continentsFromJson = (json \ "continents").as[JsArray].value 
         // Empty territories map
         var territoriesMap = Map.empty[String, Territory]
@@ -63,11 +77,40 @@ object CardsBuilder:
                     case 2 => CardImg.Artillery
                 TerritoryCard(territory, cardImg)
         cards
-        
-    def getTerritories(): Set[Territory] =
-        val (_, territoriesMap) = createBoard()
-        territoriesMap.values.toSet
+
     
-    def getContinents(): Set[Continent] =
-        val (continents, _) = createBoard()
-        continents
+    // High scalability: add custom objectives to Objectives.json
+    def createObjectivesDeck(): List[ObjectiveCard] =
+        val continents = getContinents()
+        val continentsMap = continents.map(c => (c.name, c)).toMap
+        val json = loadObjectivesData()
+        
+        val continentObjectives = (json \\ "continents").head.as[JsArray].value.map:
+            objJson =>
+                val continentNames = (objJson \ "continents").as[JsArray].value.map(_.as[String])
+                val continentsToConquer = continentNames.flatMap(name => continentsMap.get(name)).toSet
+                ObjectiveCard.ConquerContinents(continentsToConquer)
+        .toList
+        
+        val nContinentsObjectives = (json \\ "nContinents").head.as[JsArray].value.map:
+            objJson =>
+                val count = (objJson \ "count").as[Int]
+                ObjectiveCard.ConquerNContinents(count)
+        .toList
+        
+        val territoryObjectives = (json \\ "territories").head.as[JsArray].value.map:
+            objJson =>
+                val count = (objJson \ "count").as[Int]
+                val minTroops = (objJson \ "minTroops").as[Int]
+                ObjectiveCard.ConquerTerritories(count, minTroops)
+        .toList
+        
+        val defeatObjectives = (json \\ "defeat").head.as[JsArray].value.map:
+            objJson =>
+                val colorStr = (objJson \ "playerColor").as[String]
+                val color = PlayerColor.valueOf(colorStr)
+                ObjectiveCard.DefeatPlayer(color)
+        .toList
+        
+        // Objectives deck creation
+        continentObjectives ++ nContinentsObjectives ++ territoryObjectives ++ defeatObjectives

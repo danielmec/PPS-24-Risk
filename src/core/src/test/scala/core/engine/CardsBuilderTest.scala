@@ -11,6 +11,7 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
     val continents = CardsBuilder.getContinents()
     val territories = CardsBuilder.getTerritories()
     val territoriesDeck = CardsBuilder.createTerritoriesDeck()
+    val objectivesDeck = CardsBuilder.createObjectivesDeck()
     val cNames = continents.map(_.name)
     val tNames = territoriesDeck.map(_.territory.name).toSet
     val northAmerica = continents.find(_.name == "North America").get
@@ -43,3 +44,21 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
     test("CardsBuilder should associate continents and territories properly"):
         northAmerica.territories should have size 4
         northAmericaTerritories should contain allOf("Alaska", "Western US", "Eastern US", "Central America")
+
+    test("CardsBuilder should create an objectives deck (objectives should be valid)"):
+        objectivesDeck should not be empty
+        val conquerContinents = objectivesDeck.collect: 
+            case obj: ObjectiveCard.ConquerContinents => obj 
+        conquerContinents should not be empty
+
+        val conquerNContinents = objectivesDeck.collect:
+            case obj: ObjectiveCard.ConquerNContinents => obj
+        conquerNContinents should not be empty
+
+        val conquerTerritories = objectivesDeck.collect:
+            case obj: ObjectiveCard.ConquerTerritories => obj
+        conquerTerritories should not be empty
+
+        val defeatPlayers = objectivesDeck.collect:
+            case obj: ObjectiveCard.DefeatPlayer => obj
+        defeatPlayers should not be empty
