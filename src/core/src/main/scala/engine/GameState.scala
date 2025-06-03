@@ -27,10 +27,9 @@ case class GameState(
     def updateBoard(newBoard: Board): GameState = copy(board = newBoard)
 
     def updateTurnManager(newTurnManager: TurnManager): GameState = copy(turnManager = newTurnManager)
-/*  
+ 
     def checkWinCondition: Option[PlayerState] =
         playerStates.find(player => player.objectiveCard.exists(
-            obj => ObjectiveValidator.isCompleted(obj, this, player)
+            obj => ObjectiveValidator.done(obj, this, player)
             )).map(_.playerId).flatMap(
                 id => playerStates.find(_.playerId == id))
-*/
