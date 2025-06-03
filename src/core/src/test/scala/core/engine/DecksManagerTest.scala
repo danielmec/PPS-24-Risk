@@ -7,40 +7,58 @@ import model.cards._
 import engine.DecksManager
 import engine.DecksManagerImpl
 import exceptions._
+import model.player.PlayerColor
 
-class DecksManagerTest extends AnyFunSuite with Matchers {
+class DecksManagerTest extends AnyFunSuite with Matchers:
 
     // Setting territories with no neighbors, no owner and no troop
     val t1 = Territory("Northern Europe", Set(), None, 0)
     val t2 = Territory("Eastern Europe", Set(), None, 0)
+    val c1 = Continent("Europe", Set(t1, t2), 5)
     
-    // Setting cards with territories
-    val card1 = TerritoryCard(t1, CardImg.Infantry)  
-    val card2 = TerritoryCard(t2, CardImg.Cavalry)   
+    // Setting cards with territories and objectives
+    val tCard1 = TerritoryCard(t1, CardImg.Infantry)  
+    val tCard2 = TerritoryCard(t2, CardImg.Cavalry)
+    val oCard1 = ObjectiveCard.ConquerContinents(Set(c1))
+    val oCard2 = ObjectiveCard.ConquerNContinents(1)
+    val oCard3 = ObjectiveCard.ConquerTerritories(3, 2)
+    val oCard4 = ObjectiveCard.DefeatPlayer(PlayerColor.Green)
     
     val emptyDecksManager = DecksManagerImpl(List(), List())
-    val decksManager = DecksManagerImpl(
-        territories = List(card1, card2),
+
+    val tDecksManager = DecksManagerImpl(
+        territories = List(tCard1, tCard2), // deck with 2 territories
         objectives = List())
+
+    val oDecksManager = DecksManagerImpl(
+        territories = List(),
+        objectives = List(oCard1, oCard2, oCard3, oCard4) // deck with 4 objectives
+    )
     
-    test("DecksManager should throw an exception if territories deck is empty") {
-        assertThrows[NoTerritoriesCardsException] {
+    test("DecksManager should throw an exception if territories deck is empty"):
+        assertThrows[NoTerritoriesCardsException]:
             emptyDecksManager.drawTerritory()
-        }
-    }
-
-    test("DecksManager should throw an exception if objectives deck is empty") {
-        assertThrows[NoObjectivesCardsException] {
+        
+    test("DecksManager should throw an exception if objectives deck is empty"):
+        assertThrows[NoObjectivesCardsException]:
             emptyDecksManager.drawObjective()
-        }
-    }
-    
-    test("DecksManager should return a card when drawing from non-empty deck") {
-        val (newManager, drawnCard) = decksManager.drawTerritory()
-        drawnCard should be (card1)
-    }
-}
+        
+    test("DecksManager should return a card when drawing from non-empty deck"):
+        val (newManager1, tDrawnCard) = tDecksManager.drawTerritory()
+        val (newManager2, oDrawnCard) = oDecksManager.drawObjective()
+        tDrawnCard should be (tCard1)
+        oDrawnCard should be (oCard1)
 
+    test("DecksManager should update decks when drawing cards"):
+        val (newManager1, _) = tDecksManager.drawTerritory()
+        val (newManager2, _) = oDecksManager.drawObjective()
+        newManager1.getRemainingTerritoriesCards should be (List(tCard2))
+        newManager1.getRemainingTerritoriesCards.size should be (1)
+        newManager2.getRemainingObjectiveCards should be (List(oCard2, oCard3, oCard4))
+        newManager2.getRemainingObjectiveCards.size should be (3)
 
-
-
+    test("DecksManager should keep the same amount of cards after shuffling"):
+        val newManager1 = tDecksManager.shuffleTerritoriesDeck()
+        val newManager2 = oDecksManager.shuffleObjectivesDeck()
+        newManager1.getRemainingTerritoriesCards.size should be (2)
+        newManager2.getRemainingObjectiveCards.size should be (4)
