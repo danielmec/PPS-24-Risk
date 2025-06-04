@@ -21,8 +21,10 @@ object GameManager:
     case class ForwardToGame(gameId: String, message: Message) extends Command
     case class PlayerDisconnected(player: ActorRef) extends Command
     case class RegisterClient (client: ActorRef) extends Command
+
     //Factory method per creare un'istanza di GameManager
     def props: Props = Props(new GameManager())
+    // Props è una configurazione Akka per creare un attore
 
     //Caso vuoto, utilizzato per inizializzare lo stato del GameManager
     private case object Empty

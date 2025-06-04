@@ -22,9 +22,12 @@ object RisikoServer:
     val host = "localhost"
     val port = 8080
    
+    //crea un nuovo attore e lo  registra nell'ActorSystem
     val gameManager = system.actorOf(GameManager.props, "game-Manager")
-
+    //GameManager.props fornisce la configurazione per creare l'attore GameManager
     
+
+    //Istanza di tipo Flow creato una volta sola e riutilizzato per tutte le connessioni WebSocket
     val webSocketHandler = WebSocketHandler(gameManager)
 
     // Definisce le route per il server
@@ -39,6 +42,8 @@ object RisikoServer:
         },
         
         path("ws"){
+          //utilizza il flow predefinito in precedenza 
+          //per creare una nuova pipeline con sink e source nuovi per il client specifico
           handleWebSocketMessages(webSocketHandler)
         },
         // API REST per la gestione del gioco

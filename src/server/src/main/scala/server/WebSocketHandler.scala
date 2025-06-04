@@ -17,10 +17,10 @@ object WebSocketHandler:
   case class OutgoingConnection(client: ActorRef)
   
   
-    //Creata quando il client si connette al WebSocket tramite route ws
+    //Creata un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
 
-    // Crea un nuovo attore ConnectionActor per gestire questa connessione 
+    // definisce come gestire le connessioni WebSocket
     val handler = system.actorOf(Props(new ConnectionActor(gameManager)))
     
     // Gestisce i messaggi in ingresso dal client
@@ -63,7 +63,7 @@ object WebSocketHandler:
           case Failure(ex) => sendError(s"Errore di parsing: ${ex.getMessage}")
         }
         
-      // Gestisce messaggi dal server da inviare al client
+      // Gestisce messaggi dal server GameSession da inviare al client
       case msg: protocol.ServerMessages.Error =>
         sendJson(s"""{"type":"error","message":"${msg.message}"}""")
         
@@ -82,18 +82,60 @@ object WebSocketHandler:
     private def handleClientMessage(msg: ProtocolMessage): Unit =
       msg match {
         case protocol.ClientMessages.CreateGame(name, maxPlayers) =>
+          println(s"Inoltro richiesta creazione partita: $name ($maxPlayers giocatori)")
           gameManager ! GameManager.CreateGameSession(name, maxPlayers, self)
           
+        case protocol.ClientMessages.JoinGame(gameId) if gameId.isEmpty =>
+          // Caso speciale: join alla lobby generale
+          println("Inoltro richiesta join lobby")
+          sendJson(s"""{"type":"lobbyJoined","message":"Benvenuto nella lobby!"}""")
+          // Registra il client nel GameManager per ricevere notifiche sulle partite disponibili
+          gameManager ! GameManager.RegisterClient(self)
+          
         case protocol.ClientMessages.JoinGame(gameId) =>
+          println(s"Inoltro richiesta join partita: $gameId")
           gameManager ! GameManager.JoinGameSession(gameId, self)
           
-        case _ => // altri messaggi per ora ignorati
+        case _ => 
+          println(s"Messaggio non gestito: $msg")
+          sendError(s"Tipo di messaggio non supportato")
       }
     
-    // Parser semplificato (solo per esempio)
-    private def parseMessage(text: String): Try[ProtocolMessage] =
-      if text.contains("createGame")
-        then Try(protocol.ClientMessages.CreateGame("Test Game", 4))
-        else Failure(new Exception("Messaggio non riconosciuto"))
+    
+    private def parseMessage(text: String): Try[ProtocolMessage] = Try {
+      
+      if text.contains("createGame") then
+        // Estrazione dei parametri
+        val namePattern = "\"gameName\"\\s*:\\s*\"([^\"]+)\"".r
+        val playersPattern = "\"maxPlayers\"\\s*:\\s*(\\d+)".r
+        
+        val gameName = namePattern.findFirstMatchIn(text)
+          .map(_.group(1))
+          .getOrElse("Nuova Partita")
+        
+        val maxPlayers = playersPattern.findFirstMatchIn(text)
+          .map(_.group(1).toInt)
+          .getOrElse(4)
+        
+        protocol.ClientMessages.CreateGame(gameName, maxPlayers)
+    
+      // Per joinGame o JOIN_LOBBY
+      else if text.contains("joinGame") || text.contains("JOIN_LOBBY") then
+        // Se è JOIN_LOBBY o manca gameId, considera come accesso alla sala delle lobby
+        if text.contains("JOIN_LOBBY") || !text.contains("gameId") then
+          // Usa "" come ID speciale per indicare la lobby generale
+          protocol.ClientMessages.JoinGame("")
+        else
+          // Estrai l'ID della partita
+          val gameIdPattern = "\"gameId\"\\s*:\\s*\"([^\"]+)\"".r
+          val gameId = gameIdPattern.findFirstMatchIn(text)
+            .map(_.group(1))
+            .getOrElse("")
+        
+          protocol.ClientMessages.JoinGame(gameId)
+    
+      else
+        throw new Exception("Messaggio non riconosciuto")
+    }
 
 end WebSocketHandler
