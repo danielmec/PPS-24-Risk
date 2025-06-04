@@ -5,7 +5,7 @@ import model.cards.*
 import model.player.*
 import model.board.*
 
-class ObjectiveValidatorTest extends AnyFunSuite {
+class ObjectiveValidatorTest extends AnyFunSuite :
 
   val player = PlayerImpl("1", "Alice", PlayerColor.Red, PlayerType.Human)
   val playerState = PlayerState(player, Set.empty, None)
@@ -26,32 +26,26 @@ class ObjectiveValidatorTest extends AnyFunSuite {
     decksManager = null
   )
 
-  test("ConquerTerritories: true se il giocatore possiede abbastanza territori con truppe sufficienti") {
+  test("ConquerTerritories: true se il giocatore possiede abbastanza territori con truppe sufficienti"):
     val obj = ObjectiveCard.ConquerTerritories(2, 2)
     assert(ObjectiveValidator.done(obj, gameState, playerState))
-  }
 
-  test("ConquerContinents: true se il giocatore possiede tutti i territori del continente") {
+  test("ConquerContinents: true se il giocatore possiede tutti i territori del continente"):
     val obj = ObjectiveCard.ConquerContinents(Set(continent))
     assert(ObjectiveValidator.done(obj, gameState, playerState))
-  }
 
-  test("DefeatPlayer: true se il giocatore target non possiede territori") {
+  test("DefeatPlayer: true se il giocatore target non possiede territori"):
     val obj = ObjectiveCard.DefeatPlayer(PlayerColor.Blue)
     val boardNoBlue = board.copy(continents = board.continents.map(c =>
       c.copy(territories = c.territories.map(t => t.copy(owner = Some(player))))
     ))
     val gameStateNoBlue = gameState.copy(board = boardNoBlue)
     assert(ObjectiveValidator.done(obj, gameStateNoBlue, playerState))
-  }
 
-  test("ConquerNContinents: true se il giocatore possiede abbastanza continenti") {
+  test("ConquerNContinents: true se il giocatore possiede abbastanza continenti"):
     val obj = ObjectiveCard.ConquerNContinents(1)
     assert(ObjectiveValidator.done(obj, gameState, playerState))
-  }
 
-  test("ConquerTerritories: false se non possiede abbastanza territori") {
+  test("ConquerTerritories: false se non possiede abbastanza territori"):
     val obj = ObjectiveCard.ConquerTerritories(3, 2)
     assert(!ObjectiveValidator.done(obj, gameState, playerState))
-  }
-}
