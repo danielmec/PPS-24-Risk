@@ -6,7 +6,7 @@ import scala.util.{Success, Failure}
 import scala.io.StdIn
 
 /**
- * Punto di ingresso dell'applicazione client Risiko
+ * Punto di ingresso dell'applicazione client Risiko -- TEST
  */
 object ClientApp:
   def main(args: Array[String]): Unit =

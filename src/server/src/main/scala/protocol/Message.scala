@@ -49,6 +49,10 @@ object ServerMessages:
         players: List[String]
     ) extends Message
 
+    case class LobbyJoined(
+        message: String
+    ) extends Message
+
     case class GameState(
         gameId: String,
         players: List[String],

@@ -8,6 +8,9 @@ import akka.NotUsed
 import scala.util.{Success, Failure, Try}
 import protocol.{Message => ProtocolMessage}
 
+import spray.json._
+import protocol.JsonSupport._
+
 /**
  * Gestisce la comunicazione WebSocket tra client e server
  */
@@ -17,7 +20,7 @@ object WebSocketHandler:
   case class OutgoingConnection(client: ActorRef)
   
   
-    //Creata un flow di base o generica (Template)
+    //Crea un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
 
     // definisce come gestire le connessioni WebSocket
@@ -58,25 +61,32 @@ object WebSocketHandler:
         
       // Gestisce messaggi in arrivo dal client
       case IncomingMessage(text) =>
-        parseMessage(text) match {
+        parseJsonMessage(text) match {
           case Success(msg) => handleClientMessage(msg)
           case Failure(ex) => sendError(s"Errore di parsing: ${ex.getMessage}")
         }
         
       // Gestisce messaggi dal server GameSession da inviare al client
       case msg: protocol.ServerMessages.Error =>
-        sendJson(s"""{"type":"error","message":"${msg.message}"}""")
+       sendProtocolMessage(msg)
+        
+      case msg: ProtocolMessage =>
+        val jsonString = messageToJson(msg).toString()
+        clientConnection.foreach(_ ! TextMessage(jsonString))
         
       case _ => // ignora altri messaggi per ora
     }
     
-    // Invia un messaggio di errore al client
-    private def sendError(message: String): Unit =
-      sendJson(s"""{"type":"error","message":"$message"}""")
+    // Metodo unificato per inviare messaggi di protocollo
+    private def sendProtocolMessage(msg: ProtocolMessage): Unit =
+      val jsonString = messageToJson(msg).toString()
+      //.foreach significa che se il client è definito[option], invia il messaggio
+      clientConnection.foreach(_ ! TextMessage(jsonString))
     
-    // Invia JSON al client
-    private def sendJson(json: String): Unit =
-      clientConnection.foreach(_ ! TextMessage(json)) // ! send a TextMessage
+    // Invia un messaggio di errore al client (versione aggiornata)
+    private def sendError(message: String): Unit =
+      val errorMsg = protocol.ServerMessages.Error(message)
+      sendProtocolMessage(errorMsg)
     
     // Gestisce i messaggi del client
     private def handleClientMessage(msg: ProtocolMessage): Unit =
@@ -88,8 +98,11 @@ object WebSocketHandler:
         case protocol.ClientMessages.JoinGame(gameId) if gameId.isEmpty =>
           // Caso speciale: join alla lobby generale
           println("Inoltro richiesta join lobby")
-          sendJson(s"""{"type":"lobbyJoined","message":"Benvenuto nella lobby!"}""")
-          // Registra il client nel GameManager per ricevere notifiche sulle partite disponibili
+         
+          val lobbyMessage = protocol.ServerMessages.LobbyJoined("Benvenuto nella sala d'attesa!")
+          sendProtocolMessage(lobbyMessage)
+          
+          // Registra il client nel GameManager per ricevere notifiche
           gameManager ! GameManager.RegisterClient(self)
           
         case protocol.ClientMessages.JoinGame(gameId) =>
@@ -98,44 +111,15 @@ object WebSocketHandler:
           
         case _ => 
           println(s"Messaggio non gestito: $msg")
-          sendError(s"Tipo di messaggio non supportato")
+          // Usa un oggetto di protocollo per l'errore
+          val errorMessage = protocol.ServerMessages.Error("UNSUPPORTED")
+          sendProtocolMessage(errorMessage)
       }
     
     
-    private def parseMessage(text: String): Try[ProtocolMessage] = Try {
+    private def parseJsonMessage(text: String): Try[ProtocolMessage] = Try {
       
-      if text.contains("createGame") then
-        // Estrazione dei parametri
-        val namePattern = "\"gameName\"\\s*:\\s*\"([^\"]+)\"".r
-        val playersPattern = "\"maxPlayers\"\\s*:\\s*(\\d+)".r
-        
-        val gameName = namePattern.findFirstMatchIn(text)
-          .map(_.group(1))
-          .getOrElse("Nuova Partita")
-        
-        val maxPlayers = playersPattern.findFirstMatchIn(text)
-          .map(_.group(1).toInt)
-          .getOrElse(4)
-        
-        protocol.ClientMessages.CreateGame(gameName, maxPlayers)
-    
-      // Per joinGame o JOIN_LOBBY
-      else if text.contains("joinGame") || text.contains("JOIN_LOBBY") then
-        // Se è JOIN_LOBBY o manca gameId, considera come accesso alla sala delle lobby
-        if text.contains("JOIN_LOBBY") || !text.contains("gameId") then
-          // Usa "" come ID speciale per indicare la lobby generale
-          protocol.ClientMessages.JoinGame("")
-        else
-          // Estrai l'ID della partita
-          val gameIdPattern = "\"gameId\"\\s*:\\s*\"([^\"]+)\"".r
-          val gameId = gameIdPattern.findFirstMatchIn(text)
-            .map(_.group(1))
-            .getOrElse("")
-        
-          protocol.ClientMessages.JoinGame(gameId)
-    
-      else
-        throw new Exception("Messaggio non riconosciuto")
+      text.parseJson.convertTo[ProtocolMessage]
     }
 
 end WebSocketHandler

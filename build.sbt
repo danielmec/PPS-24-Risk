@@ -14,6 +14,7 @@ lazy val client = (project in file("src/client"))
     "org.scalafx" %% "scalafx" % "20.0.0-R31",
     "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
     "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
+     "io.spray" %% "spray-json" % "1.3.6",
     "com.typesafe.akka" %% "akka-http" % "10.5.3",
   )
 )
@@ -25,6 +26,7 @@ lazy val server = (project in file("src/server"))
       "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
       "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
       "com.typesafe.akka" %% "akka-http" % "10.5.3",
+      "io.spray" %% "spray-json" % "1.3.6",
       "org.scalatest" %% "scalatest" % "3.2.16" % Test
     )
   )
