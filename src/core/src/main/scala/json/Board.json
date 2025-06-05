@@ -8,7 +8,7 @@
         { "name": "Eastern US", "neighbors": ["Western US", "Northern Europe"] },
         { "name": "Central America", "neighbors": ["Western US", "South America"] }
       ],
-      "bonusTroops": 4
+      "bonusTroops": 5
     },
     {
       "name": "South America",
@@ -27,7 +27,7 @@
         { "name": "Southern Europe", "neighbors": ["Western Europe", "Eastern Europe", "Middle East", "North Africa"] },
         { "name": "Eastern Europe", "neighbors": ["Northern Europe", "Southern Europe", "Middle East", "Asia"] }
       ],
-      "bonusTroops": 4
+      "bonusTroops": 5
     },
     {
       "name": "Africa",
@@ -49,10 +49,10 @@
         { "name": "Japan", "neighbors": ["China", "Asia"] },
         { "name": "Asia", "neighbors": ["Alaska", "Eastern Europe", "Central Asia", "Japan"] }
       ],
-      "bonusTroops": 5
+      "bonusTroops": 7
     },
     {
-      "name": "Australia",
+      "name": "Oceania",
       "territories": [
         { "name": "Southeast Asia", "neighbors": ["India", "China", "Indonesia"] },
         { "name": "Indonesia", "neighbors": ["Southeast Asia", "Australia"] },

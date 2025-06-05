@@ -24,9 +24,9 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
 
     test("CardsBuilder should get continents from JSON file, with correct parameters"):
         continents should have size 6
-        cNames should contain allOf("North America", "South America", "Europe", "Africa", "Asia", "Australia")
+        cNames should contain allOf("North America", "South America", "Europe", "Africa", "Asia", "Oceania")
         val europe = continents.find(_.name == "Europe").get
-        europe.bonusTroops should be (4)
+        europe.bonusTroops should be (5)
 
     test("CardsBuilder should get territories from JSON file, with correct parameters"):
         territories should have size 24
