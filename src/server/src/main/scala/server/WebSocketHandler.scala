@@ -79,9 +79,19 @@ object WebSocketHandler:
     
     // Metodo unificato per inviare messaggi di protocollo
     private def sendProtocolMessage(msg: ProtocolMessage): Unit =
-      val jsonString = messageToJson(msg).toString()
-      //.foreach significa che se il client è definito[option], invia il messaggio
-      clientConnection.foreach(_ ! TextMessage(jsonString))
+      try {
+        val jsonValue = messageToJson(msg)
+        val jsonString = jsonValue.toString
+        println(s"[DEBUG]  Invio messaggio: $jsonString")
+        clientConnection.foreach { conn => 
+          conn ! TextMessage(jsonString)
+          println(s"[DEBUG] Messaggio inviato al client")
+        }
+      } catch {
+        case ex: Exception =>
+          println(s"[ERRORE] Impossibile inviare messaggio: ${ex.getMessage}")
+          ex.printStackTrace()
+      }
     
     // Invia un messaggio di errore al client (versione aggiornata)
     private def sendError(message: String): Unit =

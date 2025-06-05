@@ -19,14 +19,14 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val errorFormat: RootJsonFormat[ServerMessages.Error] = jsonFormat1(ServerMessages.Error)
   implicit val lobbyJoinedFormat: RootJsonFormat[ServerMessages.LobbyJoined] = jsonFormat1(ServerMessages.LobbyJoined)
 
-  // Lettura di messaggi client generici (con discriminator)
+  // Lettura di messaggi client generici 
   implicit object ClientMessageJsonFormat extends RootJsonReader[ProtocolMessage]:
     def read(json: JsValue): ProtocolMessage =
       val fields = json.asJsObject.fields
       
       fields.get("type") match
         case Some(JsString("createGame")) => 
-          // Estrai nome e max giocatori
+          
           val name = fields.getOrElse("gameName", JsString("Nuova Partita")).convertTo[String]
           val maxPlayers = fields.getOrElse("maxPlayers", JsNumber(4)).convertTo[Int]
           ClientMessages.CreateGame(name, maxPlayers)
@@ -86,7 +86,7 @@ object JsonSupport extends DefaultJsonProtocol:
   
   // Conversione implicita per permettere l'uso di toJson e convertTo
   implicit def messageToJson(msg: ProtocolMessage): JsValue = ServerMessageJsonFormat.write(msg)
-  implicit def jsonToMessage(json: JsValue): ProtocolMessage = ClientMessageJsonFormat.read(json)
+  //implicit def jsonToMessage(json: JsValue): ProtocolMessage = ClientMessageJsonFormat.read(json)
 
 end JsonSupport
 

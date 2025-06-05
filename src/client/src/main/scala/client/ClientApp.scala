@@ -4,6 +4,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Success, Failure}
 import scala.io.StdIn
+import spray.json._
+import ClientJsonSupport._
 
 /**
  * Punto di ingresso dell'applicazione client Risiko -- TEST
@@ -59,8 +61,11 @@ object ClientApp:
     client.connectWebSocket().onComplete {
       case Success(true) => 
         println("Connessione WebSocket stabilita con successo")
-        // Test: invia un messaggio dopo la connessione
-        val testMessage = """{"type": "JOIN_LOBBY"}"""
+        
+        // Usa ClientJsonSupport per creare il messaggio JSON
+        val joinLobbyMsg = JoinLobbyMessage()
+        val testMessage = toJson(joinLobbyMsg).toString
+        
         client.sendWebSocketMessage(testMessage).foreach { sent =>
           if (sent) println(s"Messaggio di test inviato: $testMessage")
           else println("Impossibile inviare il messaggio di test")

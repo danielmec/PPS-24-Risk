@@ -10,6 +10,8 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.NotUsed
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Success, Failure, Try}
+import client.ClientJsonSupport._
+
 
 /**
  * Gestore delle comunicazioni di rete per il client Risiko
@@ -84,6 +86,30 @@ class ClientNetworkManager:
           message match {
             case TextMessage.Strict(text) =>
               println(s"Messaggio ricevuto: $text")
+              
+              // Usa ClientJsonSupport per processare il messaggio
+              val parsedMessage = ClientJsonSupport.fromJson(text)
+              parsedMessage match {
+                case LobbyJoinedMessage(message) =>
+                  println(s"Sei entrato nella lobby! $message")
+                
+                case ErrorMessage(message) =>
+                  println(s" Errore: $message")
+                
+                case GameCreatedMessage(gameId, gameName, creatorId) =>
+                  println(s" Partita creata: '$gameName' (ID: $gameId)")
+                
+                case PlayerJoinedMessage(gameId, playerId) =>
+                  println(s" Il giocatore $playerId è entrato nella partita $gameId")
+                
+                case GameJoinedMessage(gameId, players) =>
+                  println(s" Sei entrato nella partita $gameId con ${players.size} giocatori")
+                  println(s"   Giocatori: ${players.mkString(", ")}")
+                
+                case _ =>
+                  println(s"Messaggio di tipo sconosciuto: $text")
+              }
+              
             case TextMessage.Streamed(textStream) =>
               textStream.runFold("")(_ + _).foreach { text =>
                 println(s"Messaggio streamed ricevuto: $text")
