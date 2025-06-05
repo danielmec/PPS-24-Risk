@@ -6,7 +6,7 @@ import scala.io.Source
 import scala.util.{Try, Success, Failure}
 import scala.util.Random
 import scala.io.Source
-import play.api.libs.json._  
+import play.api.libs.json._
 
 object CardsBuilder:
     

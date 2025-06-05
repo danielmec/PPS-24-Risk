@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import model.cards.*
 import model.player.*
 import model.board.*
+import engine.*
 
 class ObjectiveValidatorTest extends AnyFunSuite :
 
@@ -15,8 +16,8 @@ class ObjectiveValidatorTest extends AnyFunSuite :
   val territory1 = Territory("T1", Set.empty, Some(player), 3)
   val territory2 = Territory("T2", Set.empty, Some(player), 2)
   val territory3 = Territory("T3", Set.empty, Some(otherPlayer), 1)
-  val continent = Continent("Europe", Set(territory1, territory2))
-  val board = Board("game1", Set(continent.copy(territories = Set(territory1, territory2)), Continent("Asia", Set(territory3))))
+  val continent = Continent("Europe", Set(territory1, territory2), 5)
+  val board = Board("game1", Set(continent.copy(territories = Set(territory1, territory2)), Continent("Asia", Set(territory3), 7)))
 
   val gameState = GameState(
     gameId = "game1",

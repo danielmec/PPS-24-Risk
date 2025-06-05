@@ -3,6 +3,7 @@ package core.engine
 import org.scalatest.funsuite.AnyFunSuite
 import model.player.PlayerColor
 import model.board.Continent
+import model.cards.ObjectiveCard
 
 class ObjectiveCardTest extends AnyFunSuite:
 
@@ -11,7 +12,10 @@ class ObjectiveCardTest extends AnyFunSuite:
     assert(obj.description == "Conquer 5 territories with at least 2 troops each.")
 
   test("ConquerContinents description is correct"):
-    val continents = Set(Continent("Europe", Set.empty), Continent("Asia", Set.empty))
+    val continents = Set(
+      Continent("Europe", Set.empty, 0),
+      Continent("Asia", Set.empty, 0)
+    )
     val obj = ObjectiveCard.ConquerContinents(continents)
     assert(obj.description.contains("Europe"))
     assert(obj.description.contains("Asia"))

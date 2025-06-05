@@ -3,6 +3,7 @@ package core.engine
 import org.scalatest.funsuite.AnyFunSuite
 import model.player.*
 import model.cards.*
+import engine.*
 
 class TurnManagerTest extends AnyFunSuite:
 
