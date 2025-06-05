@@ -17,8 +17,8 @@ class ObjectiveValidatorTest extends AnyFunSuite :
   val (continents, territoriesMap) = CardsBuilder.createBoard()
   val allTerritories = territoriesMap.values.toList
   val half = allTerritories.size / 2
-  val player1Territories = allTerritories.take(half).map(_.copy(owner = Some(player)))
-  val player2Territories = allTerritories.drop(half).map(_.copy(owner = Some(otherPlayer)))
+  val player1Territories = allTerritories.take(half).map(_.copy(owner = Some(player), troops = 1))
+  val player2Territories = allTerritories.drop(half).map(_.copy(owner = Some(otherPlayer), troops = 1))
   val updatedTerritories = (player1Territories ++ player2Territories).toSet
 
   val updatedContinents = continents.map: continent =>
@@ -33,15 +33,6 @@ class ObjectiveValidatorTest extends AnyFunSuite :
     decksManager = null
   )
 
-  test("ConquerTerritories: true se il giocatore possiede abbastanza territori con truppe sufficienti"):
-    val obj = ObjectiveCard.ConquerTerritories(player1Territories.size, 1)
-    assert(ObjectiveValidator.done(obj, gameState, playerState))
-
-  test("ConquerContinents: true se il giocatore possiede tutti i territori di almeno un continente"):
-    val ownedContinent = updatedContinents.find(c => c.territories.forall(_.owner.contains(player))).get
-    val obj = ObjectiveCard.ConquerContinents(Set(ownedContinent))
-    assert(ObjectiveValidator.done(obj, gameState, playerState))
-
   test("DefeatPlayer: true se il giocatore target non possiede territori"):
     val obj = ObjectiveCard.DefeatPlayer(PlayerColor.Blue)
     val boardNoBlue = board.copy(continents = board.continents.map(c =>
@@ -49,10 +40,31 @@ class ObjectiveValidatorTest extends AnyFunSuite :
     val gameStateNoBlue = gameState.copy(board = boardNoBlue)
     assert(ObjectiveValidator.done(obj, gameStateNoBlue, playerState))
 
+  test("ConquerContinents: true se il giocatore possiede tutti i territori di almeno un continente"):
+    val (gs, ownedContinent) = gameStateWithPlayerOwningAContinent
+    val obj = ObjectiveCard.ConquerContinents(Set(ownedContinent))
+    assert(ObjectiveValidator.done(obj, gs, playerState))
+
   test("ConquerNContinents: true se il giocatore possiede abbastanza continenti"):
+    val (gs, _) = gameStateWithPlayerOwningAContinent
     val obj = ObjectiveCard.ConquerNContinents(1)
+    assert(ObjectiveValidator.done(obj, gs, playerState))
+
+  test("ConquerTerritories: true se il giocatore possiede abbastanza territori con truppe sufficienti"):
+    val obj = ObjectiveCard.ConquerTerritories(player1Territories.size, 1)
     assert(ObjectiveValidator.done(obj, gameState, playerState))
 
   test("ConquerTerritories: false se non possiede abbastanza territori"):
     val obj = ObjectiveCard.ConquerTerritories(3, 2)
     assert(!ObjectiveValidator.done(obj, gameState, playerState))
+
+  test("Tutti i territori devono essere unici per nome nel tabellone"):
+    assert(board.territories.groupBy(_.name).forall(_._2.size == 1))
+
+  def gameStateWithPlayerOwningAContinent: (GameState, Continent) =
+    val continentToOwn = updatedContinents.head
+    val ownedTerritories = continentToOwn.territories.map(_.copy(owner = Some(player), troops = 1))
+    val updatedContinent = continentToOwn.copy(territories = ownedTerritories)
+    val updatedContinentsWithOneOwned = updatedContinents - continentToOwn + updatedContinent
+    val boardWithOwnedContinent = Board("game1", updatedContinentsWithOneOwned)
+    (gameState.copy(board = boardWithOwnedContinent), updatedContinent)
