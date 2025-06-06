@@ -1,50 +1,33 @@
 package bot
 
-import strategy.{Strategy, RandomStrategy, AggressiveStrategy, DefensiveStrategy}
+import strategy.{Strategy, AggressiveStrategy, DefensiveStrategy}
 import scala.util.Random
 
-//crea diversi bot con diverse configurazioni
 object BotFactory:
-  val random = new Random()
+  private val random = new Random()
 
-  //genera un ID casuale di 8 caratteri esadecimali per decidere il nome del bot
+  //genera un ID casuale di 8 caratteri alfanumerici randomici
   private def generateId(): String =
     random.alphanumeric.take(8).mkString
 
-  //crea il bot in base alla configurazione passata
-  def createBot(config: BotConfig): BotPlayer =
-    BotPlayer(
-      id = generateId(),
-      currentStrategy = config.strategy,
-      name = config.name
-    )
+  //determina la strategia iniziale in base al livello di difficoltà
+  private def determineInitialStrategy(difficultyLevel: Int): Strategy =
+    difficultyLevel match
+      case 1 => new DefensiveStrategy()
+      case 2 => new AggressiveStrategy()
 
-  //metodo di prova con la random strategy (da cancellare insieme alla random strategy)
+  //crea un bot con configurazione casuale
   def createRandomBot(): BotPlayer =
-    val config = BotConfig.randomConfig(
-      strategy = new RandomStrategy(),
-      name = "RandomBot"
-    )
+    val difficultyLevel = random.nextInt(2) + 1  //genera il livello di difficoltà tra 1 e 2 randomicamente
+    val strategy = determineInitialStrategy(difficultyLevel)
+    val config = BotConfig(strategy, "RandomBot", difficultyLevel)
     createBot(config)
 
-  //crea un bot con strategia aggressiva
-  def createAggressiveBot(): BotPlayer =
-    val config = BotConfig(
-      strategy = new AggressiveStrategy(),
-      name = "AggressiveBot",
-      difficultyLevel = 2,
-      aggressiveness = 0.8
-    )
-    createBot(config)
-
-
-  //crea un bot con strategia difensiva
-  def createDefensiveBot(): BotPlayer =
-    val config = BotConfig(
-      strategy = new DefensiveStrategy(),
-      name = "DefensiveBot",
-      difficultyLevel = 2,
-      aggressiveness = 0.2
-    )
-    createBot(config)
-
+  //crea un bot con configurazione specifica
+  def createBot(config: BotConfig): BotPlayer =
+    val id = generateId()
+    BotPlayer(
+      id = id,
+      currentStrategy = config.strategy,
+      name = s"Bot-$id"
+)
