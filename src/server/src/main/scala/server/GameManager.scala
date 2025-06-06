@@ -20,7 +20,7 @@ object GameManager:
     case class GetAllGames(replyTo: ActorRef) extends Command
     case class ForwardToGame(gameId: String, message: Message) extends Command
     case class PlayerDisconnected(player: ActorRef) extends Command
-    case class RegisterClient (client: ActorRef) extends Command
+    case class RegisterClient(client: ActorRef) extends Command
 
     //Factory method per creare un'istanza di GameManager
     def props: Props = Props(new GameManager())
@@ -36,20 +36,28 @@ class GameManager extends Actor with ActorLogging:
     // metodo speciale chiamato quando l'attore viene avviato
     override def preStart(): Unit =
         log.info("GameManager started")
-        context.become(running(Map.empty, Map.empty)) 
-        //vengono passati due mappe vuote per inizializzare lo stato di games e playerToGame
+        context.become(running(Map.empty, Set.empty, Map.empty)) 
+        // Inizializza anche il set di client connessi vuoto
 
     def receive: Receive =
         case Empty => // caso dummy per inizializzare lo stato
             log.info("GameManager initialized with empty state") 
     
-    def running (
+    def running(
         games: Map[String, ActorRef],
+        connectedClients: Set[ActorRef],
         playerToGame: Map[ActorRef, String]
     ): Receive = 
+
+        case RegisterClient(client) =>
+            val updatedClients = connectedClients + client
+            println(s"Client ${client.path.name} registered. Total connected clients: ${updatedClients.size}")
+            log.warning(s"Client ${client.path.name} connected. Total connected clients: ${updatedClients.size}")
+            context.become(running(games, updatedClients, playerToGame))
+            
         case CreateGameSession(gameName, maxPlayers, creator) =>
             val gameId = UUID.randomUUID().toString() // crea ID randomico per la nuova partita
-            log.info(s"Creating game session: $gameName with ID: $gameId")
+            log.warning(s"Creating game session: $gameName with ID: $gameId")
 
             val gameSession = context.actorOf(
                 GameSession.props(gameId, gameName, maxPlayers),
@@ -66,18 +74,17 @@ class GameManager extends Actor with ActorLogging:
 
             gameSession ! GameSession.JoinGame(creator.path.name, creator)
 
-            context.become(running(updatedGames, updatedPlayerToGame))
+            context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
         case JoinGameSession(gameId, player) =>
             games.get(gameId) match 
-
                 case Some(gameSession) =>
-                    log.info(s"Player ${player.path.name} joining game session: $gameId")
+                    log.warning(s"Player ${player.path.name} joining game session: $gameId")
                     gameSession ! GameSession.JoinGame(player.path.name, player)
 
                     // Aggiorna la mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
-                    context.become(running(games, updatedPlayerToGame))
+                    context.become(running(games, connectedClients, updatedPlayerToGame))
                     
                 case None =>
                     // partita non trovata
@@ -93,15 +100,14 @@ class GameManager extends Actor with ActorLogging:
 
                     //Rimuove il giocatore dalla mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame - player
-                    context.become(running(games, updatedPlayerToGame))
+                    context.become(running(games, connectedClients, updatedPlayerToGame))
                     
                 case None =>
                     log.warning(s"Game session $gameId not found for player ${player.path.name}")
             
-
         case GetAllGames(replyTo) =>
             log.info("Sending all game sessions to the requester")
-            val gameList= games.keys.toList
+            val gameList = games.keys.toList
             replyTo ! gameList
 
         case ForwardToGame(gameId, message) =>
@@ -112,8 +118,11 @@ class GameManager extends Actor with ActorLogging:
                     log.warning(s"Forwarding failed: Game session $gameId not found")
                     sender() ! ServerMessages.Error(s"Game session $gameId not found")
             
-
         case PlayerDisconnected(player) =>
+            // Rimuove il client dal set di client connessi
+            val updatedClients = connectedClients - player
+            log.warning(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
+            println(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
             playerToGame.get(player) match 
                 case Some(gameId) =>
                     log.info(s"Player ${player.path.name} disconnected from game session: $gameId")
@@ -125,10 +134,11 @@ class GameManager extends Actor with ActorLogging:
                     
                     // Rimuove il giocatore dalla mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame - player
-                    context.become(running(games, updatedPlayerToGame))
+                    context.become(running(games, updatedClients, updatedPlayerToGame))
                 
                 case None =>
                     log.warning(s"Player ${player.path.name} not found in any game session")
+                    context.become(running(games, updatedClients, playerToGame))
 
 end GameManager
 
