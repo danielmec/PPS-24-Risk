@@ -51,8 +51,10 @@ class GameManager extends Actor with ActorLogging:
 
         case RegisterClient(client) =>
             val updatedClients = connectedClients + client
-            println(s"Client ${client.path.name} registered. Total connected clients: ${updatedClients.size}")
-            log.warning(s"Client ${client.path.name} connected. Total connected clients: ${updatedClients.size}")
+            println(s"Client ${client.path} registered. Current clients: ${connectedClients.map(_.path)}")
+            println(s"Updated clients: ${updatedClients.map(_.path)}")
+            println(s"Total connected clients: ${updatedClients.size}")
+            log.warning(s"Client ${client.path} connected. Total connected clients: ${updatedClients.size}")
             context.become(running(games, updatedClients, playerToGame))
             
         case CreateGameSession(gameName, maxPlayers, creator) =>

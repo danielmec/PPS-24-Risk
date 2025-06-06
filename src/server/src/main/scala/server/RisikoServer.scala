@@ -28,7 +28,7 @@ object RisikoServer:
     
 
     //Istanza di tipo Flow creato una volta sola e riutilizzato per tutte le connessioni WebSocket
-    val webSocketHandler = WebSocketHandler(gameManager)
+    //val webSocketHandler = WebSocketHandler(gameManager)
 
     // Definisce le route per il server
     val route =
@@ -42,9 +42,8 @@ object RisikoServer:
         },
         
         path("ws"){
-          //utilizza il flow predefinito in precedenza 
-          //per creare una nuova pipeline con sink e source nuovi per il client specifico
-          handleWebSocketMessages(webSocketHandler)
+          //utilizza nuovo flow per ogni client 
+          handleWebSocketMessages(WebSocketHandler(gameManager))
         },
         // API REST per la gestione del gioco
         pathPrefix("api") { //prefisso di percorso per avere sotto-percorsi

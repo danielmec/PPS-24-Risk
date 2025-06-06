@@ -22,9 +22,10 @@ object WebSocketHandler:
   
     //Crea un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
-
-    // definisce come gestire le connessioni WebSocket
-    val handler = system.actorOf(Props(new ConnectionActor(gameManager)))
+    
+    val connectionId = java.util.UUID.randomUUID().toString.take(8)
+    
+    val handler = system.actorOf(Props(new ConnectionActor(gameManager)), s"connection-$connectionId")
     
     // Gestisce i messaggi in ingresso dal client
     val incoming = Flow[Message]
