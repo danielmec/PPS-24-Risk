@@ -2,6 +2,7 @@ package client
 
 import spray.json._
 import DefaultJsonProtocol._
+import scalafx.scene.input.KeyCode.O
 
 /**
  * Fornisce supporto per serializzazione/deserializzazione dei messaggi JSON lato client
@@ -19,6 +20,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class ErrorMessage(message: String)
   case class LobbyJoinedMessage(message: String)
   case class GameJoinedMessage(gameId: String, players: List[String])
+  case class LoginResponse(playerId: String, message: Option[String] = None)
 
   // Formati per i messaggi in uscita
   implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat2(CreateGameMessage)
@@ -32,7 +34,8 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(ErrorMessage)
   implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(LobbyJoinedMessage)
   implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat2(GameJoinedMessage)
-  
+  implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse)
+
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
     case msg: CreateGameMessage => 
