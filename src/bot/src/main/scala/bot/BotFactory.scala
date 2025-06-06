@@ -1,39 +1,33 @@
 package bot
 
 import strategy.{Strategy, RandomStrategy, AggressiveStrategy, DefensiveStrategy}
-import java.util.UUID
+import scala.util.Random
 
-/**
- * Factory per la creazione di diversi tipi di bot
- */
+//crea diversi bot con diverse configurazioni
 object BotFactory:
-  /**
-   * Crea un bot con una configurazione specifica
-   * @param config configurazione del bot
-   * @return una nuova istanza di BotPlayer
-   */
-  def createBot(config: BotConfig): BotPlayer = 
+  val random = new Random()
+
+  //genera un ID casuale di 8 caratteri esadecimali per decidere il nome del bot
+  private def generateId(): String =
+    random.alphanumeric.take(8).mkString
+
+  //crea il bot in base alla configurazione passata
+  def createBot(config: BotConfig): BotPlayer =
     BotPlayer(
-      id = UUID.randomUUID().toString,
+      id = generateId(),
       currentStrategy = config.strategy,
       name = config.name
     )
-  
-  /**
-   * Crea un bot con strategia random
-   * @return una nuova istanza di BotPlayer con strategia random
-   */
+
+  //metodo di prova con la random strategy (da cancellare insieme alla random strategy)
   def createRandomBot(): BotPlayer =
     val config = BotConfig.randomConfig(
       strategy = new RandomStrategy(),
       name = "RandomBot"
     )
     createBot(config)
-  
-  /**
-   * Crea un bot con strategia aggressiva
-   * @return una nuova istanza di BotPlayer con strategia aggressiva
-   */
+
+  //crea un bot con strategia aggressiva
   def createAggressiveBot(): BotPlayer =
     val config = BotConfig(
       strategy = new AggressiveStrategy(),
@@ -42,11 +36,9 @@ object BotFactory:
       aggressiveness = 0.8
     )
     createBot(config)
-  
-  /**
-   * Crea un bot con strategia difensiva
-   * @return una nuova istanza di BotPlayer con strategia difensiva
-   */
+
+
+  //crea un bot con strategia difensiva
   def createDefensiveBot(): BotPlayer =
     val config = BotConfig(
       strategy = new DefensiveStrategy(),
