@@ -28,7 +28,7 @@ lazy val server = (project in file("src/server"))
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
       "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
-      "com.typesafe.akka" %% "akka-http" %,
+      "com.typesafe.akka" %% "akka-http" % "10.5.3",
       "io.spray" %% "spray-json" % "1.3.6",
       "org.scalatest" %% "scalatest" % "3.2.16" % Test
     )
