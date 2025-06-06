@@ -6,7 +6,7 @@ import bot.BotAction
 case class BotPlayer(
                       val id: String,
                       val strategy: Strategy,
-                      val name: String = s"Bot-$id"
+                      val name: String
                     ):
 
   val strategyManager = new StrategyManager() //crea il manager delle strategie
