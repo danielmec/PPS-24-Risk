@@ -1,0 +1,83 @@
+{
+  "objectives": {
+    "continents": [
+      {
+        "type": "ConquerContinents",
+        "continents": ["North America"]
+      },
+      {
+        "type": "ConquerContinents",
+        "continents": ["South America"]
+      },
+      {
+        "type": "ConquerContinents",
+        "continents": ["Europe"]
+      },
+      {
+        "type": "ConquerContinents",
+        "continents": ["Africa"]
+      },
+      {
+        "type": "ConquerContinents",
+        "continents": ["Asia"]
+      },
+      {
+        "type": "ConquerContinents",
+        "continents": ["Australia"]
+      }
+    ],
+    "nContinents": [
+      {
+        "type": "ConquerNContinents",
+        "count": 2
+      },
+      {
+        "type": "ConquerNContinents",
+        "count": 3
+      }
+    ],
+    "territories": [
+      {
+        "type": "ConquerTerritories",
+        "count": 6,
+        "minTroops": 2
+      },
+      {
+        "type": "ConquerTerritories",
+        "count": 8,
+        "minTroops": 1
+      },
+      {
+        "type": "ConquerTerritories",
+        "count": 12,
+        "minTroops": 1
+      }
+    ],
+    "defeat": [
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "Red"
+      },
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "Blue"
+      },
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "Green"
+      },
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "Yellow"
+      },
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "Black"
+      },
+      {
+        "type": "DefeatPlayer",
+        "playerColor": "White"
+      }
+    ]
+  }
+}

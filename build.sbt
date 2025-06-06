@@ -3,8 +3,11 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.3.6"
 lazy val core = (project in file("src/core"))
 .settings(
-  name := "RiskCore"
-
+  name := "RiskCore",
+  libraryDependencies ++= Seq(
+    "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+    "com.typesafe.play" %% "play-json" % "2.10.0-RC5"  
+  )
 )
 
 lazy val client = (project in file("src/client"))
@@ -25,7 +28,7 @@ lazy val server = (project in file("src/server"))
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
       "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
-      "com.typesafe.akka" %% "akka-http" % "10.5.3",
+      "com.typesafe.akka" %% "akka-http" %,
       "io.spray" %% "spray-json" % "1.3.6",
       "org.scalatest" %% "scalatest" % "3.2.16" % Test
     )
