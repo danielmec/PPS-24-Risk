@@ -9,9 +9,9 @@ import engine.*
 class GameStateTest extends AnyFunSuite:
 
   val player = PlayerImpl("1", "Alice", PlayerColor.Red, PlayerType.Human)
-  val playerState = PlayerState(player, Set.empty, None)
+  val playerState = PlayerState(player, Set.empty, None, TurnPhase.WaitingForTurn, 0)
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
-  val otherState = PlayerState(otherPlayer, Set.empty, None)
+  val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.WaitingForTurn, 0)
 
   val territory1 = Territory("T1", Set.empty, Some(player), 3)
   val territory2 = Territory("T2", Set.empty, Some(player), 2)

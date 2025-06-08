@@ -15,7 +15,7 @@ class GameEngine(
   private val objectiveDeck = CardsBuilder.createObjectivesDeck()
 
   private val playerStates: List[PlayerState] = players.map: p =>
-    PlayerState(p, Set.empty, None)
+    PlayerState(p, Set.empty, None, TurnPhase.WaitingForTurn, 0)
 
   private var turnManager: TurnManager = TurnManagerImpl(players)
   private var decksManager: DecksManager = DecksManagerImpl(territoryDeck, objectiveDeck)
@@ -116,7 +116,30 @@ class GameEngine(
               Left("Nessun attacco in sospeso o dati difensore non validi.")
 
         case GameAction.TradeCards(cards) =>
-          Right(gameState) // TODO
+          val currentPlayerId = gameState.turnManager.currentPlayer.id
+          val maybePlayerState = gameState.playerStates.find(_.playerId == currentPlayerId)
+          maybePlayerState match
+            case Some(playerState) =>
+              if (cards.size != 3)
+                Left("Devi scambiare esattamente 3 carte territorio.")
+              else if (!cards.subsetOf(playerState.territoryCards))
+                Left("Non possiedi tutte le carte territorio che vuoi scambiare.")
+              else
+                val bonus = calculateTradeBonus(cards)
+                if (bonus == 0)
+                  Left("Combinazione di carte non valida per il bonus.")
+                else
+                  val updatedPlayerState = playerState
+                    .removeTerritoryCards(cards)
+                    .copy(bonusTroops = playerState.bonusTroops + bonus)
+                  val updatedPlayerStates = gameState.playerStates.map {
+                    case ps if ps.playerId == currentPlayerId => updatedPlayerState
+                    case ps => ps
+                  }
+                  gameState = gameState.copy(playerStates = updatedPlayerStates)
+                  Right(gameState)
+            case None =>
+              Left("Giocatore non trovato.")
 
         case GameAction.EndAttack | GameAction.EndPhase | GameAction.EndTurn =>
           turnManager = turnManager.nextPhase()
@@ -127,4 +150,16 @@ class GameEngine(
 
   def checkVictory: Option[PlayerState] =
     gameState.checkWinCondition
+
+  private def calculateTradeBonus(cards: Set[TerritoryCard]): Int =
+    val imgs = cards.map(_.cardImg)
+    imgs.toList.sortBy(_.toString) match
+      case List(CardImg.Artillery, CardImg.Artillery, CardImg.Artillery) => 4
+      case List(CardImg.Infantry, CardImg.Infantry, CardImg.Infantry) => 6
+      case List(CardImg.Cavalry, CardImg.Cavalry, CardImg.Cavalry) => 8
+      case List(a, b, c) if Set(a, b, c).size == 3 && !imgs.contains(CardImg.Jolly) => 10
+      case List(a, b, CardImg.Jolly) if a == b => 12
+      case List(CardImg.Jolly, a, b) if a == b => 12
+      case List(a, CardImg.Jolly, b) if a == b => 12
+      case _ => 0
 

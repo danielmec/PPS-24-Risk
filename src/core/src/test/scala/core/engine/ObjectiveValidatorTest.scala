@@ -10,9 +10,9 @@ import engine.CardsBuilder
 class ObjectiveValidatorTest extends AnyFunSuite :
 
   val player = PlayerImpl("1", "Alice", PlayerColor.Red, PlayerType.Human)
-  val playerState = PlayerState(player, Set.empty, None)
+  val playerState = PlayerState(player, Set.empty, None, TurnPhase.Reinforcement, 0)
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
-  val otherState = PlayerState(otherPlayer, Set.empty, None)
+  val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.Reinforcement, 0)
 
   val (continents, territoriesMap) = CardsBuilder.createBoard()
   val allTerritories = territoriesMap.values.toList

@@ -6,7 +6,8 @@ case class PlayerState(
     player: Player, 
     territoryCards: Set[TerritoryCard], 
     objectiveCard: Option[ObjectiveCard], 
-    phase: TurnPhase = TurnPhase.WaitingForTurn
+    phase: TurnPhase = TurnPhase.WaitingForTurn,
+    bonusTroops: Int
 ):
 
     def playerId: String = player.id
