@@ -35,8 +35,16 @@ class GameEngine(
       Left("Azione non valida per la fase o il giocatore corrente.")
     else 
       action match
-        case GameAction.PlaceTroops(playerId, troops) =>
-          Right(gameState) // TODO
+        case GameAction.PlaceTroops(playerId, troops, territoryName) =>
+          val maybeTerritory = gameState.board.territories.find(_.name == territoryName)
+          maybeTerritory match
+            case Some(territory) if territory.owner.exists(_.id == playerId) =>
+              val updatedTerritory = territory.copy(troops = territory.troops + troops)
+              val updatedBoard = gameState.board.updatedTerritory(updatedTerritory)
+              gameState = gameState.updateBoard(updatedBoard)
+              Right(gameState)
+            case _ =>
+              Left("Territorio non valido o non posseduto dal giocatore.")
 
         case GameAction.Reinforce(playerId, troops) =>
           Right(gameState) // TODO

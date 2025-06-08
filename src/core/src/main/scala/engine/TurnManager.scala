@@ -37,7 +37,7 @@ case class TurnManagerImpl(
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
 
     def isValidAction(action: GameAction): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(playerId, troops), TurnPhase.PlacingTroops) => 
+        case (GameAction.PlaceTroops(playerId, troops, territoryId), TurnPhase.PlacingTroops) => 
             playerId == currentPlayer.id && troops > 0
             
         case (GameAction.Reinforce(playerId, troops), TurnPhase.Reinforcement) => 
