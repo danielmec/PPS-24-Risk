@@ -43,9 +43,9 @@ class TurnManagerTest extends AnyFunSuite:
 
   test("isValidAction for Reinforce in Reinforcement phase"):
     val tm = TurnManagerImpl(players, phase = TurnPhase.Reinforcement)
-    assert(tm.isValidAction(GameAction.Reinforce("1", 2)))
-    assert(!tm.isValidAction(GameAction.Reinforce("2", 2)))
-    assert(!tm.isValidAction(GameAction.Reinforce("1", 0)))
+    assert(tm.isValidAction(GameAction.Reinforce("1", "TerritoryA", "TerritoryB", 2)))
+    assert(!tm.isValidAction(GameAction.Reinforce("2", "TerritoryA", "TerritoryB", 2)))
+    assert(!tm.isValidAction(GameAction.Reinforce("1", "TerritoryA", "TerritoryB", 0)))
 
   test("isValidAction for TradeCards in Reinforcement phase"):
     val tm = TurnManagerImpl(players, phase = TurnPhase.Reinforcement)

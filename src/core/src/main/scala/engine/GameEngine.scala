@@ -49,8 +49,24 @@ class GameEngine(
             case _ =>
               Left("Territorio non valido o non posseduto dal giocatore.")
 
-        case GameAction.Reinforce(playerId, troops) =>
-          Right(gameState) // TODO
+        case GameAction.Reinforce(playerId, from, to, troops) =>
+          val maybeFrom = gameState.board.territories.find(_.name == from)
+          val maybeTo = gameState.board.territories.find(_.name == to)
+          (maybeFrom, maybeTo) match
+            case (Some(fromTerritory), Some(toTerritory))
+              if fromTerritory.owner.exists(_.id == playerId) &&
+                 toTerritory.owner.exists(_.id == playerId) &&
+                 fromTerritory.troops > troops && troops > 0 &&
+                 fromTerritory.neighbors.exists(_.name == toTerritory.name) =>
+              val updatedFrom = fromTerritory.copy(troops = fromTerritory.troops - troops)
+              val updatedTo = toTerritory.copy(troops = toTerritory.troops + troops)
+              val updatedBoard = gameState.board
+                .updatedTerritory(updatedFrom)
+                .updatedTerritory(updatedTo)
+              gameState = gameState.updateBoard(updatedBoard)
+              Right(gameState)
+            case _ =>
+              Left("Territori non validi, non posseduti, non adiacenti o numero di truppe non valido.")
 
         case GameAction.Attack(attackerId, defenderId, from, to, troops) =>
           val maybeAttacker = players.find(_.id == attackerId)

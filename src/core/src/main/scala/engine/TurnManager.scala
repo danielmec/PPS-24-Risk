@@ -40,7 +40,7 @@ case class TurnManagerImpl(
         case (GameAction.PlaceTroops(playerId, troops, territoryId), TurnPhase.PlacingTroops) => 
             playerId == currentPlayer.id && troops > 0
             
-        case (GameAction.Reinforce(playerId, troops), TurnPhase.Reinforcement) => 
+        case (GameAction.Reinforce(playerId, from, to, troops), TurnPhase.Reinforcement) => 
             playerId == currentPlayer.id && troops > 0
             
         case (GameAction.TradeCards(_), TurnPhase.Reinforcement) => true
