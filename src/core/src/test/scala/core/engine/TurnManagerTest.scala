@@ -59,10 +59,10 @@ class TurnManagerTest extends AnyFunSuite:
 
   test("isValidAction for Defend in Defending phase"):
     val tm = TurnManagerImpl(players, phase = TurnPhase.Defending)
-    assert(tm.isValidAction(GameAction.Defend("2", 2)))
-    assert(!tm.isValidAction(GameAction.Defend("1", 2)))
-    assert(!tm.isValidAction(GameAction.Defend("2", 0)))
-    assert(!tm.isValidAction(GameAction.Defend("2", 4)))
+    assert(tm.isValidAction(GameAction.Defend("2", "TerritoryA", 2)))
+    assert(!tm.isValidAction(GameAction.Defend("1", "TerritoryA", 2)))
+    assert(!tm.isValidAction(GameAction.Defend("2", "TerritoryA", 0)))
+    assert(!tm.isValidAction(GameAction.Defend("2", "TerritoryA", 4)))
 
   test("isValidAction for EndAttack, EndPhase, EndTurn"):
     val tm = TurnManagerImpl(players, phase = TurnPhase.Attacking)
@@ -73,4 +73,4 @@ class TurnManagerTest extends AnyFunSuite:
   test("isValidAction returns false for invalid actions"):
     val tm = TurnManagerImpl(players, phase = TurnPhase.PlacingTroops)
     assert(!tm.isValidAction(GameAction.Attack("1", "2", "TerritoryA", "TerritoryB", 3)))
-    assert(!tm.isValidAction(GameAction.Defend("2", 2)))
+    assert(!tm.isValidAction(GameAction.Defend("2", "TerritoryA", 2)))

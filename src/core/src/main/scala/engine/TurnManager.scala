@@ -48,7 +48,7 @@ case class TurnManagerImpl(
         case (GameAction.Attack(attackerId, defenderId, from, to, numTroops), TurnPhase.Attacking) =>
             attackerId == currentPlayer.id && attackerId != defenderId && numTroops > 0
             
-        case (GameAction.Defend(defenderId, troops), TurnPhase.Defending) => 
+        case (GameAction.Defend(defenderId, territory, troops), TurnPhase.Defending) => 
             defenderId != currentPlayer.id && troops > 0 && troops <= 3
             
         case (GameAction.EndAttack, TurnPhase.Attacking) => true

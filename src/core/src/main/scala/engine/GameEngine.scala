@@ -30,6 +30,8 @@ class GameEngine(
     objectiveCards = objectiveDeck
   )
 
+  private var pendingAttack: Option[(PlayerImpl, PlayerImpl, Territory, Territory, Int)] = None
+
   /** Esegue un'azione di gioco e aggiorna lo stato */
   def performAction(action: GameAction): Either[String, GameState] = 
     if (!gameState.turnManager.isValidAction(action))
@@ -58,22 +60,44 @@ class GameEngine(
 
           (maybeAttacker, maybeDefender, maybeAttackerTerritory, maybeDefenderTerritory) match
             case (Some(attacker), Some(defender), Some(attackerTerritory), Some(defenderTerritory)) =>
-              try
-                val (result, updatedAttackerTerritory, updatedDefenderTerritory) =
-                  Battle.battle(attacker, defender, attackerTerritory, defenderTerritory, troops)
-                val updatedBoard = gameState.board
-                  .updatedTerritory(updatedAttackerTerritory)
-                  .updatedTerritory(updatedDefenderTerritory)
-                gameState = gameState.updateBoard(updatedBoard)
-                Right(gameState)
-              catch
-                case _: InvalidAttackException =>
-                  Left("Attacco non valido: controlla i territori, i proprietari o il numero di truppe.")
+              if (troops <= 0 || troops >= attackerTerritory.troops)
+                Left("Numero di truppe non valido per l'attacco.")
+              else if (!attackerTerritory.owner.contains(attacker) || !defenderTerritory.owner.contains(defender))
+                Left("I territori non sono posseduti dai giocatori corretti.")
+              else 
+                //Attacco in sospeso
+                pendingAttack = Some((attacker, defender, attackerTerritory, defenderTerritory, troops))
+                Right(gameState) //Attende la difesa
             case _ =>
               Left("Territori o giocatori non validi per l'attacco.")
 
-        case GameAction.Defend(defenderId, troops) =>
-          Right(gameState) // TODO
+        case GameAction.Defend(defenderId, territoryName, defendTroops) =>
+          pendingAttack match
+            case Some((attacker, defender, attackerTerritory, defenderTerritory, attackingTroops)) 
+              if defender.id == defenderId && defenderTerritory.name == territoryName =>
+                val maxDefend = math.min(3, defenderTerritory.troops)
+                if (defendTroops <= 0 || defendTroops > maxDefend)
+                  Left(s"Numero di truppe di difesa non valido (max: $maxDefend).")
+                else
+                  val defenderDiceRoll: Int => Seq[Int] = _ => utils.Dice.roll(defendTroops)
+                  val (result, updatedAttackerTerritory, updatedDefenderTerritory) =
+                    Battle.battle(
+                      attacker,
+                      defender,
+                      attackerTerritory,
+                      defenderTerritory,
+                      attackingTroops,
+                      attackerDiceRoll = utils.Dice.roll,
+                      defenderDiceRoll = defenderDiceRoll
+                    )
+                  val updatedBoard = gameState.board
+                    .updatedTerritory(updatedAttackerTerritory)
+                    .updatedTerritory(updatedDefenderTerritory)
+                  gameState = gameState.updateBoard(updatedBoard)
+                  pendingAttack = None
+                  Right(gameState)
+            case _ =>
+              Left("Nessun attacco in sospeso o dati difensore non validi.")
 
         case GameAction.TradeCards(cards) =>
           Right(gameState) // TODO
