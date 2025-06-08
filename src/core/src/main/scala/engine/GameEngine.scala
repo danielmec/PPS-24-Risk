@@ -50,10 +50,9 @@ class GameEngine(
                 val updatedTerritory = territory.copy(troops = territory.troops + troops)
                 val updatedBoard = gameState.board.updatedTerritory(updatedTerritory)
                 val updatedPlayerState = playerState.copy(bonusTroops = playerState.bonusTroops - troops)
-                val updatedPlayerStates = gameState.playerStates.map {
+                val updatedPlayerStates = gameState.playerStates.map:
                   case ps if ps.playerId == playerId => updatedPlayerState
                   case ps => ps
-                }
                 gameState = gameState
                   .updateBoard(updatedBoard)
                   .copy(playerStates = updatedPlayerStates)
@@ -144,10 +143,9 @@ class GameEngine(
                   val updatedPlayerState = playerState
                     .removeTerritoryCards(cards)
                     .copy(bonusTroops = playerState.bonusTroops + bonus)
-                  val updatedPlayerStates = gameState.playerStates.map {
+                  val updatedPlayerStates = gameState.playerStates.map:
                     case ps if ps.playerId == currentPlayerId => updatedPlayerState
                     case ps => ps
-                  }
                   gameState = gameState.copy(playerStates = updatedPlayerStates)
                   Right(gameState)
             case None =>
