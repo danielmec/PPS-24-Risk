@@ -45,8 +45,8 @@ case class TurnManagerImpl(
             
         case (GameAction.TradeCards(_), TurnPhase.Reinforcement) => true
             
-        case (GameAction.Attack(attackerId, defenderId), TurnPhase.Attacking) => 
-            attackerId == currentPlayer.id && attackerId != defenderId
+        case (GameAction.Attack(attackerId, defenderId, from, to, numTroops), TurnPhase.Attacking) =>
+            attackerId == currentPlayer.id && attackerId != defenderId && numTroops > 0
             
         case (GameAction.Defend(defenderId, troops), TurnPhase.Defending) => 
             defenderId != currentPlayer.id && troops > 0 && troops <= 3
