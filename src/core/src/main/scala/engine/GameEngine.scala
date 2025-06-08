@@ -4,6 +4,7 @@ import model.player.*
 import model.cards.*
 import model.board.*
 import exceptions._
+import utils.BonusCalculator
 
 class GameEngine(
     val players: List[PlayerImpl],
@@ -40,12 +41,23 @@ class GameEngine(
       action match
         case GameAction.PlaceTroops(playerId, troops, territoryName) =>
           val maybeTerritory = gameState.board.territories.find(_.name == territoryName)
-          maybeTerritory match
-            case Some(territory) if territory.owner.exists(_.id == playerId) =>
-              val updatedTerritory = territory.copy(troops = territory.troops + troops)
-              val updatedBoard = gameState.board.updatedTerritory(updatedTerritory)
-              gameState = gameState.updateBoard(updatedBoard)
-              Right(gameState)
+          val maybePlayerState = gameState.playerStates.find(_.playerId == playerId)
+          (maybeTerritory, maybePlayerState) match
+            case (Some(territory), Some(playerState)) if territory.owner.exists(_.id == playerId) =>
+              if (troops <= 0 || troops > playerState.bonusTroops)
+                Left(s"Numero di truppe da piazzare non valido. Puoi piazzare al massimo ${playerState.bonusTroops} truppe.")
+              else
+                val updatedTerritory = territory.copy(troops = territory.troops + troops)
+                val updatedBoard = gameState.board.updatedTerritory(updatedTerritory)
+                val updatedPlayerState = playerState.copy(bonusTroops = playerState.bonusTroops - troops)
+                val updatedPlayerStates = gameState.playerStates.map {
+                  case ps if ps.playerId == playerId => updatedPlayerState
+                  case ps => ps
+                }
+                gameState = gameState
+                  .updateBoard(updatedBoard)
+                  .copy(playerStates = updatedPlayerStates)
+                Right(gameState)
             case _ =>
               Left("Territorio non valido o non posseduto dal giocatore.")
 
@@ -125,7 +137,7 @@ class GameEngine(
               else if (!cards.subsetOf(playerState.territoryCards))
                 Left("Non possiedi tutte le carte territorio che vuoi scambiare.")
               else
-                val bonus = calculateTradeBonus(cards)
+                val bonus = BonusCalculator.calculateTradeBonus(cards)
                 if (bonus == 0)
                   Left("Combinazione di carte non valida per il bonus.")
                 else
@@ -143,6 +155,14 @@ class GameEngine(
 
         case GameAction.EndAttack | GameAction.EndPhase | GameAction.EndTurn =>
           turnManager = turnManager.nextPhase()
+          if turnManager.currentPhase == TurnPhase.PlacingTroops then
+            val currentPlayerId = turnManager.currentPlayer.id
+            val bonus = BonusCalculator.calculateStartTurnBonus(currentPlayerId, gameState.board)
+            val updatedPlayerStates = gameState.playerStates.map:
+              case ps if ps.playerId == currentPlayerId =>
+                ps.copy(bonusTroops = ps.bonusTroops + bonus)
+              case ps => ps
+            gameState = gameState.copy(playerStates = updatedPlayerStates)
           gameState = gameState.updateTurnManager(turnManager)
           Right(gameState)
 
@@ -150,16 +170,4 @@ class GameEngine(
 
   def checkVictory: Option[PlayerState] =
     gameState.checkWinCondition
-
-  private def calculateTradeBonus(cards: Set[TerritoryCard]): Int =
-    val imgs = cards.map(_.cardImg)
-    imgs.toList.sortBy(_.toString) match
-      case List(CardImg.Artillery, CardImg.Artillery, CardImg.Artillery) => 4
-      case List(CardImg.Infantry, CardImg.Infantry, CardImg.Infantry) => 6
-      case List(CardImg.Cavalry, CardImg.Cavalry, CardImg.Cavalry) => 8
-      case List(a, b, c) if Set(a, b, c).size == 3 && !imgs.contains(CardImg.Jolly) => 10
-      case List(a, b, CardImg.Jolly) if a == b => 12
-      case List(CardImg.Jolly, a, b) if a == b => 12
-      case List(a, CardImg.Jolly, b) if a == b => 12
-      case _ => 0
 
