@@ -3,6 +3,7 @@ package engine
 import model.player.*
 import model.cards.*
 import model.board.*
+import exceptions._
 
 class GameEngine(
     val players: List[PlayerImpl],
@@ -49,8 +50,27 @@ class GameEngine(
         case GameAction.Reinforce(playerId, troops) =>
           Right(gameState) // TODO
 
-        case GameAction.Attack(attackerId, defenderId) =>
-          Right(gameState) // TODO
+        case GameAction.Attack(attackerId, defenderId, from, to, troops) =>
+          val maybeAttacker = players.find(_.id == attackerId)
+          val maybeDefender = players.find(_.id == defenderId)
+          val maybeAttackerTerritory = gameState.board.territories.find(_.name == from)
+          val maybeDefenderTerritory = gameState.board.territories.find(_.name == to)
+
+          (maybeAttacker, maybeDefender, maybeAttackerTerritory, maybeDefenderTerritory) match
+            case (Some(attacker), Some(defender), Some(attackerTerritory), Some(defenderTerritory)) =>
+              try
+                val (result, updatedAttackerTerritory, updatedDefenderTerritory) =
+                  Battle.battle(attacker, defender, attackerTerritory, defenderTerritory, troops)
+                val updatedBoard = gameState.board
+                  .updatedTerritory(updatedAttackerTerritory)
+                  .updatedTerritory(updatedDefenderTerritory)
+                gameState = gameState.updateBoard(updatedBoard)
+                Right(gameState)
+              catch
+                case _: InvalidAttackException =>
+                  Left("Attacco non valido: controlla i territori, i proprietari o il numero di truppe.")
+            case _ =>
+              Left("Territori o giocatori non validi per l'attacco.")
 
         case GameAction.Defend(defenderId, troops) =>
           Right(gameState) // TODO
