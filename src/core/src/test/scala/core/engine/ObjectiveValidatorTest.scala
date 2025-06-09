@@ -33,32 +33,32 @@ class ObjectiveValidatorTest extends AnyFunSuite :
     decksManager = null
   )
 
-  test("DefeatPlayer: true se il giocatore target non possiede territori"):
+  test("DefeatPlayer: returns true if target player owns no territories"):
     val obj = ObjectiveCard.DefeatPlayer(PlayerColor.Blue)
     val boardNoBlue = board.copy(continents = board.continents.map(c =>
       c.copy(territories = c.territories.map(t => t.copy(owner = Some(player))))))
     val gameStateNoBlue = gameState.copy(board = boardNoBlue)
     assert(ObjectiveValidator.done(obj, gameStateNoBlue, playerState))
 
-  test("ConquerContinents: true se il giocatore possiede tutti i territori di almeno un continente"):
+  test("ConquerContinents: returns true if player owns all territories of at least one continent"):
     val (gs, ownedContinent) = gameStateWithPlayerOwningAContinent
     val obj = ObjectiveCard.ConquerContinents(Set(ownedContinent))
     assert(ObjectiveValidator.done(obj, gs, playerState))
 
-  test("ConquerNContinents: true se il giocatore possiede abbastanza continenti"):
+  test("ConquerNContinents: returns true if player owns enough continents"):
     val (gs, _) = gameStateWithPlayerOwningAContinent
     val obj = ObjectiveCard.ConquerNContinents(1)
     assert(ObjectiveValidator.done(obj, gs, playerState))
 
-  test("ConquerTerritories: true se il giocatore possiede abbastanza territori con truppe sufficienti"):
+  test("ConquerTerritories: returns true if player owns enough territories with sufficient troops"):
     val obj = ObjectiveCard.ConquerTerritories(player1Territories.size, 1)
     assert(ObjectiveValidator.done(obj, gameState, playerState))
 
-  test("ConquerTerritories: false se non possiede abbastanza territori"):
+  test("ConquerTerritories: returns false if player does not own enough territories"):
     val obj = ObjectiveCard.ConquerTerritories(3, 2)
     assert(!ObjectiveValidator.done(obj, gameState, playerState))
 
-  test("Tutti i territori devono essere unici per nome nel tabellone"):
+  test("All territories must have unique names on the board"):
     assert(board.territories.groupBy(_.name).forall(_._2.size == 1))
 
   def gameStateWithPlayerOwningAContinent: (GameState, Continent) =
