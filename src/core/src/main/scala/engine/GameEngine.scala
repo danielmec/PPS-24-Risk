@@ -164,6 +164,9 @@ class GameEngine(
           gameState = gameState.updateTurnManager(turnManager)
           Right(gameState)
 
+  def setGameState(newState: GameState): Unit =
+    gameState = newState
+
   def getGameState: GameState = gameState
 
   def checkVictory: Option[PlayerState] =
