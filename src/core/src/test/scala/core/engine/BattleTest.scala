@@ -1,8 +1,7 @@
-package core.engine
+package engine
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
-import engine.*
 import engine.BattleResult
 import engine.BattleResult._
 import model.player._
@@ -70,7 +69,7 @@ class BattleTest extends AnyFunSuite with Matchers:
     result._2.owner should contain (attacker)
   
   test("Cannot attack with all troops"):
-    assertThrows[InvalidAttackException]:
+    an [InvalidActionException] should be thrownBy {
       Battle.battle(
         attacker,
         defender,
@@ -78,10 +77,12 @@ class BattleTest extends AnyFunSuite with Matchers:
         defenderTerritory.copy(troops = 2),
         attackingTroops = 3 
       )
+    }
     
   test("Cannot attack from a not-owned territory"):
     val notOwnedTerritory = Territory("C", Set.empty, Some(defender), 5)
-    assertThrows[InvalidAttackException]:
+    
+    an [InvalidActionException] should be thrownBy {
       Battle.battle(
         attacker,
         defender,
@@ -89,10 +90,12 @@ class BattleTest extends AnyFunSuite with Matchers:
         defenderTerritory, 
         attackingTroops = 3
       )
+    }
     
   test("Cannot attack a not-owned territory"):
     val neutralTerritory = Territory("D", Set.empty, None, 3)
-    assertThrows[InvalidAttackException]:
+    
+    an [InvalidActionException] should be thrownBy {
       Battle.battle(
         attacker,
         defender,
@@ -100,6 +103,7 @@ class BattleTest extends AnyFunSuite with Matchers:
         neutralTerritory,
         attackingTroops = 3
       )
+    }
   
   test("Battle should end correctly"):
     val state = BattleState(attacker, defender, attackerTerritory, defenderTerritory, 3, 2)

@@ -52,11 +52,11 @@ object Battle:
   ): (BattleResult, Territory, Territory) =
     
     if (!attackerTerritory.owner.contains(attacker))
-      throw new InvalidAttackException()
+      throw new InvalidActionException()
     if (!defenderTerritory.owner.contains(defender))
-      throw new InvalidAttackException()
+      throw new InvalidActionException()
     if (attackingTroops <= 0 || attackingTroops >= attackerTerritory.troops)
-      throw new InvalidAttackException()
+      throw new InvalidActionException()
 
     var state = BattleState(
       attacker,
