@@ -4,7 +4,8 @@ import model.player.*
 import model.cards.*
 import model.board.*
 import exceptions._
-import utils.BonusCalculator
+import utils.*
+import utils.GameEngineUtils.* // AGGIUNTO: Import dei metodi di supporto
 
 class GameEngine(
     val players: List[PlayerImpl],
@@ -21,17 +22,18 @@ class GameEngine(
   private var turnManager: TurnManager = TurnManagerImpl(players)
   private var decksManager: DecksManager = DecksManagerImpl(territoryDeck, objectiveDeck)
 
+  // CORRETTO: Rimossi campi duplicati dal GameState
   private var gameState: GameState = GameState(
     gameId = gameId,
     board = board,
     playerStates = playerStates,
     turnManager = turnManager,
-    decksManager = decksManager,
-    territoryCards = territoryDeck,
-    objectiveCards = objectiveDeck
+    decksManager = decksManager
   )
 
   private var pendingAttack: Option[(PlayerImpl, PlayerImpl, Territory, Territory, Int)] = None
+  private var territoryConqueredThisTurn: Boolean = false
+  private var strategicMoveUsed: Boolean = false // AGGIUNTO: Flag per movimento strategico
 
   /** Esegue un'azione di gioco e aggiorna lo stato */
   def performAction(action: GameAction): Either[String, GameState] = 
@@ -61,23 +63,32 @@ class GameEngine(
               Left("Territorio non valido o non posseduto dal giocatore.")
 
         case GameAction.Reinforce(playerId, from, to, troops) =>
-          val maybeFrom = gameState.board.territories.find(_.name == from)
-          val maybeTo = gameState.board.territories.find(_.name == to)
-          (maybeFrom, maybeTo) match
-            case (Some(fromTerritory), Some(toTerritory))
-              if fromTerritory.owner.exists(_.id == playerId) &&
-                 toTerritory.owner.exists(_.id == playerId) &&
-                 fromTerritory.troops > troops && troops > 0 &&
-                 fromTerritory.neighbors.exists(_.name == toTerritory.name) =>
-              val updatedFrom = fromTerritory.copy(troops = fromTerritory.troops - troops)
-              val updatedTo = toTerritory.copy(troops = toTerritory.troops + troops)
-              val updatedBoard = gameState.board
-                .updatedTerritory(updatedFrom)
-                .updatedTerritory(updatedTo)
-              gameState = gameState.updateBoard(updatedBoard)
-              Right(gameState)
-            case _ =>
-              Left("Territori non validi, non posseduti, non adiacenti o numero di truppe non valido.")
+          if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement && strategicMoveUsed) {
+            Left("Movimento strategico già utilizzato in questo turno.")
+          } else {
+            val maybeFrom = gameState.board.territories.find(_.name == from)
+            val maybeTo = gameState.board.territories.find(_.name == to)
+            (maybeFrom, maybeTo) match
+              case (Some(fromTerritory), Some(toTerritory))
+                if fromTerritory.owner.exists(_.id == playerId) &&
+                   toTerritory.owner.exists(_.id == playerId) &&
+                   fromTerritory.troops > troops && troops > 0 &&
+                   fromTerritory.neighbors.exists(_.name == toTerritory.name) =>
+                val updatedFrom = fromTerritory.copy(troops = fromTerritory.troops - troops)
+                val updatedTo = toTerritory.copy(troops = toTerritory.troops + troops)
+                val updatedBoard = gameState.board
+                  .updatedTerritory(updatedFrom)
+                  .updatedTerritory(updatedTo)
+                gameState = gameState.updateBoard(updatedBoard)
+                
+                if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement) {
+                  strategicMoveUsed = true
+                }
+                
+                Right(gameState)
+              case _ =>
+                Left("Territori non validi, non posseduti, non adiacenti o numero di truppe non valido.")
+          }
 
         case GameAction.Attack(attackerId, defenderId, from, to, troops) =>
           val maybeAttacker = players.find(_.id == attackerId)
@@ -92,9 +103,8 @@ class GameEngine(
               else if (!attackerTerritory.owner.contains(attacker) || !defenderTerritory.owner.contains(defender))
                 Left("I territori non sono posseduti dai giocatori corretti.")
               else 
-                //Attacco in sospeso
                 pendingAttack = Some((attacker, defender, attackerTerritory, defenderTerritory, troops))
-                Right(gameState) //Attende la difesa
+                Right(gameState)
             case _ =>
               Left("Territori o giocatori non validi per l'attacco.")
 
@@ -117,10 +127,19 @@ class GameEngine(
                       attackerDiceRoll = utils.Dice.roll,
                       defenderDiceRoll = defenderDiceRoll
                     )
+
+                  if (updatedDefenderTerritory.owner.exists(_.id == attacker.id))
+                    territoryConqueredThisTurn = true
+                  
                   val updatedBoard = gameState.board
                     .updatedTerritory(updatedAttackerTerritory)
                     .updatedTerritory(updatedDefenderTerritory)
                   gameState = gameState.updateBoard(updatedBoard)
+                  
+                  if (!hasRemainingTerritories(gameState, defender.id)) {
+                    gameState = transferCardsOnElimination(gameState, defender.id, attacker.id)
+                  }
+                  
                   pendingAttack = None
                   Right(gameState)
             case _ =>
@@ -152,7 +171,18 @@ class GameEngine(
               Left("Giocatore non trovato.")
 
         case GameAction.EndAttack | GameAction.EndPhase | GameAction.EndTurn =>
+          if (action == GameAction.EndTurn) 
+            strategicMoveUsed = false
+            
+            if (territoryConqueredThisTurn)
+              val currentPlayerId = turnManager.currentPlayer.id
+              val (updatedGameState, updatedDecksManager) = drawTerritoryCard(gameState, decksManager, currentPlayerId)
+              gameState = updatedGameState
+              decksManager = updatedDecksManager
+              territoryConqueredThisTurn = false
+          
           turnManager = turnManager.nextPhase()
+          
           if turnManager.currentPhase == TurnPhase.PlacingTroops then
             val currentPlayerId = turnManager.currentPlayer.id
             val bonus = BonusCalculator.calculateStartTurnBonus(currentPlayerId, gameState.board)
@@ -163,10 +193,10 @@ class GameEngine(
             gameState = gameState.copy(playerStates = updatedPlayerStates)
           
           gameState = gameState.updateTurnManager(turnManager)
-          
+  
           checkVictory match
             case Some(winner) => 
-              Left(s"Partita terminata! Il vincitore è ${winner.player.name} con obiettivo completato!")
+              Left(s"Partita terminata! Il vincitore è ${winner.player.name}!")
             case None => 
               Right(gameState)
 
