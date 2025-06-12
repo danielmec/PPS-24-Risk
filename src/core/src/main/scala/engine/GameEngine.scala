@@ -161,8 +161,14 @@ class GameEngine(
                 ps.copy(bonusTroops = ps.bonusTroops + bonus)
               case ps => ps
             gameState = gameState.copy(playerStates = updatedPlayerStates)
+          
           gameState = gameState.updateTurnManager(turnManager)
-          Right(gameState)
+          
+          checkVictory match
+            case Some(winner) => 
+              Left(s"Partita terminata! Il vincitore è ${winner.player.name} con obiettivo completato!")
+            case None => 
+              Right(gameState)
 
   def setGameState(newState: GameState): Unit =
     gameState = newState
