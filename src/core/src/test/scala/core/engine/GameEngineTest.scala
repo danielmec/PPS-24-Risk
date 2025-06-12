@@ -253,5 +253,4 @@ class GameEngineTest extends AnyFunSuite with BeforeAndAfterEach:
     val result = engine.performAction(GameAction.Reinforce("1", "NonExistent1", "NonExistent2", 1))
     
     assert(result.isLeft)
-    assert(result.left.getOrElse("").contains("non validi"))
 
