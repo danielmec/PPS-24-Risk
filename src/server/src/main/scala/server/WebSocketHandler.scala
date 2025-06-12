@@ -32,7 +32,11 @@ object WebSocketHandler:
       .collect {
         case TextMessage.Strict(text) => IncomingMessage(text)
       }
-      .to(Sink.actorRef(handler, akka.actor.Status.Success(())))
+      .to(Sink.actorRef(
+        ref = handler,  
+        onCompleteMessage = akka.actor.PoisonPill, // chiama postStop() dell'attore
+        onFailureMessage = { case _ => akka.actor.PoisonPill } 
+      ))
     
     // Crea una sorgente per i messaggi in uscita verso il client
     val outgoing = Source.actorRef(
@@ -131,6 +135,18 @@ object WebSocketHandler:
     private def parseJsonMessage(text: String): Try[ProtocolMessage] = Try {
       
       text.parseJson.convertTo[ProtocolMessage]
+    }
+    
+    // metodo chiamato quando l'attore viene fermato
+    override def postStop(): Unit = {
+      println(s"[DEBUG] ConnectionActor ${self.path.name} fermato, notifica GameManager")
+      try {
+        gameManager ! GameManager.PlayerDisconnected(self)
+      } catch {
+        case ex: Exception => 
+          println(s"[ERROR] Errore nell'invio della notifica di disconnessione: ${ex.getMessage}")
+          ex.printStackTrace()
+      }
     }
 
 end WebSocketHandler

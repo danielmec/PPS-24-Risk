@@ -9,6 +9,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Failure}
 import scala.io.StdIn
 import akka.event.Logging
+import akka.http.scaladsl.settings.ServerSettings
+import scala.concurrent.duration._
 
 
 object RisikoServer:
@@ -26,9 +28,14 @@ object RisikoServer:
     val gameManager = system.actorOf(GameManager.props, "game-Manager")
     //GameManager.props fornisce la configurazione per creare l'attore GameManager
     
+     
+    val serverSettings = ServerSettings(system)
+      .withTimeouts(
+        ServerSettings(system).timeouts
+          .withIdleTimeout(60.seconds)
+      )
 
-    //Istanza di tipo Flow creato una volta sola e riutilizzato per tutte le connessioni WebSocket
-    //val webSocketHandler = WebSocketHandler(gameManager)
+    log.info(s"Server WebSocket configurato con timeout 60s")
 
     // Definisce le route per il server
     val route =
@@ -61,8 +68,12 @@ object RisikoServer:
           )
         }
       )
-    val bindingFuture = Http().newServerAt(host, port).bind(route)
+    val bindingFuture = Http().newServerAt(host, port)
+    .withSettings(serverSettings) // Applica le impostazioni del server
+    .bind(route)
     println(s"Server online at http://$host:$port/\nPress RETURN to stop...")
+
+   
 
     StdIn.readLine() 
 
@@ -75,6 +86,6 @@ object RisikoServer:
       println("Server stopped.")
     }
 end RisikoServer
-    
-  
+
+
 
