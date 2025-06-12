@@ -100,3 +100,158 @@ class GameEngineTest extends AnyFunSuite with BeforeAndAfterEach:
     val expectedBonus = math.max(3, europe.territories.size / 3) + europe.bonusTroops
     assert(playerState.bonusTroops == expectedBonus)
 
+  test("Reinforce - moves troops correctly between adjacent territories"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val existingT1 = allTerritories.head
+    val existingT2 = allTerritories.find(t => existingT1.neighbors.exists(_.name == t.name))
+      .getOrElse(allTerritories.tail.head)
+    
+    val t1 = existingT1.copy(
+      owner = Some(player1), 
+      troops = 4
+    )
+    val t2 = existingT2.copy(
+      owner = Some(player1), 
+      troops = 2
+    )
+    
+    val updatedBoard = engine.getGameState.board
+      .updatedTerritory(t1)
+      .updatedTerritory(t2)
+
+    engine.setGameState(engine.getGameState.copy(
+      board = updatedBoard,
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    val result = engine.performAction(GameAction.Reinforce("1", t1.name, t2.name, 1))
+    
+    assert(result.isRight)
+    val gameState = result.getOrElse(fail("Action failed"))
+    val updatedT1Result = gameState.board.territories.find(_.name == t1.name).get
+    val updatedT2Result = gameState.board.territories.find(_.name == t2.name).get
+    
+    assert(updatedT1Result.troops == 3) // 4 - 1
+    assert(updatedT2Result.troops == 3) // 2 + 1
+
+  test("Reinforce - fails if territories are not adjacent"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(
+      name = "Territory1",
+      owner = Some(player1), 
+      troops = 5,
+      neighbors = Set.empty
+    )
+    val t2 = allTerritories.tail.head.copy(
+      name = "Territory2",
+      owner = Some(player1), 
+      troops = 2,
+      neighbors = Set.empty
+    )
+    
+    val updatedBoard = engine.getGameState.board
+      .updatedTerritory(t1)
+      .updatedTerritory(t2)
+
+    engine.setGameState(engine.getGameState.copy(
+      board = updatedBoard,
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    val result = engine.performAction(GameAction.Reinforce("1", "Territory1", "Territory2", 2))
+    
+    assert(result.isLeft)
+
+  test("Reinforce - fails if territories not owned by same player"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(
+      name = "Territory1",
+      owner = Some(player1), 
+      troops = 5
+    )
+    val t2 = allTerritories.tail.head.copy(
+      name = "Territory2",
+      owner = Some(player2),
+      troops = 2,
+      neighbors = Set(t1)
+    )
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    
+    val updatedBoard = engine.getGameState.board
+      .updatedTerritory(updatedT1)
+      .updatedTerritory(t2)
+
+    engine.setGameState(engine.getGameState.copy(
+      board = updatedBoard,
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    val result = engine.performAction(GameAction.Reinforce("1", "Territory1", "Territory2", 2))
+    
+    assert(result.isLeft)
+
+  test("Reinforce - fails if not enough troops to move"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(
+      name = "Territory1",
+      owner = Some(player1), 
+      troops = 3
+    )
+    val t2 = allTerritories.tail.head.copy(
+      name = "Territory2",
+      owner = Some(player1), 
+      troops = 2,
+      neighbors = Set(t1)
+    )
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    
+    val updatedBoard = engine.getGameState.board
+      .updatedTerritory(updatedT1)
+      .updatedTerritory(t2)
+
+    engine.setGameState(engine.getGameState.copy(
+      board = updatedBoard,
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    val result = engine.performAction(GameAction.Reinforce("1", "Territory1", "Territory2", 3))
+    
+    assert(result.isLeft)
+
+  test("Reinforce - fails if zero or negative troops"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(
+      name = "Territory1",
+      owner = Some(player1), 
+      troops = 5
+    )
+    val t2 = allTerritories.tail.head.copy(
+      name = "Territory2",
+      owner = Some(player1), 
+      troops = 2,
+      neighbors = Set(t1)
+    )
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    
+    val updatedBoard = engine.getGameState.board
+      .updatedTerritory(updatedT1)
+      .updatedTerritory(t2)
+
+    engine.setGameState(engine.getGameState.copy(
+      board = updatedBoard,
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    assert(engine.performAction(GameAction.Reinforce("1", "Territory1", "Territory2", 0)).isLeft)
+    assert(engine.performAction(GameAction.Reinforce("1", "Territory1", "Territory2", -1)).isLeft)
+
+  test("Reinforce - fails if territories do not exist"):
+    engine.setGameState(engine.getGameState.copy(
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
+    ))
+
+    val result = engine.performAction(GameAction.Reinforce("1", "NonExistent1", "NonExistent2", 1))
+    
+    assert(result.isLeft)
+    assert(result.left.getOrElse("").contains("non validi"))
+
