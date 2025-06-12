@@ -62,9 +62,9 @@ class GameEngine(
               Left("Invalid territory or not owned by player.")
 
         case GameAction.Reinforce(playerId, from, to, troops) =>
-          if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement && strategicMoveUsed) {
+          if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement && strategicMoveUsed)
             Left("Strategic move already used this turn.")
-          } else {
+          else 
             val maybeFrom = gameState.board.territories.find(_.name == from)
             val maybeTo = gameState.board.territories.find(_.name == to)
             (maybeFrom, maybeTo) match
@@ -80,14 +80,12 @@ class GameEngine(
                   .updatedTerritory(updatedTo)
                 gameState = gameState.updateBoard(updatedBoard)
                 
-                if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement) {
+                if (gameState.turnManager.currentPhase == TurnPhase.Reinforcement)
                   strategicMoveUsed = true
-                }
                 
                 Right(gameState)
               case _ =>
                 Left("Invalid territories, not owned, not adjacent or invalid number of troops.")
-          }
 
         case GameAction.Attack(attackerId, defenderId, from, to, troops) =>
           val maybeAttacker = players.find(_.id == attackerId)
@@ -135,9 +133,8 @@ class GameEngine(
                     .updatedTerritory(updatedDefenderTerritory)
                   gameState = gameState.updateBoard(updatedBoard)
                   
-                  if (!hasRemainingTerritories(gameState, defender.id)) {
+                  if (!hasRemainingTerritories(gameState, defender.id))
                     gameState = transferCardsOnElimination(gameState, defender.id, attacker.id)
-                  }
                   
                   pendingAttack = None
                   Right(gameState)
