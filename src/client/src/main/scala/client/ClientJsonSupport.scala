@@ -13,7 +13,8 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class JoinGameMessage(gameId: String)
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
-  
+  case class PongMessage() // Risposta ai ping del server
+
   // Definizione dei messaggi che il client può ricevere
   case class GameCreatedMessage(gameId: String, gameName: String, creatorId: String)
   case class PlayerJoinedMessage(gameId: String, playerId: String)
@@ -21,13 +22,15 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class LobbyJoinedMessage(message: String)
   case class GameJoinedMessage(gameId: String, players: List[String])
   case class LoginResponse(playerId: String, message: Option[String] = None)
+  case class PingMessage() // Ping dal server per mantenere attiva la connessione
 
   // Formati per i messaggi in uscita
   implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat2(CreateGameMessage)
   implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat1(JoinGameMessage)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
   implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
-  
+  implicit val pingFormat: RootJsonFormat[PingMessage] = jsonFormat0(PingMessage)
+
   // Formati per i messaggi in entrata
   implicit val gameCreatedFormat: RootJsonFormat[GameCreatedMessage] = jsonFormat3(GameCreatedMessage)
   implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(PlayerJoinedMessage)
@@ -35,6 +38,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(LobbyJoinedMessage)
   implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat2(GameJoinedMessage)
   implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse)
+  implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(PongMessage)
 
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
@@ -56,6 +60,8 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         "type" -> JsString("leaveGame"),
         "gameId" -> JsString(msg.gameId)
       )
+    case _: PongMessage => 
+      JsObject("type" -> JsString("pong"))
     case _ => JsObject("type" -> JsString("unknown"))
   
   // Metodo per deserializzare i messaggi in entrata
@@ -88,6 +94,9 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
           val players = fields.getOrElse("players", JsArray()).convertTo[List[String]]
           GameJoinedMessage(gameId, players)
+          
+        case Some(JsString("ping")) => 
+          PingMessage()
           
         case Some(JsString(unknownType)) => 
           ErrorMessage(s"Tipo di messaggio sconosciuto: $unknownType")
