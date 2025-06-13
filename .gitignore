@@ -17,3 +17,6 @@ target/
 project/target/
 project/.bloop/
 project/project/
+
+###temporary files###
+src/client/src/main/scala/client/ui/

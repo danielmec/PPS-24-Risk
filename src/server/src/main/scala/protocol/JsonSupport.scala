@@ -12,12 +12,14 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat2(ClientMessages.CreateGame)
   implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat1(ClientMessages.JoinGame)
   implicit val leaveGameFormat: RootJsonFormat[ClientMessages.LeaveGame] = jsonFormat1(ClientMessages.LeaveGame)
-  
+  implicit val pongFormat: RootJsonFormat[ClientMessages.Pong] = jsonFormat0(ClientMessages.Pong)
+
   // Formato per i messaggi server 
   implicit val gameCreatedFormat: RootJsonFormat[ServerMessages.GameCreated] = jsonFormat3(ServerMessages.GameCreated)
   implicit val playerJoinedFormat: RootJsonFormat[ServerMessages.PlayerJoined] = jsonFormat2(ServerMessages.PlayerJoined)
   implicit val errorFormat: RootJsonFormat[ServerMessages.Error] = jsonFormat1(ServerMessages.Error)
   implicit val lobbyJoinedFormat: RootJsonFormat[ServerMessages.LobbyJoined] = jsonFormat1(ServerMessages.LobbyJoined)
+  implicit val pingFormat: RootJsonFormat[ServerMessages.Ping] = jsonFormat0(ServerMessages.Ping)
 
   // Lettura di messaggi client generici 
   implicit object ClientMessageJsonFormat extends RootJsonReader[ProtocolMessage]:
@@ -36,13 +38,15 @@ object JsonSupport extends DefaultJsonProtocol:
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
           ClientMessages.JoinGame(gameId)
           
-        case Some(JsString("JOIN_LOBBY")) => 
-          // Caso speciale per JOIN_LOBBY
-          ClientMessages.JoinGame("")
-          
         case Some(JsString("leaveGame")) => 
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
           ClientMessages.LeaveGame(gameId)
+          
+        case Some(JsString("pong")) => 
+          ClientMessages.Pong()
+          
+        case Some(JsString("joinLobby")) => 
+          ClientMessages.JoinGame("")
           
         case Some(JsString(unknown)) => 
           throw DeserializationException(s"Tipo di messaggio non riconosciuto: $unknown")
@@ -81,7 +85,11 @@ object JsonSupport extends DefaultJsonProtocol:
             "message" -> JsString(msg.message)
           )
           
+        case _: ServerMessages.Ping =>
+          JsObject("type" -> JsString("ping"))
+          
         case _ =>
+          println(s"[WARN] Messaggio di tipo sconosciuto: ${obj.getClass.getName}")
           JsObject("type" -> JsString("unknown"))
   
   // Conversione implicita per permettere l'uso di toJson e convertTo

@@ -100,9 +100,13 @@ class ClientNetworkManager:
         case TextMessage.Strict(text) =>
           println(s"Messaggio ricevuto: $text")
           
-          //si usa ClientJsonSupport per processare il messaggio
+          // Usa ClientJsonSupport per tutti i messaggi
           val parsedMessage = ClientJsonSupport.fromJson(text)
           parsedMessage match {
+            case PingMessage() =>
+              println("[DEBUG] Ricevuto ping dal server, invio pong")
+              sendPong()
+              
             case LobbyJoinedMessage(message) =>
               println(s"Sei entrato nella lobby! $message")
             
@@ -189,6 +193,25 @@ class ClientNetworkManager:
         Future.successful(false)
     }
   }
+  
+  /**
+   * Invia un messaggio di pong al server per mantenere viva la connessione
+   */
+  def sendPong(): Unit = {
+  
+  val pongMessage = ClientJsonSupport.toJson(PongMessage()).compactPrint
+  
+  messageQueue.foreach { queue =>
+    queue.offer(pongMessage).onComplete {
+      case Success(QueueOfferResult.Enqueued) => 
+        println("[DEBUG] Pong inviato al server")
+      case Success(_) => 
+        println("[WARNING] Impossibile inviare pong: coda non disponibile")
+      case Failure(ex) => 
+        println(s"[ERROR] Errore nell'invio del pong: ${ex.getMessage}")
+    }
+  }
+}
   
   def getPlayerId: Option[String] = playerId
 

@@ -11,6 +11,7 @@ import scala.io.StdIn
 import akka.event.Logging
 import akka.http.scaladsl.settings.ServerSettings
 import scala.concurrent.duration._
+import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 
 
 object RisikoServer:
@@ -28,14 +29,17 @@ object RisikoServer:
     val gameManager = system.actorOf(GameManager.props, "game-Manager")
     //GameManager.props fornisce la configurazione per creare l'attore GameManager
     
-     
     val serverSettings = ServerSettings(system)
       .withTimeouts(
         ServerSettings(system).timeouts
-          .withIdleTimeout(60.seconds)
+          .withIdleTimeout(Duration.Inf) 
+      )
+      .withWebsocketSettings(
+        ServerSettings(system).websocketSettings
+          .withPeriodicKeepAliveMaxIdle(Duration.Inf) 
       )
 
-    log.info(s"Server WebSocket configurato con timeout 60s")
+    log.info(s"Server WebSocket configurato con timeout infinito")
 
     // Definisce le route per il server
     val route =
@@ -69,8 +73,8 @@ object RisikoServer:
         }
       )
     val bindingFuture = Http().newServerAt(host, port)
-    .withSettings(serverSettings) // Applica le impostazioni del server
-    .bind(route)
+      .withSettings(serverSettings)
+      .bind(route)
     println(s"Server online at http://$host:$port/\nPress RETURN to stop...")
 
    

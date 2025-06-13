@@ -11,6 +11,8 @@ import protocol.{Message => ProtocolMessage}
 import spray.json._
 import protocol.JsonSupport._
 
+import scala.concurrent.duration._
+
 /**
  * Gestisce la comunicazione WebSocket tra client e server
  */
@@ -18,9 +20,9 @@ object WebSocketHandler:
   // Messaggi interni
   case class IncomingMessage(text: String)
   case class OutgoingConnection(client: ActorRef)
+  case object SendPing
   
-  
-    //Crea un flow di base o generica (Template)
+  // Crea un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
     
     val connectionId = java.util.UUID.randomUUID().toString.take(8)
@@ -59,7 +61,39 @@ object WebSocketHandler:
     // Riferimento per inviare messaggi al client
     var clientConnection: Option[ActorRef] = None
     
+    // Aggiungi un campo per lo scheduler
+    private var pingScheduler: Option[akka.actor.Cancellable] = None
+    
+    override def preStart(): Unit = {
+      println(s"[DEBUG] ConnectionActor ${self.path.name} avviato")
+      
+      // ping ogni 50 secondi 
+      import context.dispatcher
+      pingScheduler = Some(context.system.scheduler.scheduleWithFixedDelay(
+        50.seconds, 50.seconds, self, SendPing
+      ))
+    }
+    
+    override def postStop(): Unit = {
+      // Cancella lo scheduler quando l'attore viene fermato
+      pingScheduler.foreach(_.cancel())
+      
+      println(s"[DEBUG] ConnectionActor ${self.path.name} fermato, notifica GameManager")
+      try {
+        gameManager ! GameManager.PlayerDisconnected(self)
+      } catch {
+        case ex: Exception => 
+          println(s"[ERROR] Errore nell'invio della notifica di disconnessione: ${ex.getMessage}")
+          ex.printStackTrace()
+      }
+    }
+    
     def receive = {
+      // Aggiungi questo al pattern matching
+      case SendPing =>
+        println(s"[DEBUG] Invio ping al client")
+        sendProtocolMessage(protocol.ServerMessages.Ping())
+      
       // Registra il canale di output
       case OutgoingConnection(client) =>
         clientConnection = Some(client)
@@ -67,8 +101,15 @@ object WebSocketHandler:
       // Gestisce messaggi in arrivo dal client
       case IncomingMessage(text) =>
         parseJsonMessage(text) match {
-          case Success(msg) => handleClientMessage(msg)
-          case Failure(ex) => sendError(s"Errore di parsing: ${ex.getMessage}")
+          case Success(msg) => 
+            msg match {
+              case protocol.ClientMessages.Pong() =>
+                println(s"[DEBUG] Ricevuto pong dal client")
+              case other => 
+                handleClientMessage(other)
+            }
+          case Failure(ex) => 
+            println(s"[ERROR] Errore nel parsing del messaggio: ${ex.getMessage}")
         }
         
       // Gestisce messaggi dal server GameSession da inviare al client
@@ -87,7 +128,7 @@ object WebSocketHandler:
       try {
         val jsonValue = messageToJson(msg)
         val jsonString = jsonValue.toString
-        println(s"[DEBUG]  Invio messaggio: $jsonString")
+        println(s"[DEBUG]  Invio messaggio al client: $jsonString")
         clientConnection.foreach { conn => 
           conn ! TextMessage(jsonString)
           println(s"[DEBUG] Messaggio inviato al client")
@@ -137,16 +178,5 @@ object WebSocketHandler:
       text.parseJson.convertTo[ProtocolMessage]
     }
     
-    // metodo chiamato quando l'attore viene fermato
-    override def postStop(): Unit = {
-      println(s"[DEBUG] ConnectionActor ${self.path.name} fermato, notifica GameManager")
-      try {
-        gameManager ! GameManager.PlayerDisconnected(self)
-      } catch {
-        case ex: Exception => 
-          println(s"[ERROR] Errore nell'invio della notifica di disconnessione: ${ex.getMessage}")
-          ex.printStackTrace()
-      }
-    }
 
 end WebSocketHandler

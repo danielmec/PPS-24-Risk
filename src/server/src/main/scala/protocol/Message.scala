@@ -1,6 +1,9 @@
 package protocol
 
-sealed trait Message 
+sealed trait Message {
+    
+  def messageType: String = this.getClass.getSimpleName.replace("$", "")
+}
 
 //classe Singleton per i messaggi dal cliente al server
 object ClientMessages:
@@ -23,6 +26,10 @@ object ClientMessages:
   case class LeaveGame(gameId: String) extends Message
 
   case object Logout extends Message  
+
+  case class Pong() extends Message {
+    override val messageType: String = "pong"
+  }
 
 
 // classe Singleton per i messaggi dal server al client
@@ -68,3 +75,7 @@ object ServerMessages:
     case class PlayerLeft(gameId: String, playerId:String) extends Message
 
     case class Error(message: String) extends Message
+
+    case class Ping() extends Message {
+      override val messageType: String = "ping"
+    }
