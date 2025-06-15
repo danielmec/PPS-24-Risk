@@ -39,6 +39,9 @@ class ClientNetworkManager:
   //coda per i messaggi in uscita
   private var messageQueue: Option[SourceQueueWithComplete[String]] = None
   
+  // 1. Aggiungi una proprietà per memorizzare i callback
+  private var messageCallbacks: Map[String, Any => Unit] = Map.empty
+  
   def login(username: String): Future[Boolean] =
     val request = HttpRequest(
       method = HttpMethods.POST,
@@ -109,20 +112,24 @@ class ClientNetworkManager:
               
             case LobbyJoinedMessage(message) =>
               println(s"Sei entrato nella lobby! $message")
-            
+              messageCallbacks.get("lobbyJoined").foreach(_(parsedMessage))
+    
             case ErrorMessage(message) =>
               println(s" Errore: $message")
-            
-            case GameCreatedMessage(gameId, gameName, creatorId) =>
+    
+            case msg @ GameCreatedMessage(gameId, gameName, creatorId) =>
               println(s" Partita creata: '$gameName' (ID: $gameId)")
-            
-            case PlayerJoinedMessage(gameId, playerId) =>
-              println(s" Il giocatore $playerId è entrato nella partita $gameId")
-            
-            case GameJoinedMessage(gameId, players) =>
-              println(s" Sei entrato nella partita $gameId con ${players.size} giocatori")
+              messageCallbacks.get("gameCreated").foreach(_(msg))
+    
+            case msg @ GameJoinedMessage(gameId, players, gameName) =>
+              println(s" Sei entrato nella partita $gameId -- $gameName con ${players.size} giocatori")
               println(s"   Giocatori: ${players.mkString(", ")}")
-            
+              messageCallbacks.get("gameJoined").foreach(_(msg))
+
+            case msg @ GameListMessage(games) =>
+              println(s"Lista partite disponibili")
+              messageCallbacks.get("gameList").foreach(_(msg))
+
             case _ =>
               println(s"Messaggio di tipo sconosciuto: $text")
           }
@@ -213,6 +220,17 @@ class ClientNetworkManager:
   }
 }
   
+  /**
+   * Invia un messaggio di qualsiasi tipo al server tramite WebSocket
+   * 
+   * @param messageObject L'oggetto messaggio (verrà serializzato con ClientJsonSupport)
+   * @return Future[Boolean] che indica il successo dell'invio
+   */
+  def sendMessage[T](messageObject: T): Future[Boolean] = {
+    val jsonString = ClientJsonSupport.toJson(messageObject).compactPrint
+    sendWebSocketMessage(jsonString)
+  }
+  
   def getPlayerId: Option[String] = playerId
 
   def shutdown(): Unit =
@@ -221,5 +239,10 @@ class ClientNetworkManager:
       promise.success(None) // Completa con None per chiudere
     }
     system.terminate()
+
+  //metodo callback per ricevere messaggi specifici
+  def registerCallback(messageType: String, callback: Any => Unit): Unit = {
+    messageCallbacks = messageCallbacks + (messageType -> callback)
+  }
 
 end ClientNetworkManager

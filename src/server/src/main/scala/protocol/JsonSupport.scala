@@ -13,6 +13,7 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat1(ClientMessages.JoinGame)
   implicit val leaveGameFormat: RootJsonFormat[ClientMessages.LeaveGame] = jsonFormat1(ClientMessages.LeaveGame)
   implicit val pongFormat: RootJsonFormat[ClientMessages.Pong] = jsonFormat0(ClientMessages.Pong)
+  implicit val getAllGamesFormat: RootJsonFormat[ClientMessages.GetAllGames] = jsonFormat0(ClientMessages.GetAllGames)
 
   // Formato per i messaggi server 
   implicit val gameCreatedFormat: RootJsonFormat[ServerMessages.GameCreated] = jsonFormat3(ServerMessages.GameCreated)
@@ -20,6 +21,7 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val errorFormat: RootJsonFormat[ServerMessages.Error] = jsonFormat1(ServerMessages.Error)
   implicit val lobbyJoinedFormat: RootJsonFormat[ServerMessages.LobbyJoined] = jsonFormat1(ServerMessages.LobbyJoined)
   implicit val pingFormat: RootJsonFormat[ServerMessages.Ping] = jsonFormat0(ServerMessages.Ping)
+  implicit val GameListFormat: RootJsonFormat[ServerMessages.GameList] = jsonFormat1(ServerMessages.GameList)
 
   // Lettura di messaggi client generici 
   implicit object ClientMessageJsonFormat extends RootJsonReader[ProtocolMessage]:
@@ -47,6 +49,9 @@ object JsonSupport extends DefaultJsonProtocol:
           
         case Some(JsString("joinLobby")) => 
           ClientMessages.JoinGame("")
+
+        case Some(JsString("getAllGames")) =>
+          ClientMessages.GetAllGames()
           
         case Some(JsString(unknown)) => 
           throw DeserializationException(s"Tipo di messaggio non riconosciuto: $unknown")
@@ -87,6 +92,26 @@ object JsonSupport extends DefaultJsonProtocol:
           
         case _: ServerMessages.Ping =>
           JsObject("type" -> JsString("ping"))
+          
+        case msg: ServerMessages.GameJoined =>
+          JsObject(
+            "type" -> JsString("gameJoined"),
+            "gameId" -> JsString(msg.gameId),
+            "players" -> JsArray(msg.players.map(JsString(_)).toVector),
+            "gameName" -> JsString(msg.gameName)
+          )
+
+        case msg: ServerMessages.GameList =>
+          JsObject(
+            "type" -> JsString("gameList"),
+            "games" -> JsArray(msg.games.map(JsString(_)).toVector)
+          )
+          
+        case msg: ServerMessages.GameRemoved =>
+          JsObject(
+            "type" -> JsString("gameRemoved"),
+            "gameId" -> JsString(msg.gameId)
+          )
           
         case _ =>
           println(s"[WARN] Messaggio di tipo sconosciuto: ${obj.getClass.getName}")

@@ -81,14 +81,14 @@ class GameSession(
                 case (true, _) | (_, WaitingForPlayers) =>
                     //Creo una nuova mappa immutabile
                     val updatedPlayers = players + (playerId -> playerRef)
-
+                    println(s"Player $playerId joined game $gameId, current players: ${updatedPlayers.keys.mkString(", ")}")
                     //converte in lista
                     val playersList = updatedPlayers.keys.toList
 
                     //Notifico tutti i giocatori
                     updatedPlayers.values.foreach(player =>  // ActorRef = player
                         //notifica actorRef con un messaggio GameJoined 
-                        player ! ServerMessages.GameJoined(gameId, playersList)   
+                        player ! ServerMessages.GameJoined(gameId, playersList, gameName)   
                     )
 
                     //calcolo il nuovo stato usando pattern matching
@@ -121,6 +121,8 @@ class GameSession(
                     updatedPlayers.isEmpty match
                         case true =>
                             log.info(s"No more players in game $gameId, stopping session")
+                            // Notifica il GameManager che questa sessione sta terminando
+                            context.parent ! GameManager.GameSessionEnded(gameId)
                             context.stop(self)
 
                         case false =>
