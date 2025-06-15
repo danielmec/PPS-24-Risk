@@ -190,6 +190,27 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
       engine.initGame(GameAction.Defend("2", "SomeTerritory", 1))
     }
   
+  test("Attack - creates pending attack correctly"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 5)
+    val t2 = allTerritories.tail.head.copy(owner = Some(player2), troops = 3, neighbors = Set(t1))
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    val updatedBoard = engine.getGameState.board.updatedTerritory(updatedT1).updatedTerritory(t2)
+    engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
+    val gameState = engine.initGame(GameAction.Attack("1", "2", t1.name, t2.name, 3))
+    gameState should not be null
+
+  test("Attack - fails if attacking with too many troops"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 2)
+    val t2 = allTerritories.tail.head.copy(owner = Some(player2), troops = 3, neighbors = Set(t1))
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    val updatedBoard = engine.getGameState.board.updatedTerritory(updatedT1).updatedTerritory(t2)
+    engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
+    an [InvalidTroopsException] should be thrownBy {
+      engine.initGame(GameAction.Attack("1", "2", t1.name, t2.name, 2))
+    }
+
   test("TradeCards - fails with invalid card combination"):
     val cards = Set.empty[TerritoryCard] 
     an [InvalidCardException] should be thrownBy {
