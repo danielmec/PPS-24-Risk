@@ -185,10 +185,34 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
       engine.initGame(GameAction.Reinforce("1", "Territory1", "Territory2", 2))
     }
 
+  test("Reinforce - cannot be used more than once per turn"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 4)
+    val t2 = allTerritories.tail.head.copy(owner = Some(player1), troops = 2, neighbors = Set(t1))
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    val updatedBoard = engine.getGameState.board.updatedTerritory(updatedT1).updatedTerritory(t2)
+    engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)))
+    engine.initGame(GameAction.Reinforce("1", t1.name, t2.name, 1))
+    an [InvalidActionException] should be thrownBy {
+      engine.initGame(GameAction.Reinforce("1", t1.name, t2.name, 1))
+    }
+
   test("Defend - fails without pending attack"):
     an [InvalidActionException] should be thrownBy {
       engine.initGame(GameAction.Defend("2", "SomeTerritory", 1))
     }
+
+  test("Defend - resolves battle and conquers territory"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 5)
+    val t2 = allTerritories.tail.head.copy(owner = Some(player2), troops = 1, neighbors = Set(t1))
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    val updatedBoard = engine.getGameState.board.updatedTerritory(updatedT1).updatedTerritory(t2)
+    engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
+    engine.initGame(GameAction.Attack("1", "2", t1.name, t2.name, 3))
+    val gameState = engine.initGame(GameAction.Defend("2", t2.name, 1))
+    val conquered = gameState.board.territories.find(_.name == t2.name).get.owner.contains(player1)
+    conquered shouldBe true
   
   test("Attack - creates pending attack correctly"):
     val allTerritories = engine.getGameState.board.territories.toList
@@ -216,6 +240,20 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     an [InvalidCardException] should be thrownBy {
       engine.initGame(GameAction.TradeCards(cards))
     }
+
+  test("Player draws territory card only if conquered at least one territory"):
+    val allTerritories = engine.getGameState.board.territories.toList
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 5)
+    val t2 = allTerritories.tail.head.copy(owner = Some(player2), troops = 1, neighbors = Set(t1))
+    val updatedT1 = t1.copy(neighbors = Set(t2))
+    val updatedBoard = engine.getGameState.board.updatedTerritory(updatedT1).updatedTerritory(t2)
+    engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
+    engine.initGame(GameAction.Attack("1", "2", t1.name, t2.name, 3))
+    engine.initGame(GameAction.Defend("2", t2.name, 1))
+    val beforeCards = engine.getGameState.playerStates.find(_.playerId == "1").get.territoryCards.size
+    engine.initGame(GameAction.EndTurn)
+    val afterCards = engine.getGameState.playerStates.find(_.playerId == "1").get.territoryCards.size
+    afterCards should be > beforeCards
   
   test("Game over when objective is completed"):
     val winningObjective = ObjectiveCard.ConquerTerritories(2, 0) 
