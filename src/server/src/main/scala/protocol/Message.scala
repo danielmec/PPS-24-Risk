@@ -25,6 +25,9 @@ object ClientMessages:
 
   case class LeaveGame(gameId: String) extends Message
 
+  case class GetAllGames() extends Message 
+  
+
   case object Logout extends Message  
 
   case class Pong() extends Message {
@@ -53,7 +56,8 @@ object ServerMessages:
 
     case class GameJoined(
         gameId: String, 
-        players: List[String]
+        players: List[String],
+        gameName: String
     ) extends Message
 
     case class LobbyJoined(
@@ -72,6 +76,8 @@ object ServerMessages:
         message: String,
     ) extends Message
 
+    case class GameList(games: List[String]) extends Message
+
     case class PlayerLeft(gameId: String, playerId:String) extends Message
 
     case class Error(message: String) extends Message
@@ -79,3 +85,4 @@ object ServerMessages:
     case class Ping() extends Message {
       override val messageType: String = "ping"
     }
+    case class GameRemoved(gameId: String) extends Message

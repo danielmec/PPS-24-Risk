@@ -21,6 +21,7 @@ object GameManager:
     case class ForwardToGame(gameId: String, message: Message) extends Command
     case class PlayerDisconnected(player: ActorRef) extends Command
     case class RegisterClient(client: ActorRef) extends Command
+    case class GameSessionEnded(gameId: String) extends Command 
 
     //Factory method per creare un'istanza di GameManager
     def props: Props = Props(new GameManager())
@@ -73,9 +74,10 @@ class GameManager extends Actor with ActorLogging:
                 gameName,
                 creator.path.name
             )
-
+  
             gameSession ! GameSession.JoinGame(creator.path.name, creator)
-
+            println(s"Game session $gameId created by ${creator.path.name}")
+            
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
         case JoinGameSession(gameId, player) =>
@@ -108,9 +110,9 @@ class GameManager extends Actor with ActorLogging:
                     log.warning(s"Game session $gameId not found for player ${player.path.name}")
             
         case GetAllGames(replyTo) =>
-            log.info("Sending all game sessions to the requester")
+            println("Invio lista di tutte le partite attive")
             val gameList = games.keys.toList
-            replyTo ! gameList
+            replyTo ! ServerMessages.GameList(gameList)
 
         case ForwardToGame(gameId, message) =>
             games.get(gameId) match 
@@ -124,23 +126,58 @@ class GameManager extends Actor with ActorLogging:
             // Rimuove il client dal set di client connessi
             val updatedClients = connectedClients - player
             log.warning(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
-            println(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
+            
             playerToGame.get(player) match 
                 case Some(gameId) =>
                     log.info(s"Player ${player.path.name} disconnected from game session: $gameId")
                     games.get(gameId) match 
                         case Some(gameSession) =>
+                            // Rimuovi il giocatore dalla partita
                             gameSession ! GameSession.LeaveGame(player.path.name)
+                            
+                            // Verifica immediatamente se questa è l'ultima disconnessione
+                            // che potrebbe lasciare la partita vuota
+                            import akka.pattern.ask
+                            import scala.concurrent.duration._
+                            import akka.util.Timeout
+                            implicit val timeout: Timeout = 3.seconds
+                            implicit val ec = context.dispatcher
+                            
+                            // Breve attesa per dare il tempo alla sessione di aggiornare il suo stato
+                            context.system.scheduler.scheduleOnce(200.milliseconds) {
+                                (gameSession ? GameSession.GetStateRequest).foreach {
+                                    case state: ServerMessages.GameState if state.players.isEmpty =>
+                                        log.warning(s"Partita $gameId rimasta vuota dopo disconnessione, rimuovo...")
+                                        self ! GameSessionEnded(gameId)
+                                    case _ => // La partita ha ancora giocatori, non fare nulla
+                                }
+                            }
+                            
                         case None =>
                             log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
-                    
-                    // Rimuove il giocatore dalla mappatura dei giocatori al gioco
-                    val updatedPlayerToGame = playerToGame - player
-                    context.become(running(games, updatedClients, updatedPlayerToGame))
-                
-                case None =>
-                    log.warning(s"Player ${player.path.name} not found in any game session")
-                    context.become(running(games, updatedClients, playerToGame))
+            
+                // Rimuove il giocatore dalla mappatura dei giocatori al gioco
+                val updatedPlayerToGame = playerToGame - player
+                context.become(running(games, updatedClients, updatedPlayerToGame))
+        
+        case GameSessionEnded(gameId) =>
+            // Gestisce la fine di una sessione di gioco
+            log.info(s"Game session $gameId has ended, removing from active games")
+            
+            // Rimuovi la sessione dalla mappa dei giochi attivi
+            val updatedGames = games - gameId
+            
+            // Notifica tutti i client connessi che la partita è stata rimossa
+            connectedClients.foreach { client =>
+                client ! ServerMessages.GameRemoved(gameId)
+            }
+            
+            // Aggiorna la mappatura playerToGame rimuovendo tutti i giocatori associati a questo gioco
+            val playersInGame = playerToGame.filter(_._2 == gameId).keys.toSet
+            val updatedPlayerToGame = playerToGame -- playersInGame
+            
+            // Aggiorna lo stato con le nuove mappe
+            context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
 end GameManager
 

@@ -13,6 +13,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class JoinGameMessage(gameId: String)
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
+  case class GetAllGamesMessage() 
   case class PongMessage() // Risposta ai ping del server
 
   // Definizione dei messaggi che il client può ricevere
@@ -20,15 +21,17 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class PlayerJoinedMessage(gameId: String, playerId: String)
   case class ErrorMessage(message: String)
   case class LobbyJoinedMessage(message: String)
-  case class GameJoinedMessage(gameId: String, players: List[String])
+  case class GameJoinedMessage(gameId: String, players: List[String], gameName: String)
   case class LoginResponse(playerId: String, message: Option[String] = None)
-  case class PingMessage() // Ping dal server per mantenere attiva la connessione
+  case class PingMessage() 
+  case class GameListMessage(games: List[String]) 
 
   // Formati per i messaggi in uscita
   implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat2(CreateGameMessage)
   implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat1(JoinGameMessage)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
   implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
+  implicit val getAllGamesFormat: RootJsonFormat[GetAllGamesMessage] = jsonFormat0(GetAllGamesMessage) 
   implicit val pingFormat: RootJsonFormat[PingMessage] = jsonFormat0(PingMessage)
 
   // Formati per i messaggi in entrata
@@ -36,9 +39,10 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(PlayerJoinedMessage)
   implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(ErrorMessage)
   implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(LobbyJoinedMessage)
-  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat2(GameJoinedMessage)
+  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat3(GameJoinedMessage)
   implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse)
   implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(PongMessage)
+  implicit val gameListFormat: RootJsonFormat[GameListMessage] = jsonFormat1(GameListMessage)
 
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
@@ -55,13 +59,26 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       )
     case _: JoinLobbyMessage => 
       JsObject("type" -> JsString("joinGame"), "gameId" -> JsString(""))
+
     case msg: LeaveGameMessage => 
       JsObject(
         "type" -> JsString("leaveGame"),
         "gameId" -> JsString(msg.gameId)
       )
+    
+    case msg: GetAllGamesMessage => 
+      JsObject("type" -> JsString("getAllGames"))
+    
+
     case _: PongMessage => 
       JsObject("type" -> JsString("pong"))
+      
+    case msg: GameJoinedMessage =>
+      JsObject(
+        "type" -> JsString("gameJoined"),
+        "gameId" -> JsString(msg.gameId),
+        "players" -> JsArray(msg.players.map(JsString(_)).toVector)
+      )
     case _ => JsObject("type" -> JsString("unknown"))
   
   // Metodo per deserializzare i messaggi in entrata
@@ -93,7 +110,12 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         case Some(JsString("gameJoined")) => 
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
           val players = fields.getOrElse("players", JsArray()).convertTo[List[String]]
-          GameJoinedMessage(gameId, players)
+          val gameName = fields.getOrElse("gameName", JsString("")).convertTo[String]
+          GameJoinedMessage(gameId, players, gameName)
+
+        case Some(JsString("gameList")) => 
+          val games = fields.getOrElse("games", JsArray()).convertTo[List[String]]
+          GameListMessage(games)
           
         case Some(JsString("ping")) => 
           PingMessage()

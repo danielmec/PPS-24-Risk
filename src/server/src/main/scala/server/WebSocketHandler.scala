@@ -116,8 +116,9 @@ object WebSocketHandler:
       case msg: protocol.ServerMessages.Error =>
        sendProtocolMessage(msg)
         
+      //messaggi da GameManager o GameSession gia arrivati protocollati secondo Message.scala
       case msg: ProtocolMessage =>
-        val jsonString = messageToJson(msg).toString()
+        val jsonString = messageToJson(msg).compactPrint
         clientConnection.foreach(_ ! TextMessage(jsonString))
         
       case _ => // ignora altri messaggi per ora
@@ -127,7 +128,7 @@ object WebSocketHandler:
     private def sendProtocolMessage(msg: ProtocolMessage): Unit =
       try {
         val jsonValue = messageToJson(msg)
-        val jsonString = jsonValue.toString
+        val jsonString = jsonValue.compactPrint
         println(s"[DEBUG]  Invio messaggio al client: $jsonString")
         clientConnection.foreach { conn => 
           conn ! TextMessage(jsonString)
@@ -164,6 +165,10 @@ object WebSocketHandler:
         case protocol.ClientMessages.JoinGame(gameId) =>
           println(s"Inoltro richiesta join partita: $gameId")
           gameManager ! GameManager.JoinGameSession(gameId, self)
+
+        case protocol.ClientMessages.GetAllGames() =>
+          println(s"Inoltro richiesta lista partite")
+          gameManager ! GameManager.GetAllGames(self)
           
         case _ => 
           println(s"Messaggio non gestito: $msg")
