@@ -6,7 +6,7 @@ import akka.actor.{
     Props, 
     ActorLogging
 }
-import protocol.{ //classe creata nel package protocol
+import protocol.{
     Message,
     ServerMessages,
     ClientMessages
@@ -24,13 +24,16 @@ object GameSession:
 
     sealed trait Command
 
-    case class JoinGame(playerId: String, playerRef: ActorRef) extends Command
+    case class JoinGame(playerId: String, playerRef: ActorRef, username: String) extends Command
     case class LeaveGame(playerId: String) extends Command
     case class ProcessAction(
         playerId: String, 
         action: ClientMessages.GameAction
         ) extends Command
     case object GetStateRequest extends Command
+
+    // Classe che rappresenta un giocatore con username
+    case class Player(id: String, ref: ActorRef, username: String)
 
     // Enumeration per rappresentare le fasi del gioco
     sealed trait GamePhase
@@ -56,6 +59,7 @@ class GameSession(
         log.info(s"GameSession $gameId started with name $gameName and max players $maxPlayers")
         context.become(running(
             players = Map.empty, 
+            playerData = Map.empty,
             phase = WaitingForPlayers,
             currentPlayer = None,
             gameState = Map.empty
@@ -71,22 +75,32 @@ class GameSession(
     // come i giocatori, numero ,fase...
     def running(
         players: Map[String, ActorRef],
+        playerData: Map[String, Player],  
         phase: GamePhase,
         currentPlayer: Option[String],
         gameState: Map[String, Any]
     ): Receive = 
-        //chiamato da GameManager 
-        case JoinGame(playerId, playerRef) =>
+        //chiamato da GameManager , playerId sarebbe creator.name che è ID dell attore akka
+        case JoinGame(playerId, playerRef, username) =>
             (players.size < maxPlayers, phase) match
                 case (true, _) | (_, WaitingForPlayers) =>
                     //Creo una nuova mappa immutabile
                     val updatedPlayers = players + (playerId -> playerRef)
-                    println(s"Player $playerId joined game $gameId, current players: ${updatedPlayers.keys.mkString(", ")}")
-                    //converte in lista
-                    val playersList = updatedPlayers.keys.toList
+                    // Aggiungi il player con username alla mappa playerData
+                    val updatedPlayerData = playerData + (playerId -> Player(playerId, playerRef, username))
+                    
+                    println(s"Player $playerId ($username) joined game $gameId, current players: ${updatedPlayers.keys.mkString(", ")}")
+                    
+                    // Lista di username da inviare ai client
+                    val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
+                    val playerIds = updatedPlayers.keys.toList
+
+                    // Aggiorniamo lo stato per includere gli username
+                    val updatedState = gameState + 
+                        ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap)
 
                     //Notifico tutti i giocatori
-                    updatedPlayers.values.foreach(player =>  // ActorRef = player
+                    updatedPlayers.values.foreach(player =>
                         //notifica actorRef con un messaggio GameJoined 
                         player ! ServerMessages.GameJoined(gameId, playersList, gameName)   
                     )
@@ -94,12 +108,12 @@ class GameSession(
                     //calcolo il nuovo stato usando pattern matching
                     val newPhase = (updatedPlayers.size >= 2, phase) match
                         case(true, WaitingForPlayers) =>
-                            log.info(s"Game $gameId has enough players, changing to Setuo phase")
+                            log.info(s"Game $gameId has enough players, changing to Setup phase")
                             Setup
                         case _ => phase
 
                     //transizione di stato funzionale
-                    context.become(running(updatedPlayers, newPhase, currentPlayer, gameState ))
+                    context.become(running(updatedPlayers, updatedPlayerData, newPhase, currentPlayer, updatedState))
 
                 case _ =>
                     //errore sul pattern matching
@@ -117,6 +131,7 @@ class GameSession(
 
                 case Some(_) =>
                     val updatedPlayers = players - playerId // toglie il player
+                    val updatedPlayerData = playerData - playerId // rimuove anche i dati del player
 
                     updatedPlayers.isEmpty match
                         case true =>
@@ -126,12 +141,18 @@ class GameSession(
                             context.stop(self)
 
                         case false =>
-                            val playersList = updatedPlayers.keys.toList
-                            updatedPlayers.values.foreach(player => 
-                                player ! ServerMessages.PlayerLeft(gameId, playerId)
-                                )
+                            // Aggiorna le liste di player con username
+                            val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
+                            val playerIds = updatedPlayers.keys.toList
                             
-                            val updatedState = gameState + ("players" -> playersList)
+                            val updatedState = gameState + 
+                                ("players" -> playerIds) + 
+                                ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap)
+
+                            val username = playerData.get(playerId).map(_.username).getOrElse(playerId)
+                            updatedPlayers.values.foreach(player => 
+                                player ! ServerMessages.PlayerLeft(gameId, s"$username ($playerId)")
+                                )
 
                             updatedPlayers.values.foreach(player =>
                                 player ! ServerMessages.GameState(
@@ -155,7 +176,7 @@ class GameSession(
                                         Some(cp)
                             )
                             
-                            context.become(running(updatedPlayers, newPhase, newCurrentPlayer, updatedState))
+                            context.become(running(updatedPlayers, updatedPlayerData, newPhase, newCurrentPlayer, updatedState))
 
         // Pattern matching per ProcessAction
         case ProcessAction(playerId, action) =>
@@ -177,7 +198,8 @@ class GameSession(
                 
                 case (Some(_), Playing, Some(_)) =>
                     // Elabora l'azione in modo funzionale
-                    log.info(s"Player $playerId performed action ${action.action} in game $gameId")
+                    val username = playerData.get(playerId).map(_.username).getOrElse(playerId)
+                    log.info(s"Player $playerId ($username) performed action ${action.action} in game $gameId")
                     
                     // Rispondi al giocatore
                     players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
@@ -185,33 +207,40 @@ class GameSession(
                     // Crea un NUOVO stato combinando il vecchio con i nuovi dati (immutabile)
                     val newGameState = gameState + 
                         ("lastAction" -> action.action) + 
-                        ("lastPlayer" -> playerId)
+                        ("lastPlayer" -> playerId) +
+                        ("lastPlayerUsername" -> username)
                     
                     // Calcola il prossimo giocatore in modo funzionale
                     val playerIds = players.keys.toList
                     val nextPlayer = findNextPlayer(playerId, playerIds)
                     
+                    // Lista di player con username
+                    val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
+                    
                     // Aggiorna tutti i giocatori
                     players.values.foreach(player => 
                         player ! ServerMessages.GameState(
                             gameId, 
-                            playerIds,
+                            playersList,
                             nextPlayer.getOrElse(""),
                             newGameState.toMap
                         )
                     )
                     
                     // Transizione di stato funzionale
-                    context.become(running(players, phase, nextPlayer, newGameState))
+                    context.become(running(players, playerData, phase, nextPlayer, newGameState))
                 
                 case _ =>
                     log.warning(s"Unexpected state in ProcessAction: player=$playerId, phase=$phase, currentPlayer=$currentPlayer")
 
         // Pattern matching per GetStateRequest
         case GetStateRequest =>
+            // Lista di player con username
+            val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
+            
             sender() ! ServerMessages.GameState(
                 gameId,
-                players.keys.toList,
+                playersList,
                 currentPlayer.getOrElse(""),
                 gameState.toMap
             )
@@ -221,7 +250,7 @@ class GameSession(
             log.warning(s"GameSession received unhandled message: $msg")    
 
     
-    private def findNextPlayer (currentPlayerId: String, playerIds: List[String]): Option[String] =
+    private def findNextPlayer(currentPlayerId: String, playerIds: List[String]): Option[String] =
         playerIds match
             case Nil => None
             case _ => 

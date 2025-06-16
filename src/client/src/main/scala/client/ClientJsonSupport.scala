@@ -9,8 +9,8 @@ import scalafx.scene.input.KeyCode.O
  */
 object ClientJsonSupport extends DefaultJsonProtocol:
   // Definizione dei messaggi che il client può inviare
-  case class CreateGameMessage(gameName: String, maxPlayers: Int)
-  case class JoinGameMessage(gameId: String)
+  case class CreateGameMessage(gameName: String, maxPlayers: Int, username: String)
+  case class JoinGameMessage(gameId: String, username: String)
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
   case class GetAllGamesMessage() 
@@ -27,8 +27,8 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class GameListMessage(games: List[String]) 
 
   // Formati per i messaggi in uscita
-  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat2(CreateGameMessage)
-  implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat1(JoinGameMessage)
+  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat3(CreateGameMessage)
+  implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(JoinGameMessage)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
   implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
   implicit val getAllGamesFormat: RootJsonFormat[GetAllGamesMessage] = jsonFormat0(GetAllGamesMessage) 
@@ -50,12 +50,14 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       JsObject(
         "type" -> JsString("createGame"),
         "gameName" -> JsString(msg.gameName),
-        "maxPlayers" -> JsNumber(msg.maxPlayers)
+        "maxPlayers" -> JsNumber(msg.maxPlayers),
+        "username" -> JsString(msg.username)
       )
     case msg: JoinGameMessage => 
       JsObject(
         "type" -> JsString("joinGame"),
-        "gameId" -> JsString(msg.gameId)
+        "gameId" -> JsString(msg.gameId),
+        "username" -> JsString(msg.username)
       )
     case _: JoinLobbyMessage => 
       JsObject("type" -> JsString("joinGame"), "gameId" -> JsString(""))

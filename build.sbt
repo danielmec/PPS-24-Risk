@@ -3,8 +3,11 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.3.6"
 lazy val core = (project in file("src/core"))
 .settings(
-  name := "RiskCore"
-
+  name := "RiskCore",
+  libraryDependencies ++= Seq(
+    "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+    "com.typesafe.play" %% "play-json" % "2.10.0-RC5" 
+  )
 )
 
 lazy val client = (project in file("src/client"))

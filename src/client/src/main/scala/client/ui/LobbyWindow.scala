@@ -4,19 +4,23 @@ import scalafx.Includes._
 import scalafx.application.Platform
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.Scene
-import scalafx.scene.control.{Button, Label, ListView}
-import scalafx.scene.layout.{BorderPane, HBox, VBox}
+import scalafx.scene.control.{Button, Label, ListView, TextField, Dialog, ButtonType}
+import scalafx.scene.layout.{BorderPane, HBox, VBox, GridPane}
 import scalafx.scene.text.{Font, FontWeight}
 import scalafx.stage.{Modality, Stage}
 import scalafx.collections.ObservableBuffer
 import client.ClientNetworkManager
 import client.ClientJsonSupport._
 import client.ClientJsonSupport
+import java.util.prefs.Preferences
 
 /**
  * Finestra che mostra le lobby di gioco disponibili
  */
 class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extends Stage {
+  
+  // preferenze utente per salvare il nome
+  private val userPrefs = Preferences.userNodeForPackage(getClass)
   
   title = "Risk - Lobby"
   initModality(Modality.ApplicationModal)
@@ -89,15 +93,115 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
     dialog.showAndWait()
   }
   
+  /**
+   * Mostra una finestra di dialogo per richiedere il nome utente
+   */
+  private def showUsernameDialog(): Option[String] = {
+    var result: Option[String] = None
+    
+    val dialog = new Stage {
+      initOwner(LobbyWindow.this)
+      initModality(Modality.APPLICATION_MODAL)
+      title = "Inserisci username"
+      width = 350
+      height = 150
+      
+      // carica il nome precedentemente salvato
+      val savedUsername = userPrefs.get("username", "")
+      
+      val usernameLabel = new Label("Nome utente:")
+      val usernameField = new TextField {
+        promptText = "Inserisci il tuo nome"
+        text = savedUsername
+      }
+      
+      val okButton = new Button("Partecipa")
+      val cancelButton = new Button("Annulla")
+      
+      val buttonBox = new HBox(10, okButton, cancelButton) {
+        alignment = Pos.CenterRight
+      }
+      
+      val formGrid = new GridPane {
+        hgap = 10
+        vgap = 10
+        padding = Insets(10)
+        
+        add(usernameLabel, 0, 0)
+        add(usernameField, 1, 0)
+      }
+      
+      val layout = new VBox(20) {
+        children = Seq(
+          formGrid,
+          buttonBox
+        )
+        padding = Insets(10)
+      }
+      
+      scene = new Scene(layout)
+      
+      okButton.onAction = _ => {
+        val username = usernameField.text.value.trim
+        if (username.nonEmpty) {
+          // salva il nome utente per usi futuri
+          userPrefs.put("username", username)
+          result = Some(username)
+          close()
+        } else {
+          
+          val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR) 
+          alert.setTitle("Errore")
+          alert.setHeaderText("Nome utente obbligatorio")
+          alert.setContentText("Inserisci un nome utente per continuare.")
+          alert.showAndWait()
+        }
+      }
+      
+      cancelButton.onAction = _ => {
+        result = None
+        close()
+      }
+    }
+    
+    dialog.showAndWait()
+    
+    // restituisce il risultato direttamente
+    result
+  }
+  
   joinGameButton.onAction = _ => {
     val selectedGame = gameListView.selectionModel().getSelectedItem
     if (selectedGame != null) {
-      networkManager.sendMessage(JoinGameMessage(selectedGame.id)).foreach { success =>
-        if (success) {
-          // Il server risponderà con gameJoined, che verrà gestito dal callback
-        }
-      }(networkManager.executionContext)
+      
+      val usernameOption = showUsernameDialog()
+      
+      usernameOption.foreach { username =>
+        println(s"Nome utente selezionato: $username")
+        
+        networkManager.sendMessage(JoinGameMessage(selectedGame.id, username)).foreach { success =>
+          if (success) {
+            println(s"Richiesta di partecipazione inviata con nome utente: $username")
+          } else {
+            Platform.runLater {
+              showError("Non è stato possibile partecipare alla partita. Riprova più tardi.")
+            }
+          }
+        }(networkManager.executionContext)
+      }
     }
+  }
+  
+  /**
+   * Mostra un messaggio di errore in una finestra di dialogo
+   * @param message Il messaggio di errore da mostrare
+   */
+  private def showError(message: String): Unit = {
+    val alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR)
+    alert.setTitle("Errore")
+    alert.setHeaderText("Impossibile partecipare")
+    alert.setContentText(message)
+    alert.showAndWait()
   }
   
   //inizializza aggiornando la lobby
@@ -113,7 +217,7 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
       availableGames += GameInfo("loading", "Caricamento in corso...", 0, 0)
     }
     
-    // Invia la richiesta getAllGames invece di joinLobby
+    
     networkManager.sendMessage(GetAllGamesMessage()).foreach { success =>
       if (success) {
         println("Richiesta getAllGames inviata con successo")
@@ -148,7 +252,7 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
           // Chiudi la finestra corrente della lobby
           this.hide()
           
-          // Se esiste già una finestra di gioco (per un'altra partita), chiudila
+          //chiude la finestra di gioco corrente se esiste per evitare duplicati in caso di aggiornamenti
           currentGameWindow.foreach(_.close())
           
           val gameName = msg.gameName
