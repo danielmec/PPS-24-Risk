@@ -157,10 +157,10 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
           val gameWindow = new GameWindow(networkManager, msg.gameId, gameName, msg.players)
           gameWindow.show()
           
-          // Memorizza il riferimento alla finestra
+          // memorizza il riferimento alla finestra
           currentGameWindow = Some(gameWindow)
           
-          // Quando la finestra di gioco viene chiusa, riapri la lobby
+          //quando la finestra di gioco viene chiusa, riapri la lobby
           gameWindow.onCloseRequest = _ => {
             this.show()
             currentGameWindow = None
@@ -176,10 +176,10 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
         availableGames.clear()
         
         if (msg.games.isEmpty) {
-          // Nessuna partita disponibile
+          //nessuna partita disponibile
           availableGames += GameInfo("", "Nessuna partita disponibile", 0, 0)
         } else {
-          // Aggiungi le partite ricevute dal server
+          //aggiungi le partite ricevute dal server
           msg.games.foreach { gameId =>
             availableGames += GameInfo(gameId, s"Partita: $gameId", 0, 4)
           }
@@ -190,7 +190,7 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
   
   networkManager.registerCallback("gameCreated", {
     case msg: GameCreatedMessage =>
-      // Dopo la creazione di una partita, aggiorna l'elenco
+      //dopo la creazione di una partita, aggiorna l'elenco
       refreshLobby()
   })
   
