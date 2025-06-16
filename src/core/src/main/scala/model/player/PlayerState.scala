@@ -3,11 +3,16 @@ import model.cards.*
 import engine.* 
 
 case class PlayerState(
-    playerId: String, 
+    player: Player, 
     territoryCards: Set[TerritoryCard], 
     objectiveCard: Option[ObjectiveCard], 
-    phase: TurnPhase = TurnPhase.WaitingForTurn
+    phase: TurnPhase = TurnPhase.WaitingForTurn,
+    bonusTroops: Int
 ):
+
+    def playerId: String = player.id
+    def playerColor: PlayerColor = player.color
+    def playerType: PlayerType = player.playerType
 
     def setPhase(newPhase: TurnPhase): PlayerState = copy(phase = newPhase)
 

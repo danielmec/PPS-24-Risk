@@ -6,7 +6,7 @@ import model.board.*
 case class GameState(
     gameId: String,
     board: Board,
-    states: List[PlayerState],
+    playerStates: List[PlayerState],
     turnManager: TurnManager,
     decksManager: DecksManager,
     territoryCards: List[TerritoryCard] = List.empty,
@@ -14,10 +14,10 @@ case class GameState(
 ):
 
     def getPlayerState(playerId: String): Option[PlayerState] =
-        states.find(_.playerId == turnManager.currentPlayer.id)
+        playerStates.find(_.playerId == turnManager.currentPlayer.id)
 
     def updatePlayerState(playerId: String, newState: PlayerState): GameState = 
-        copy(states = states.map:
+        copy(playerStates = playerStates.map:
             case player if player.playerId == playerId => newState
             case player => player
         )
@@ -27,9 +27,9 @@ case class GameState(
     def updateBoard(newBoard: Board): GameState = copy(board = newBoard)
 
     def updateTurnManager(newTurnManager: TurnManager): GameState = copy(turnManager = newTurnManager)
-
+ 
     def checkWinCondition: Option[PlayerState] =
-        states.find(player => player.objectiveCard.exists(
-            obj => ObjectiveValidator.isCompleted(obj, this, player)
+        playerStates.find(player => player.objectiveCard.exists(
+            obj => ObjectiveValidator.done(obj, this, player)
             )).map(_.playerId).flatMap(
-                id => states.find(_.playerId == id))
+                id => playerStates.find(_.playerId == id))
