@@ -98,13 +98,14 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     engine.setGameState(engine.getGameState.copy(
       board = updatedBoard,
       playerStates = updatePlayerBonus(engine.getGameState.playerStates, "1", 0),
-      turnManager = resetTurnManager(List(player1, player2))
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.PlacingTroops)
     ))
     
-    val gameState = engine.initGame(GameAction.EndTurn)
-    val playerState = gameState.playerStates.find(_.playerId == "1").get
+    val territoryName = engine.getGameState.board.territories.find(_.owner.exists(_.id == "1")).get.name
+    val gameState = engine.initGame(GameAction.PlaceTroops("1", 1, territoryName))
     
-    playerState.bonusTroops should be(3)
+    val playerState = gameState.playerStates.find(_.playerId == "1").get
+    playerState.bonusTroops should be(2) 
 
   test("Start turn bonus includes continent bonus if fully owned"):
     val maybeEurope = engine.getGameState.board.continents.find(_.name.equalsIgnoreCase("Europe"))
@@ -116,14 +117,16 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     engine.setGameState(engine.getGameState.copy(
       board = updatedBoard,
       playerStates = updatePlayerBonus(engine.getGameState.playerStates, "1", 0),
-      turnManager = resetTurnManager(List(player1, player2))
+      turnManager = resetTurnManager(List(player1, player2), TurnPhase.PlacingTroops)
     ))
     
-    val gameState = engine.initGame(GameAction.EndTurn)
+    val territoryName = engine.getGameState.board.territories.find(_.owner.exists(_.id == "1")).get.name
+    val gameState = engine.initGame(GameAction.PlaceTroops("1", 1, territoryName))
+    
     val playerState = gameState.playerStates.find(_.playerId == "1").get
     
     val expectedBonus = math.max(3, europe.territories.size / 3) + europe.bonusTroops
-    playerState.bonusTroops should be(expectedBonus)
+    playerState.bonusTroops should be(expectedBonus - 1)
 
   test("Reinforce - moves troops correctly between adjacent territories"):
     val allTerritories = engine.getGameState.board.territories.toList
