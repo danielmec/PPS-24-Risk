@@ -148,11 +148,11 @@ object WebSocketHandler:
     // Gestisce i messaggi del client
     private def handleClientMessage(msg: ProtocolMessage): Unit =
       msg match {
-        case protocol.ClientMessages.CreateGame(name, maxPlayers) =>
+        case protocol.ClientMessages.CreateGame(name, maxPlayers, username) =>
           println(s"Inoltro richiesta creazione partita: $name ($maxPlayers giocatori)")
-          gameManager ! GameManager.CreateGameSession(name, maxPlayers, self)
+          gameManager ! GameManager.CreateGameSession(name, maxPlayers, self, username)
           
-        case protocol.ClientMessages.JoinGame(gameId) if gameId.isEmpty =>
+        case protocol.ClientMessages.JoinGame(gameId, username) if gameId.isEmpty && username.isEmpty =>
           // Caso speciale: join alla lobby generale
           println("Inoltro richiesta join lobby")
          
@@ -162,9 +162,9 @@ object WebSocketHandler:
           // Registra il client nel GameManager per ricevere notifiche
           gameManager ! GameManager.RegisterClient(self)
           
-        case protocol.ClientMessages.JoinGame(gameId) =>
+        case protocol.ClientMessages.JoinGame(gameId,username) =>
           println(s"Inoltro richiesta join partita: $gameId")
-          gameManager ! GameManager.JoinGameSession(gameId, self)
+          gameManager ! GameManager.JoinGameSession(gameId, self, username)
 
         case protocol.ClientMessages.GetAllGames() =>
           println(s"Inoltro richiesta lista partite")

@@ -10,11 +10,12 @@ object ClientMessages:
 
   case class Login(username: String ) extends Message
 
-  case class JoinGame(gameId: String) extends Message
+  case class JoinGame(gameId: String, username: String) extends Message
 
   case class CreateGame(
     gameName: String, 
-    maxPlayers: Int
+    maxPlayers: Int,
+    username: String 
   ) extends Message
 
   case class GameAction(

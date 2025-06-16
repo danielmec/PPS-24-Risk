@@ -1,11 +1,12 @@
-package client
+package test.client
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Success, Failure}
 import scala.io.StdIn
 import spray.json._
-import ClientJsonSupport._
+import client.ClientJsonSupport._
+import client.ClientNetworkManager
 
 /**
  * Punto di ingresso dell'applicazione client Risiko -- TEST

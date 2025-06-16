@@ -14,8 +14,8 @@ object GameManager:
 
     sealed trait Command
 
-    case class CreateGameSession(gameName: String, maxPlayers: Int, creator: ActorRef) extends Command
-    case class JoinGameSession(gameId: String, player: ActorRef) extends Command
+    case class CreateGameSession(gameName: String, maxPlayers: Int, creator: ActorRef, username: String) extends Command
+    case class JoinGameSession(gameId: String, player: ActorRef, username :String) extends Command
     case class LeaveGameSession(gameId: String, player: ActorRef) extends Command
     case class GetAllGames(replyTo: ActorRef) extends Command
     case class ForwardToGame(gameId: String, message: Message) extends Command
@@ -58,9 +58,9 @@ class GameManager extends Actor with ActorLogging:
             log.warning(s"Client ${client.path} connected. Total connected clients: ${updatedClients.size}")
             context.become(running(games, updatedClients, playerToGame))
             
-        case CreateGameSession(gameName, maxPlayers, creator) =>
+        case CreateGameSession(gameName, maxPlayers, creator, username) =>
             val gameId = UUID.randomUUID().toString() // crea ID randomico per la nuova partita
-            log.warning(s"Creating game session: $gameName with ID: $gameId")
+            log.warning(s"Creating game session: $gameName with ID: $gameId for user ${username}")
 
             val gameSession = context.actorOf(
                 GameSession.props(gameId, gameName, maxPlayers),
@@ -69,22 +69,24 @@ class GameManager extends Actor with ActorLogging:
             val updatedGames = games + (gameId -> gameSession)
             val updatedPlayerToGame = playerToGame + (creator -> gameId)
 
+            //risposta al cliente che ha creato la partita
             creator ! ServerMessages.GameCreated(
                 gameId,
                 gameName,
                 creator.path.name
             )
-  
-            gameSession ! GameSession.JoinGame(creator.path.name, creator)
+
+            //notifica la sessione di gioco che il creatore si è unito
+            gameSession ! GameSession.JoinGame(creator.path.name, creator, username)
             println(s"Game session $gameId created by ${creator.path.name}")
             
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
-        case JoinGameSession(gameId, player) =>
+        case JoinGameSession(gameId, player, username) =>
             games.get(gameId) match 
                 case Some(gameSession) =>
                     log.warning(s"Player ${player.path.name} joining game session: $gameId")
-                    gameSession ! GameSession.JoinGame(player.path.name, player)
+                    gameSession ! GameSession.JoinGame(player.path.name, player,username)
 
                     // Aggiorna la mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame + (player -> gameId)

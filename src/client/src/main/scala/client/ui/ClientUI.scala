@@ -25,32 +25,22 @@ object ClientUI extends JFXApp3:
     val titleLabel = new Label("Risk - Client")
     titleLabel.font = Font.font("Arial", FontWeight.Bold, 20)
 
-    val usernameLabel = new Label("Nome utente:")
-    val usernameField = new TextField()
-    usernameField.promptText = "Inserisci il tuo nome"
     
     val loginButton = new Button("Entra in Modalità Multigiocatore")
     val singlePlayerButton = new Button("Entra in Modalità Singolo")
     val statusLabel = new Label("In attesa di login...")
     statusLabel.style = "-fx-text-fill: gray;"
 
-    val usernameBox = new HBox(10, usernameLabel, usernameField)
-    usernameBox.alignment = Pos.Center
 
     singlePlayerButton.onAction = _ => {
       
-      if(usernameField.text.value.trim.isEmpty) {
-        statusLabel.text = "Errore: inserisci un nome utente valido"
-        statusLabel.style = "-fx-text-fill: red;"
-      }else
-        {
-           statusLabel.text = "Modalità singolo non ancora implementata"
-           statusLabel.style = "-fx-text-fill: orange;"
-        }
+      statusLabel.text = "Modalità singolo non ancora implementata"
+      statusLabel.style = "-fx-text-fill: orange;"
+        
     }
 
     loginButton.onAction = _ => {
-      val username = usernameField.text.value.trim
+      val username = "player"
       
       if (username.isEmpty) {
         statusLabel.text = "Errore: inserisci un nome utente valido"
@@ -87,7 +77,7 @@ object ClientUI extends JFXApp3:
     
     //creazione del layout principale
     val mainBox = new VBox(20)
-    mainBox.children = Seq(titleLabel, usernameBox, loginButton, singlePlayerButton, statusLabel)
+    mainBox.children = Seq(titleLabel, loginButton, singlePlayerButton, statusLabel)
     mainBox.alignment = Pos.Center
     mainBox.padding = Insets(20)
     

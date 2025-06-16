@@ -9,8 +9,8 @@ import protocol.{Message => ProtocolMessage}
  */
 object JsonSupport extends DefaultJsonProtocol:
   // Formato per i messaggi client 
-  implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat2(ClientMessages.CreateGame)
-  implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat1(ClientMessages.JoinGame)
+  implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat3(ClientMessages.CreateGame)
+  implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat2(ClientMessages.JoinGame)
   implicit val leaveGameFormat: RootJsonFormat[ClientMessages.LeaveGame] = jsonFormat1(ClientMessages.LeaveGame)
   implicit val pongFormat: RootJsonFormat[ClientMessages.Pong] = jsonFormat0(ClientMessages.Pong)
   implicit val getAllGamesFormat: RootJsonFormat[ClientMessages.GetAllGames] = jsonFormat0(ClientMessages.GetAllGames)
@@ -33,12 +33,14 @@ object JsonSupport extends DefaultJsonProtocol:
           
           val name = fields.getOrElse("gameName", JsString("Nuova Partita")).convertTo[String]
           val maxPlayers = fields.getOrElse("maxPlayers", JsNumber(4)).convertTo[Int]
-          ClientMessages.CreateGame(name, maxPlayers)
+          val username = fields.getOrElse("username", JsString("player1")).convertTo[String]
+          ClientMessages.CreateGame(name, maxPlayers,username)
           
         case Some(JsString("joinGame")) => 
           // Estrai gameId
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          ClientMessages.JoinGame(gameId)
+          val username = fields.getOrElse("username", JsString("")).convertTo[String]
+          ClientMessages.JoinGame(gameId,username)
           
         case Some(JsString("leaveGame")) => 
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
@@ -48,7 +50,7 @@ object JsonSupport extends DefaultJsonProtocol:
           ClientMessages.Pong()
           
         case Some(JsString("joinLobby")) => 
-          ClientMessages.JoinGame("")
+          ClientMessages.JoinGame("","")
 
         case Some(JsString("getAllGames")) =>
           ClientMessages.GetAllGames()
