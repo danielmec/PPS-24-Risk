@@ -1,0 +1,56 @@
+package client.ui.components
+
+import scalafx.Includes._
+import scalafx.geometry.{Insets, Pos}
+import scalafx.scene.control.{Button, Tooltip}
+import scalafx.scene.layout.HBox
+
+/**
+ * Pannello con i pulsanti di azione del gioco
+ */
+class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
+  
+  padding = Insets(10)
+  alignment = Pos.Center
+  style = "-fx-background-color: #d0d0d0; -fx-border-color: #aaaaaa; -fx-border-width: 1 0 0 0;"
+  
+  private val showTerritoriesButton = new Button("Mostra territori") {
+    onAction = _ => onShowTerritories
+  }
+  
+  children = Seq(
+    createActionButton("Attacca", "Attacca un territorio nemico confinante"),
+    createActionButton("Sposta", "Sposta armate tra territori confinanti"),
+    createActionButton("Mostra Carte", "Visualizza e gestisci le tue carte territorio"),
+    showTerritoriesButton,
+    createActionButton("Fine Turno", "Termina il tuo turno")
+  )
+  
+  // metodo di supporto 
+  private def createActionButton(text: String, tooltipText: String): Button = {
+    val button = new Button(text) {
+      prefWidth = 120
+      style = "-fx-font-weight: bold; -fx-font-size: 13px;"
+    }
+    button.tooltip = new Tooltip(tooltipText)
+    
+    //per ora disabilitati
+    button.disable = true
+    
+    button
+  }
+  
+  /**
+   * Abilita o disabilita i bottoni di azione
+   */
+  def setActionsEnabled(enabled: Boolean): Unit = {
+    import scalafx.scene.control.Button
+    children.foreach { node =>
+      if (node.delegate.isInstanceOf[javafx.scene.control.Button]) {
+        val button = Button(node.delegate.asInstanceOf[javafx.scene.control.Button])
+        button.disable = !enabled
+      }
+    }
+  }
+}
+
