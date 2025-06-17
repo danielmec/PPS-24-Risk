@@ -8,5 +8,6 @@ enum BotAction:
   case PlaceTroops(territory: Territory, troops: Int)
   case Attack(from: Territory, to: Territory, troops: Int)
   case MoveTroops(from: Territory, to: Territory, troops: Int)
+  case EndAttack
   case EndPhase
   case EndTurn
