@@ -3,60 +3,62 @@
     {
       "name": "North America",
       "territories": [
-        { "name": "Alaska", "neighbors": ["Northern Europe", "Asia"] },
-        { "name": "Western US", "neighbors": ["Alaska", "Eastern US", "Central America"] },
-        { "name": "Eastern US", "neighbors": ["Western US", "Northern Europe"] },
-        { "name": "Central America", "neighbors": ["Western US", "South America"] }
+        { "name": "Alaska", "neighbors": ["Canada", "Western US", "Russia"] },
+        { "name": "Canada", "neighbors": ["Alaska", "Greenland", "Western US", "Eastern US"] },
+        { "name": "Greenland", "neighbors": ["Canada", "Eastern US", "Northern Europe"] },
+        { "name": "Western US", "neighbors": ["Alaska", "Canada", "Eastern US", "Mexico"] },
+        { "name": "Eastern US", "neighbors": ["Western US", "Canada", "Mexico"] },
+        { "name": "Mexico", "neighbors": ["Western US", "Eastern US", "Venezuela"] }
       ],
       "bonusTroops": 5
     },
     {
       "name": "South America",
       "territories": [
-        { "name": "Venezuela", "neighbors": ["Central America", "Brazil"] },
-        { "name": "Brazil", "neighbors": ["Venezuela", "Argentina", "North Africa"] },
-        { "name": "Argentina", "neighbors": ["Brazil"] }
+        { "name": "Venezuela", "neighbors": ["Mexico", "Brazil", "Peru"] },
+        { "name": "Brazil", "neighbors": ["Venezuela", "Peru", "Argentina", "North Africa"] },
+        { "name": "Peru", "neighbors": ["Venezuela", "Brazil", "Argentina"] },
+        { "name": "Argentina", "neighbors": ["Peru", "Brazil"] }
       ],
       "bonusTroops": 2
     },
     {
       "name": "Europe",
       "territories": [
-        { "name": "Northern Europe", "neighbors": ["Alaska", "Eastern US", "Western Europe", "Eastern Europe"] },
         { "name": "Western Europe", "neighbors": ["Northern Europe", "Southern Europe", "North Africa"] },
-        { "name": "Southern Europe", "neighbors": ["Western Europe", "Eastern Europe", "Middle East", "North Africa"] },
-        { "name": "Eastern Europe", "neighbors": ["Northern Europe", "Southern Europe", "Middle East", "Asia"] }
+        { "name": "Northern Europe", "neighbors": ["Western Europe", "Russia", "Greenland"] },
+        { "name": "Southern Europe", "neighbors": ["Western Europe", "Eastern Europe", "North Africa", "Middle East"] },
+        { "name": "Eastern Europe", "neighbors": ["Southern Europe", "Russia", "Middle East"] }
       ],
       "bonusTroops": 5
     },
     {
       "name": "Africa",
       "territories": [
-        { "name": "North Africa", "neighbors": ["Western Europe", "Southern Europe", "East Africa", "Central Africa", "Brazil"] },
-        { "name": "Central Africa", "neighbors": ["North Africa", "East Africa", "South Africa"] },
-        { "name": "East Africa", "neighbors": ["North Africa", "Middle East", "Central Africa", "South Africa"] },
-        { "name": "South Africa", "neighbors": ["Central Africa", "East Africa"] }
+        { "name": "North Africa", "neighbors": ["Southern Europe", "East Africa", "West Africa", "Brazil", "Middle East"] },
+        { "name": "East Africa", "neighbors": ["North Africa", "West Africa", "South Africa", "Middle East"] },
+        { "name": "West Africa", "neighbors": ["North Africa", "East Africa", "South Africa"] },
+        { "name": "South Africa", "neighbors": ["West Africa", "East Africa"] }
       ],
       "bonusTroops": 3
     },
     {
       "name": "Asia",
       "territories": [
-        { "name": "Middle East", "neighbors": ["Southern Europe", "Eastern Europe", "India", "East Africa"] },
-        { "name": "India", "neighbors": ["Middle East", "Central Asia", "Southeast Asia"] },
-        { "name": "Central Asia", "neighbors": ["Eastern Europe", "India", "China", "Asia"] },
-        { "name": "China", "neighbors": ["Central Asia", "Southeast Asia", "Japan"] },
-        { "name": "Japan", "neighbors": ["China", "Asia"] },
-        { "name": "Asia", "neighbors": ["Alaska", "Eastern Europe", "Central Asia", "Japan"] }
+        { "name": "Middle East", "neighbors": ["Eastern Europe", "China", "India", "Russia"] },
+        { "name": "India", "neighbors": ["Middle East", "China"] },
+        { "name": "China", "neighbors": ["Middle East", "Russia", "India", "Indonesia"] },
+        { "name": "Russia", "neighbors": ["Eastern Europe", "Northern Europe", "Middle East", "India", "China", "Alaska"] }
       ],
       "bonusTroops": 7
     },
     {
-      "name": "Oceania",
+      "name": "Australia",
       "territories": [
-        { "name": "Southeast Asia", "neighbors": ["India", "China", "Indonesia"] },
-        { "name": "Indonesia", "neighbors": ["Southeast Asia", "Australia"] },
-        { "name": "Australia", "neighbors": ["Indonesia"] }
+        { "name": "Indonesia", "neighbors": ["China", "New Guinea", "Western Australia"] },
+        { "name": "New Guinea", "neighbors": ["Indonesia", "Western Australia", "Eastern Australia"] },
+        { "name": "Western Australia", "neighbors": ["Indonesia", "New Guinea", "Eastern Australia"] },
+        { "name": "Eastern Australia", "neighbors": ["Western Australia", "New Guinea"] }
       ],
       "bonusTroops": 2
     }

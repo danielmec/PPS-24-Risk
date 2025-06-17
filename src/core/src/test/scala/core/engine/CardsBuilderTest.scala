@@ -17,33 +17,39 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
     val northAmerica = continents.find(_.name == "North America").get
     val northAmericaTerritories = northAmerica.territories.map(_.name)
     val china = territories.find(_.name == "China").get
-    val japan = territories.find(_.name == "Japan").get
+    val russia = territories.find(_.name == "Russia").get
     val infantryCounter = territoriesDeck.count(_.cardImg == CardImg.Infantry)
     val cavalryCounter = territoriesDeck.count(_.cardImg == CardImg.Cavalry)
     val artilleryCounter = territoriesDeck.count(_.cardImg == CardImg.Artillery)
 
     test("CardsBuilder should get continents from JSON file, with correct parameters"):
         continents should have size 6
-        cNames should contain allOf("North America", "South America", "Europe", "Africa", "Asia", "Oceania")
+        cNames should contain allOf("North America", "South America", "Europe", "Africa", "Asia", "Australia")
         val europe = continents.find(_.name == "Europe").get
         europe.bonusTroops should be (5)
 
     test("CardsBuilder should get territories from JSON file, with correct parameters"):
-        territories should have size 24
-        china.neighbors should contain (japan)
+        territories should have size 26 
+        china.neighbors should contain (russia)
         // also the opposite should be true
-        japan.neighbors should contain (china)
+        russia.neighbors should contain (china)
+        // connections check        
+        val mexico = territories.find(_.name == "Mexico").get
+        val venezuela = territories.find(_.name == "Venezuela").get
+        mexico.neighbors should contain (venezuela)
+        venezuela.neighbors should contain (mexico)
 
     test("CardsBuilder should create a territories deck"):
-        territoriesDeck should have size 24
-        tNames should have size 24
-        infantryCounter should be (8)
-        cavalryCounter should be (8)
-        artilleryCounter should be (8)
+        territoriesDeck should have size 26  
+        tNames should have size 26
+        infantryCounter + cavalryCounter + artilleryCounter should be (26)
 
     test("CardsBuilder should associate continents and territories properly"):
-        northAmerica.territories should have size 4
-        northAmericaTerritories should contain allOf("Alaska", "Western US", "Eastern US", "Central America")
+        northAmerica.territories should have size 6  
+        northAmericaTerritories should contain allOf("Alaska", "Canada", "Greenland", "Western US", "Eastern US", "Mexico")
+        val australia = continents.find(_.name == "Australia").get
+        australia.territories should have size 4
+        australia.territories.map(_.name).toSet should be(Set("Indonesia", "New Guinea", "Western Australia", "Eastern Australia"))
 
     test("CardsBuilder should create an objectives deck (objectives should be valid)"):
         objectivesDeck should not be empty
@@ -62,3 +68,14 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
         val defeatPlayers = objectivesDeck.collect:
             case obj: ObjectiveCard.DefeatPlayer => obj
         defeatPlayers should not be empty
+        
+    test("CardsBuilder should correctly set up key strategic connections"):
+        val alaska = territories.find(_.name == "Alaska").get
+        val russia = territories.find(_.name == "Russia").get
+        alaska.neighbors should contain (russia)  
+        val brazil = territories.find(_.name == "Brazil").get
+        val northAfrica = territories.find(_.name == "North Africa").get
+        brazil.neighbors should contain (northAfrica)  
+        val indonesia = territories.find(_.name == "Indonesia").get
+        val china = territories.find(_.name == "China").get
+        indonesia.neighbors should contain (china) 
