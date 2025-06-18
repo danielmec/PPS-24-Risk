@@ -9,7 +9,6 @@ import utils.BonusCalculator
 class DefensiveStrategy extends Strategy:
 
   override def decideMove(gameState: GameState): BotAction =
-    // Trova lo stato del player corrente
     val maybePlayerState = gameState.playerStates.find(_.player == gameState.turnManager.currentPlayer)
     maybePlayerState match
       case Some(playerState) =>
@@ -25,7 +24,7 @@ class DefensiveStrategy extends Strategy:
               BotAction.EndPhase
 
           case TurnPhase.Attacking =>
-            BotAction.EndPhase
+            decideAttack(gameState, playerState)
 
           case TurnPhase.Defending =>
             BotAction.EndPhase
@@ -48,3 +47,27 @@ class DefensiveStrategy extends Strategy:
 
   private def findWeakestTerritory(territories: Iterable[Territory]): Territory =
     territories.minBy(_.troops)
+
+  // Attacco difensivo: attacca solo se ha almeno 2 truppe in più del difensore
+  private def decideAttack(gameState: GameState, playerState: PlayerState): BotAction =
+    val owned = gameState.board.territories.filter(_.owner.exists(_ == playerState.player))
+    val candidates = owned.filter(_.troops > 1)
+
+    val possibleAttacks = for {
+      from <- candidates
+      to <- from.neighbors
+      realTo <- gameState.board.territories.find(_.name == to.name)
+      if realTo.owner.exists(_ != playerState.player)
+    } yield (from, realTo)
+
+    val attackOption = possibleAttacks.toSeq
+      .filter { case (from, to) => from.troops > to.troops + 1 }
+      .sortBy { case (_, to) => to.troops }
+      .headOption
+
+    attackOption match
+      case Some((from, to)) =>
+        val attackingTroops = (from.troops - 1).min(3)
+        BotAction.Attack(from, to, attackingTroops)
+      case None =>
+        BotAction.EndAttack
