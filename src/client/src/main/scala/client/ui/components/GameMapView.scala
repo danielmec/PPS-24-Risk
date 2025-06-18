@@ -68,18 +68,18 @@ class GameMapView(onMapClicked: => Unit) extends ScrollPane {
    */
   def bindToSceneDimensions(sceneWidth: => Double, sceneHeight: => Double): Unit = {
     if (mapImage != null) {
-      // Impostiamo dimensioni base per avere un rendering iniziale
+      
       mapView.fitWidth = 100
       mapView.fitHeight = 100
       
-      // Aggiungiamo listener che ridimensiona la mappa quando il pannello cambia dimensione
+      //listener che ridimensiona la mappa quando il pannello cambia dimensione
       width.onChange { (_, _, newWidth) =>
         height.onChange { (_, _, newHeight) =>
           adjustMapSize(newWidth.doubleValue, newHeight.doubleValue)
         }
       }
       
-      // Inizializza con le dimensioni attuali
+      //inizializza con le dimensioni attuali
       adjustMapSize(this.width.value, this.height.value)
     }
   }

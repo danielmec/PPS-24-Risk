@@ -20,7 +20,7 @@ lazy val client = (project in file("src/client"))
      "io.spray" %% "spray-json" % "1.3.6",
     "com.typesafe.akka" %% "akka-http" % "10.5.3",
   )
-)
+).dependsOn(core)
 
 lazy val server = (project in file("src/server"))
   .settings(

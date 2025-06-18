@@ -8,12 +8,12 @@ import scalafx.scene.control.TabPane.TabClosingPolicy
 import scalafx.scene.layout.{BorderPane, HBox}
 import scalafx.stage.{Modality, Stage}
 import scalafx.collections.ObservableBuffer
-import client.ui.models.Territory
+import client.AdapterMap.UITerritory
 
 /**
- * Finestra di dialogo che mostra le tabelle dei territori organizzati per continente
+ * Finestra di dialogo che mostra la tabella dei territori organizzati per continente
  */
-class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[Territory]) extends Stage {
+class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]) extends Stage {
   
   initOwner(owner)
   initModality(Modality.ApplicationModal)
@@ -21,37 +21,37 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[Territory]) 
   width = 800
   height = 600
   
-  //Crea il tab pane
+  // Crea il tab pane
   val tabPane = new TabPane {
     tabClosingPolicy = TabClosingPolicy.Unavailable
   }
   
-  // crea una tab per ogni continente
-  val continents = List("Nord America", "Sud America", "Europa", "Africa", "Asia", "Australia")
+  // Ottieni i continenti dai territori stessi (dinamicamente)
+  val continents = territories.map(_.continent).distinct.sorted.toList
   
   for (continent <- continents) {
     val tab = new Tab {
       text = continent
       closable = false
       
-      // tabella per il continente corrente
-      val territoryTable = new TableView[Territory] {
+      // Tabella per il continente corrente
+      val territoryTable = new TableView[UITerritory] {
         columns ++= List(
-          new TableColumn[Territory, String] {
+          new TableColumn[UITerritory, String] {
             text = "Territorio"
             cellValueFactory = { cellData =>
               new javafx.beans.property.SimpleStringProperty(cellData.value.name)
             }
             prefWidth = 150
           },
-          new TableColumn[Territory, String] {
+          new TableColumn[UITerritory, String] {
             text = "Possessore"
             cellValueFactory = { cellData =>
               cellData.value.owner.delegate
             }
             prefWidth = 150
           },
-          new TableColumn[Territory, Number] {
+          new TableColumn[UITerritory, Number] {
             text = "Truppe"
             cellValueFactory = { cellData =>
               cellData.value.armies.delegate
@@ -60,11 +60,11 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[Territory]) 
           }
         )
         
-        //filtra i territori per il continente corrente
-        items = ObservableBuffer.from(territories.filter(t => t.continentName == continent))
+        // Filtra i territori per il continente corrente
+        items = ObservableBuffer.from(territories.filter(t => t.continent == continent))
       }
       
-      //Layout del contenuto della tab
+      // Layout del contenuto della tab
       content = new BorderPane {
         center = territoryTable
         padding = Insets(10)
