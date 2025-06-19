@@ -37,6 +37,7 @@ lazy val server = (project in file("src/server"))
     )
   ).dependsOn(core)
 
+
 lazy val bot = (project in file("src/bot"))
   .settings(
     name := "RiskBot"

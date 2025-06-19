@@ -12,8 +12,8 @@ import model.player.PlayerColor
 class DecksManagerTest extends AnyFunSuite with Matchers:
 
     // Setting territories with no neighbors, no owner and no troop
-    val t1 = Territory("Northern Europe", Set(), None, 0)
-    val t2 = Territory("Eastern Europe", Set(), None, 0)
+    val t1 = Territory("Northern Europe", None, 0, Set())
+    val t2 = Territory("Eastern Europe", None, 0, Set())
     val c1 = Continent("Europe", Set(t1, t2), 5)
     
     // Setting cards with territories and objectives
@@ -52,13 +52,13 @@ class DecksManagerTest extends AnyFunSuite with Matchers:
     test("DecksManager should update decks when drawing cards"):
         val (newManager1, _) = tDecksManager.drawTerritory()
         val (newManager2, _) = oDecksManager.drawObjective()
-        newManager1.getRemainingTerritoriesCards should be (List(tCard2))
-        newManager1.getRemainingTerritoriesCards.size should be (1)
-        newManager2.getRemainingObjectiveCards should be (List(oCard2, oCard3, oCard4))
-        newManager2.getRemainingObjectiveCards.size should be (3)
+        newManager1.territoriesCards should be (List(tCard2))
+        newManager1.territoriesCards.size should be (1)
+        newManager2.objectiveCards should be (List(oCard2, oCard3, oCard4))
+        newManager2.objectiveCards.size should be (3)
 
     test("DecksManager should keep the same amount of cards after shuffling"):
         val newManager1 = tDecksManager.shuffleTerritoriesDeck()
         val newManager2 = oDecksManager.shuffleObjectivesDeck()
-        newManager1.getRemainingTerritoriesCards.size should be (2)
-        newManager2.getRemainingObjectiveCards.size should be (4)
+        newManager1.territoriesCards.size should be (2)
+        newManager2.objectiveCards.size should be (4)

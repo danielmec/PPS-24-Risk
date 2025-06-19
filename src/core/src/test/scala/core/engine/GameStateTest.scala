@@ -13,13 +13,12 @@ class GameStateTest extends AnyFunSuite:
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
   val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.WaitingForTurn, 0)
 
-  val territory1 = Territory("T1", Set.empty, Some(player), 3)
-  val territory2 = Territory("T2", Set.empty, Some(player), 2)
-  val territory3 = Territory("T3", Set.empty, Some(otherPlayer), 1)
+  val territory1 = Territory("T1", Some(player), 3, Set.empty)
+  val territory2 = Territory("T2", Some(player), 2, Set.empty)
+  val territory3 = Territory("T3", Some(otherPlayer), 1, Set.empty)
   val continent = Continent("Europe", Set(territory1, territory2), 5)
   val board = Board("game1", Set(continent.copy(territories = Set(territory1, territory2)), Continent("Asia", Set(territory3), 3)))
 
-  // Dummy managers
   val turnManager = new TurnManager:
     def currentPlayer: Player = player
     def nextPlayer(): TurnManager = this
@@ -27,7 +26,7 @@ class GameStateTest extends AnyFunSuite:
     def nextPhase(): TurnManager = this
     def isValidAction(action: GameAction): Boolean = true
   
-  val decksManager = null
+  val decksManager = DecksManagerImpl(List(), List())
 
   val gameState = GameState(
     gameId = "game1",

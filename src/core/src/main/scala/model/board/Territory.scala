@@ -3,25 +3,31 @@ import model.player.Player
 import model.player.PlayerState
 
 case class Territory(
-  name: String, 
-  neighbors: Set[Territory], 
-  owner: Option[Player], 
-  troops: Int
+  name: String,
+  owner: Option[Player] = None,
+  troops: Int = 0,
+  neighbors: Set[Territory] = Set.empty
 ):
-
-  def hasEnoughTroops(requiredTroops: Int): Boolean = troops >= requiredTroops
-
-  def addTroops(newTroop: Int): Territory = 
-    copy(troops = troops + newTroop)
-
-  def removeTroops(troopsToRemove: Int): Territory = 
-    copy(troops = (troops - troopsToRemove).max(0))
-
   def isOwnedBy(playerId: String): Boolean = 
     owner.exists(_.id == playerId)
+    
+  def addTroops(amount: Int): Territory =
+    copy(troops = troops + amount)
+    
+  def removeTroops(amount: Int): Territory =
+    copy(troops = troops - amount)
+    
+  def hasEnoughTroops(minimumRequired: Int): Boolean =
+    troops >= minimumRequired
 
-  def changeOwner(newOwner: Player): Territory = 
+  def changeOwner(newOwner: Player): Territory =
     copy(owner = Some(newOwner))
+    
+  def canAttack(target: Territory): Boolean =
+    hasEnoughTroops(2) && 
+    neighbors.exists(_.name == target.name) &&
+    owner.isDefined && target.owner.isDefined &&
+    owner.get.id != target.owner.get.id
 
   // Added to avoid infinite loops 
   override def toString(): String = 
