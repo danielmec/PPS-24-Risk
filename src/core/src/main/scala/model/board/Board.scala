@@ -4,24 +4,30 @@ import model.player.*
 
 case class Board(
   gameId: String,
-  continents: Set[Continent]):
-
-  def territories: Set[Territory] =
-    continents.flatMap(_.territories)
-
-  def continentsFullyOwnedBy(player: PlayerState): Set[Continent] =
-    continents.filter(_.isFullyOwnedBy(player))
-
-  def territoriesOwnedBy(player: PlayerState): Set[Territory] =
-    territories.filter(_.owner.contains(player))
-
+  continents: Set[Continent]
+):
+  def territories: List[Territory] = continents.flatMap(_.territories).toList
+  
+  def updatedTerritory(territory: Territory): Board =
+    val updatedContinents = continents.map { continent =>
+      if continent.territories.exists(_.name == territory.name) then
+        continent.copy(territories = continent.territories.map { t =>
+          if t.name == territory.name then territory else t
+        })
+      else continent
+    }
+    copy(continents = updatedContinents)
+    
+  def getTerritoryByName(name: String): Option[Territory] =
+    territories.find(_.name == name)
+    
   def areNeighbors(t1: Territory, t2: Territory): Boolean =
-    t1.neighbors.contains(t2) 
-
-  def updatedTerritory(newTerritory: Territory): Board =
-    copy(continents = continents.map:
-      continent =>
-        continent.territories.find(_.name == newTerritory.name) match
-          case Some(oldTerritory) => continent.copy(territories = continent.territories - oldTerritory + newTerritory)
-          case None => continent
-    )
+    t1.neighbors.exists(_.name == t2.name)
+    
+  def territoriesOwnedBy(playerId: String): List[Territory] =
+    territories.filter(_.isOwnedBy(playerId))
+    
+  def continentsOwnedBy(playerId: String): List[Continent] =
+    continents.filter(continent => 
+      continent.territories.forall(_.isOwnedBy(playerId))
+    ).toList

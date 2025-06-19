@@ -3,35 +3,30 @@ import model.cards.*
 import exceptions.*
 
 trait DecksManager:
-    def shuffleTerritoriesDeck(): DecksManager
-    def shuffleObjectivesDeck(): DecksManager
-    def drawTerritory(): (DecksManager, TerritoryCard)
-    def drawObjective(): (DecksManager, ObjectiveCard)
-    def getRemainingTerritoriesCards: List[TerritoryCard]
-    def getRemainingObjectiveCards: List[ObjectiveCard]
+  def drawTerritory(): (DecksManager, TerritoryCard)
+  def drawObjective(): (DecksManager, ObjectiveCard)
+  def shuffleTerritoriesDeck(): DecksManager
+  def shuffleObjectivesDeck(): DecksManager
+  def territoriesCards: List[TerritoryCard]
+  def objectiveCards: List[ObjectiveCard]
 
-case class DecksManagerImpl(
-    territories: List[TerritoryCard], 
-    objectives: List[ObjectiveCard]) extends DecksManager:
+class DecksManagerImpl(
+    private val territories: List[TerritoryCard],
+    private val objectives: List[ObjectiveCard]
+) extends DecksManager:
+  def drawTerritory(): (DecksManager, TerritoryCard) =
+    if territories.isEmpty then throw new NoTerritoriesCardsException()
+    (DecksManagerImpl(territories.tail, objectives), territories.head)
 
-    def shuffleTerritoriesDeck(): DecksManager = 
-        copy(territories = scala.util.Random.shuffle(territories))
-        
-    def shuffleObjectivesDeck(): DecksManager = 
-        copy(objectives = scala.util.Random.shuffle(objectives))
+  def drawObjective(): (DecksManager, ObjectiveCard) =
+    if objectives.isEmpty then throw new NoObjectivesCardsException()
+    (DecksManagerImpl(territories, objectives.tail), objectives.head)
 
-    private def draw[A](deck: List[A], exception: => Exception): (List[A], A) = deck match
-        case h :: t => (t, h)
-        case Nil => throw exception
+  def shuffleTerritoriesDeck(): DecksManager =
+    DecksManagerImpl(scala.util.Random.shuffle(territories), objectives)
 
-    def drawTerritory(): (DecksManager, TerritoryCard) = 
-        val (newDeck, territoryCard) = draw(territories, NoTerritoriesCardsException())
-        (copy(territories = newDeck), territoryCard)
+  def shuffleObjectivesDeck(): DecksManager =
+    DecksManagerImpl(territories, scala.util.Random.shuffle(objectives))
 
-    def drawObjective(): (DecksManager, ObjectiveCard) = 
-        val (newDeck, objectiveCard) = draw(objectives, NoObjectivesCardsException())
-        (copy(objectives = newDeck), objectiveCard)
-
-    def getRemainingTerritoriesCards: List[TerritoryCard] = territories
-    
-    def getRemainingObjectiveCards: List[ObjectiveCard] = objectives
+  def territoriesCards: List[TerritoryCard] = territories
+  def objectiveCards: List[ObjectiveCard] = objectives

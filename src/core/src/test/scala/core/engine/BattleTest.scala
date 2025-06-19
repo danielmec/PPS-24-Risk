@@ -15,15 +15,15 @@ class BattleTest extends AnyFunSuite with Matchers:
 
   val attackerTerritory = Territory(
     name = "A",
-    neighbors = Set.empty,
     owner = Some(attacker),
-    troops = 10
+    troops = 10,
+    neighbors = Set.empty
   )
   val defenderTerritory = Territory(
     name = "B",
-    neighbors = Set.empty,
     owner = Some(defender),
-    troops = 3
+    troops = 3,
+    neighbors = Set.empty
   )
 
   val attackerWinsDice: Int => Seq[Int] = n => Seq.fill(n)(6)
@@ -80,7 +80,7 @@ class BattleTest extends AnyFunSuite with Matchers:
     }
     
   test("Cannot attack from a not-owned territory"):
-    val notOwnedTerritory = Territory("C", Set.empty, Some(defender), 5)
+    val notOwnedTerritory = Territory("C", Some(defender), 5, Set.empty)
     
     an [InvalidActionException] should be thrownBy {
       Battle.battle(
@@ -93,7 +93,7 @@ class BattleTest extends AnyFunSuite with Matchers:
     }
     
   test("Cannot attack a not-owned territory"):
-    val neutralTerritory = Territory("D", Set.empty, None, 3)
+    val neutralTerritory = Territory("D", None, 3, Set.empty)
     
     an [InvalidActionException] should be thrownBy {
       Battle.battle(
@@ -108,7 +108,6 @@ class BattleTest extends AnyFunSuite with Matchers:
   test("Battle should end correctly"):
     val state = BattleState(attacker, defender, attackerTerritory, defenderTerritory, 3, 2)
     val newState = Battle.resolveBattleRound(state, customAttackerDice, customDefenderDice)
-    // Attacker wins
     newState.attackingTroops shouldBe 3  
     newState.defendingTroops shouldBe 0  
   

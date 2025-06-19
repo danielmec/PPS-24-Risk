@@ -18,9 +18,8 @@ object BonusCalculator:
       case _ => 0
 
   def calculateStartTurnBonus(playerId: String, board: Board): Int =
-    val playerTerritories = board.territories.filter(_.owner.exists(_.id == playerId))
-    val territoryBonus = math.max(3, playerTerritories.size / 3)
-    val ownedContinents = board.continents.filter: continent =>
-      continent.territories.forall(_.owner.exists(_.id == playerId))
-    val continentBonus = ownedContinents.map(_.bonusTroops).sum
-    territoryBonus + continentBonus
+      val territoriesOwned = board.territoriesOwnedBy(playerId).size
+      val continentsOwned = board.continentsOwnedBy(playerId)
+      val territoryBonus = math.max(3, territoriesOwned / 3)
+      val continentBonus = continentsOwned.map(_.bonusTroops).sum  
+      territoryBonus + continentBonus
