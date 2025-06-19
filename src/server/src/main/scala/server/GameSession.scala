@@ -1,23 +1,13 @@
 package server
 
-import akka.actor.{
-    Actor, 
-    ActorRef, 
-    Props, 
-    ActorLogging
-}
-import protocol.{
-    Message,
-    ServerMessages,
-    ClientMessages
-}
-
+import akka.actor.{ Actor,  ActorRef,  Props,  ActorLogging}
+import protocol.{ Message, ServerMessages, ClientMessages }
 import java.util.UUID
-import scala.collection.mutable.{
-    Map,
-    ListBuffer
-}
+import scala.collection.mutable.{  Map, ListBuffer }
 
+import engine.{GameEngine, GameState, TurnPhase, GameAction, EngineState}
+import model.player.{Player => CorePlayer, PlayerImpl => CorePlayerImpl}
+import model.player.PlayerColor
 
 //Oggetto companion per GameSession che definisce i messaggi e il factory method
 object GameSession:
@@ -31,8 +21,28 @@ object GameSession:
         action: ClientMessages.GameAction
         ) extends Command
     case object GetStateRequest extends Command
+    
+    // Dto sta per Data Transfer Object usato per inviare lo stato del gioco ai client
+    case class TerritoryDto(name: String, owner: String, troops: String)
+    case class TerritoryCardDto(id: String, territoryName: String, cardType: String)
+    case class MissionCardDto(id: String, description: String, targetType: String, targetValue: String)
+    case class PlayerStateDto(
+      playerId: String, 
+      cards: String, 
+      bonusTroops: String,
+      territoryCards: List[TerritoryCardDto] = List(),
+      missionCard: Option[MissionCardDto] = None
+    )
+    case class GameStateDto(
+      gameId: String,
+      currentPlayer: String,
+      currentPhase: String,
+      territories: List[TerritoryDto],
+      playerStates: List[PlayerStateDto]
+    )
+    
+    private case object StartGame extends Command
 
-    // Classe che rappresenta un giocatore con username
     case class Player(id: String, ref: ActorRef, username: String)
 
     // Enumeration per rappresentare le fasi del gioco
@@ -50,10 +60,13 @@ object GameSession:
 class GameSession(
     gameId: String, 
     gameName: String, 
-    maxPlayers: Int
-) extends Actor with ActorLogging:
+    maxPlayers: Int ) extends Actor with ActorLogging:
 
     import GameSession._
+
+    // Aggiungi questi campi per GameEngine
+    private var gameEngine: Option[GameEngine] = None
+    private var corePlayers: List[model.player.PlayerImpl] = List.empty
 
     override def preStart(): Unit =
         log.info(s"GameSession $gameId started with name $gameName and max players $maxPlayers")
@@ -86,32 +99,41 @@ class GameSession(
                 case (true, _) | (_, WaitingForPlayers) =>
                     //Creo una nuova mappa immutabile
                     val updatedPlayers = players + (playerId -> playerRef)
-                    // Aggiungi il player con username alla mappa playerData
+                    
                     val updatedPlayerData = playerData + (playerId -> Player(playerId, playerRef, username))
                     
                     println(s"Player $playerId ($username) joined game $gameId, current players: ${updatedPlayers.keys.mkString(", ")}")
                     
-                    // Lista di username da inviare ai client
                     val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
                     val playerIds = updatedPlayers.keys.toList
 
-                    // Aggiorniamo lo stato per includere gli username
                     val updatedState = gameState + 
                         ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap)
 
-                    //Notifico tutti i giocatori
+                    
                     updatedPlayers.values.foreach(player =>
                         //notifica actorRef con un messaggio GameJoined 
                         player ! ServerMessages.GameJoined(gameId, playersList, gameName)   
                     )
 
-                    //calcolo il nuovo stato usando pattern matching
-                    val newPhase = (updatedPlayers.size >= 2, phase) match
+                    
+                    val newPhase = (updatedPlayers.size >= maxPlayers, phase) match
                         case(true, WaitingForPlayers) =>
-                            log.info(s"Game $gameId has enough players, changing to Setup phase")
+                            log.info(s"Game $gameId has reached max players, starting setup")
+                          
+                            initializeGameEngine(updatedPlayerData.values.toList)
+                            
+                            updatedPlayers.values.foreach(player =>
+                                player ! ServerMessages.GameSetupStarted(gameId, "Game setup in progress...")
+                            )
+                            
+                            // invia un messaggio a se stesso per avviare il gioco automaticamente
+                            self ! StartGame
+                            
                             Setup
+                            
                         case _ => phase
-
+                        
                     //transizione di stato funzionale
                     context.become(running(updatedPlayers, updatedPlayerData, newPhase, currentPlayer, updatedState))
 
@@ -122,6 +144,37 @@ class GameSession(
                         case _ => "Game is already started"
                     // ! è un operatore send( invia errore a playerRef riferimento a ActorRef)
                     playerRef ! ServerMessages.Error(errorMsg)
+
+        
+        case StartGame if phase == Setup =>
+            log.info(s"Game $gameId setup completed, starting game")
+            
+            // avvia il gioco assegnando territori iniziali ecc.
+            startGame()
+            
+            val engineState = gameEngine.get.getGameState
+            val currentPlayerId = engineState.turnManager.currentPlayer.id
+            
+            val clientState = convertGameStateToClient(engineState)
+            
+            val playersList = playerData.values.map(_.id).toList
+
+            players.values.foreach(player =>
+                player ! ServerMessages.GameStarted(
+                    gameId, 
+                    currentPlayerId, 
+                    scala.collection.immutable.Map(
+                        "gameId" -> gameId,
+                        "players" -> playersList,
+                        "currentPlayer" -> currentPlayerId,
+                        "gameStateDto" -> clientState  
+                    )
+                )
+            )
+            
+            
+            val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
+            context.become(running(players, playerData, Playing, Some(currentPlayerId), mutableState))
 
         //chiamato da GameManager 
         case LeaveGame(playerId) =>
@@ -136,12 +189,12 @@ class GameSession(
                     updatedPlayers.isEmpty match
                         case true =>
                             log.info(s"No more players in game $gameId, stopping session")
-                            // Notifica il GameManager che questa sessione sta terminando
+                            
                             context.parent ! GameManager.GameSessionEnded(gameId)
                             context.stop(self)
 
                         case false =>
-                            // Aggiorna le liste di player con username
+                            
                             val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
                             val playerIds = updatedPlayers.keys.toList
                             
@@ -169,18 +222,22 @@ class GameSession(
 
                             val newCurrentPlayer = currentPlayer.flatMap( cp =>
                                 cp match
-                                    case `playerId` => // se il giocatore corrente è quello che è uscito
+                                    case `playerId` => 
                                         val remainingPlayers = updatedPlayers.keys.toList
-                                        remainingPlayers.headOption // passa al primo giocatore rimanente
+                                        remainingPlayers.headOption 
                                     case _ =>
                                         Some(cp)
                             )
                             
                             context.become(running(updatedPlayers, updatedPlayerData, newPhase, newCurrentPlayer, updatedState))
 
-        // Pattern matching per ProcessAction
+        
         case ProcessAction(playerId, action) =>
-            (players.get(playerId), phase, currentPlayer) match
+            (players.get(playerId), phase, gameEngine) match
+                case (_, _, None) if phase == Playing =>
+                    log.error("Game engine not initialized but game is in Playing phase")
+                    sender() ! ServerMessages.Error("Game engine not initialized")
+                
                 case (None, _, _) =>
                     sender() ! ServerMessages.Error(s"Player $playerId is not in game $gameId")
                 
@@ -190,50 +247,56 @@ class GameSession(
                         s"Cannot perform action: game is in ${p} phase"
                     )
                 
-                case (Some(_), _, Some(cp)) if cp != playerId =>
-                    players(playerId) ! ServerMessages.GameActionResult(
-                        false, 
-                        "It's not your turn"
-                    )
-                
-                case (Some(_), Playing, Some(_)) =>
-                    // Elabora l'azione in modo funzionale
-                    val username = playerData.get(playerId).map(_.username).getOrElse(playerId)
-                    log.info(s"Player $playerId ($username) performed action ${action.action} in game $gameId")
+                case (Some(_), Playing, Some(engine)) =>
                     
-                    // Rispondi al giocatore
-                    players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
+                    log.info(s"Processing action ${action.action} from player $playerId")
                     
-                    // Crea un NUOVO stato combinando il vecchio con i nuovi dati (immutabile)
-                    val newGameState = gameState + 
-                        ("lastAction" -> action.action) + 
-                        ("lastPlayer" -> playerId) +
-                        ("lastPlayerUsername" -> username)
-                    
-                    // Calcola il prossimo giocatore in modo funzionale
-                    val playerIds = players.keys.toList
-                    val nextPlayer = findNextPlayer(playerId, playerIds)
-                    
-                    // Lista di player con username
-                    val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
-                    
-                    // Aggiorna tutti i giocatori
-                    players.values.foreach(player => 
+                    try {
+                      //converte l'azione client in azione core
+                      val coreAction = convertToGameAction(action, playerId)
+                      
+                      //Esegue l'azione e ottieni lo stato aggiornato
+                      val gameState = engine.getGameState
+                      val engineState = EngineState(gameState) // Crea un EngineState dal GameState
+                      val updatedEngineState = engine.performActions(engineState, coreAction)
+                      
+                      //aggiorna il motore con il nuovo stato
+                      engine.setGameState(updatedEngineState.gameState)
+                      
+                      val nextPlayerId = updatedEngineState.gameState.turnManager.currentPlayer.id
+                      
+                      val clientState = convertGameStateToClient(updatedEngineState.gameState)
+                      val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
+
+                      players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
+
+                      // aggiorna tutti i giocatori con il nuovo stato
+                      players.values.foreach(player => 
                         player ! ServerMessages.GameState(
-                            gameId, 
-                            playersList,
-                            nextPlayer.getOrElse(""),
-                            newGameState.toMap
+                          gameId, 
+                          playersList,
+                          nextPlayerId,
+                          scala.collection.immutable.Map("gameStateDto" -> clientState)  
                         )
-                    )
-                    
-                    // Transizione di stato funzionale
-                    context.become(running(players, playerData, phase, nextPlayer, newGameState))
+                      )
+                      
+    
+                       val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
+                       context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
+                      
+                    } catch {
+                        case ex: Exception =>
+                            log.error(s"Error processing action: ${ex.getMessage}")
+                            players(playerId) ! ServerMessages.GameActionResult(
+                                false,
+                                s"Error processing action: ${ex.getMessage}"
+                            )
+                    }
                 
                 case _ =>
-                    log.warning(s"Unexpected state in ProcessAction: player=$playerId, phase=$phase, currentPlayer=$currentPlayer")
-
-        // Pattern matching per GetStateRequest
+                    log.warning(s"Unexpected state in ProcessAction: player=$playerId, phase=$phase")
+        
+        
         case GetStateRequest =>
             // Lista di player con username
             val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
@@ -245,18 +308,171 @@ class GameSession(
                 gameState.toMap
             )
             
-        // Pattern matching catch-all
         case msg =>
             log.warning(s"GameSession received unhandled message: $msg")    
 
+  
+    /**
+     * Inizializza il motore di gioco con i dati dei giocatori
+     */
+    private def initializeGameEngine(players: List[Player]): Unit = {
+      // converte i giocatori server in giocatori core
+      val corePlayers = players.map { player =>
+        CorePlayerImpl(
+          player.id, 
+          player.username, 
+          generatePlayerColor(player.id),
+          model.player.PlayerType.Human  
+        )
+      }
+      
+      // inizializza il motore di gioco engine
+      try {
+        log.info(s"Initializing game engine for game $gameId with ${players.size} players")
+        gameEngine = Some(new GameEngine(corePlayers, gameId))
+      } catch {
+        case ex: Exception => 
+          log.error(s"Error initializing game engine: ${ex.getMessage}")
+          gameEngine = None
+      }
+    }
     
-    private def findNextPlayer(currentPlayerId: String, playerIds: List[String]): Option[String] =
-        playerIds match
-            case Nil => None
-            case _ => 
-                val currentIndex = playerIds.indexOf(currentPlayerId)
-                currentIndex match
-                    case -1 => playerIds.headOption //non è presente
-                    case _ => Some(playerIds((currentIndex + 1) % playerIds.size)) // calcola indice
+    /**
+     * Avvia il gioco utilizzando GameEngine 
+     */
+    private def startGame(): Unit = {
+      gameEngine.foreach { engine =>
+        try {
+          log.info(s"Starting game $gameId")
+          
+          //Usa l'engine
+          val finalState = engine.initGame()
+          
+          // Converti lo stato per invio ai client
+          val clientState = convertGameStateToClient(finalState)
+          
+          // notifica i giocatori con lo stato iniziale
+          val playersList = clientState.playerStates.map(_.playerId).toList
+          players.values.foreach(player =>
+            player ! ServerMessages.GameState(
+              gameId,
+              playersList,
+              finalState.turnManager.currentPlayer.id,
+              scala.collection.immutable.Map("gameStateDto" -> clientState)
+            )
+          )
+          
+          log.info(s"Game $gameId started with ${finalState.playerStates.size} players")
+          log.info(s"Current player: ${finalState.turnManager.currentPlayer.name}")
+          log.info(s"Current phase: ${finalState.turnManager.currentPhase}")
+          
+        } catch {
+          case ex: Exception =>
+            log.error(s"Error starting game: ${ex.getMessage}")
+            ex.printStackTrace() 
+        }
+      }
+    }
+    
+    
 
+    /**
+     * Converte un'azione client in un'azione core
+     */
+    private def convertToGameAction(
+        clientAction: ClientMessages.GameAction, 
+        playerId: String
+    ): engine.GameAction = {
+      clientAction.action match {
+        case "attack" => 
+          val defenderId = clientAction.parameters.getOrElse("defenderId", "")
+          engine.GameAction.Attack(
+            playerId,
+            defenderId,
+            clientAction.parameters.getOrElse("fromTerritory", ""),
+            clientAction.parameters.getOrElse("toTerritory", ""),
+            clientAction.parameters.getOrElse("troops", "0").toInt
+          )
+          
+        case "place_troops" =>
+          engine.GameAction.PlaceTroops(
+            playerId,
+            clientAction.parameters.getOrElse("troops", "0").toInt,
+            clientAction.parameters.getOrElse("territory", "")
+          )
+          
+        case "end_turn" =>
+          engine.GameAction.EndTurn
+          
+        case "end_phase" =>
+          engine.GameAction.EndPhase
+          
+        case "end_attack" =>
+          engine.GameAction.EndAttack
+          
+        case "reinforce" =>
+          engine.GameAction.Reinforce(
+            playerId,
+            clientAction.parameters.getOrElse("from", ""),
+            clientAction.parameters.getOrElse("to", ""),
+            clientAction.parameters.getOrElse("troops", "0").toInt
+          )
+          
+        case "defend" =>
+          engine.GameAction.Defend(
+            playerId,
+            clientAction.parameters.getOrElse("territory", ""),
+            clientAction.parameters.getOrElse("troops", "0").toInt
+          )
+          
+        
+        case unknown =>
+          throw new IllegalArgumentException(s"Unknown action: $unknown")
+      }
+    }
+    
+    /**
+     * Converte lo stato del gioco dal formato core al formato client
+     */
+    private def convertGameStateToClient(gameState: engine.GameState): GameStateDto = {
+      GameStateDto(
+        gameId = gameState.gameId,
+        currentPlayer = gameState.turnManager.currentPlayer.id,
+        currentPhase = gameState.turnManager.currentPhase.toString,
+        territories = gameState.board.territories.map { territory =>
+          TerritoryDto(
+            name = territory.name,
+            owner = territory.owner.map(_.id).getOrElse(""),
+            troops = territory.troops.toString
+          )
+        }.toList,
+        playerStates = gameState.playerStates.map { playerState =>
+          PlayerStateDto(
+            playerId = playerState.playerId,
+            cards = playerState.territoryCards.size.toString,
+            bonusTroops = playerState.bonusTroops.toString,
+            territoryCards = playerState.territoryCards.map { card =>
+              // Correzione per TerritoryCard
+              TerritoryCardDto(
+                id = card.hashCode().toString, 
+                territoryName = card.territory.name, 
+                cardType = card.cardImg.toString 
+              )
+            }.toList,
+            missionCard = playerState.objectiveCard.map { mission => 
+              
+              val (targetType, targetValue) = extractObjectiveDetails(mission)
+              MissionCardDto(
+                id = mission.hashCode().toString, 
+                description = mission.description,
+                targetType = targetType,
+                targetValue = targetValue
+              )
+            }
+          )
+        }.toList
+      )
+    }
+
+  
 end GameSession

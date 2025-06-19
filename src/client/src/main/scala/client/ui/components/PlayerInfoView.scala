@@ -33,11 +33,12 @@ class PlayerInfoView(playerName: String, currentPlayers: List[String], networkMa
     maxWidth = Double.MaxValue
     HBox.setHgrow(this, Priority.Always)
     
-    //evidenzia il giocatore corrente
+    /*evidenzia il giocatore corrente
     if (networkManager.getPlayerId.exists(id => playerName.endsWith(id))) {
       font = Font.font("Arial", FontWeight.Bold, 13)
       style = "-fx-underline: true;"
     }
+    */
   }
   
   //proprietà della vista giocatore
