@@ -39,7 +39,7 @@ class ClientNetworkManager:
   //coda per i messaggi in uscita
   private var messageQueue: Option[SourceQueueWithComplete[String]] = None
   
-  // 1. Aggiungi una proprietà per memorizzare i callback
+  //Aggiunge una proprietà per memorizzare i callback
   private var messageCallbacks: Map[String, Any => Unit] = Map.empty
   
   def login(username: String): Future[Boolean] =
@@ -106,6 +106,7 @@ class ClientNetworkManager:
           // Usa ClientJsonSupport per tutti i messaggi
           val parsedMessage = ClientJsonSupport.fromJson(text)
           parsedMessage match {
+            // Messaggi esistenti
             case PingMessage() =>
               println("[DEBUG] Ricevuto ping dal server, invio pong")
               sendPong()
@@ -113,14 +114,15 @@ class ClientNetworkManager:
             case LobbyJoinedMessage(message) =>
               println(s"Sei entrato nella lobby! $message")
               messageCallbacks.get("lobbyJoined").foreach(_(parsedMessage))
-    
+
             case ErrorMessage(message) =>
               println(s" Errore: $message")
-    
+              messageCallbacks.get("error").foreach(_(parsedMessage))
+
             case msg @ GameCreatedMessage(gameId, gameName, creatorId) =>
               println(s" Partita creata: '$gameName' (ID: $gameId)")
               messageCallbacks.get("gameCreated").foreach(_(msg))
-    
+
             case msg @ GameJoinedMessage(gameId, players, gameName) =>
               println(s" Sei entrato nella partita $gameId -- $gameName con ${players.size} giocatori")
               println(s"   Giocatori: ${players.mkString(", ")}")
@@ -129,6 +131,50 @@ class ClientNetworkManager:
             case msg @ GameListMessage(games) =>
               println(s"Lista partite disponibili")
               messageCallbacks.get("gameList").foreach(_(msg))
+
+            // Nuovi messaggi di gioco
+            case msg @ GameSetupStartedMessage(gameId, message) =>
+              println(s"Setup partita iniziato: $message")
+              messageCallbacks.get("gameSetupStarted").foreach(_(msg))
+              
+            case msg @ GameStartedMessage(gameId, currentPlayerId, initialState) =>
+              println(s"Partita iniziata. Giocatore corrente: $currentPlayerId")
+              messageCallbacks.get("gameStarted").foreach(_(msg))
+              
+            case msg: GameState =>
+              println(s"Aggiornamento stato di gioco. Fase: ${msg.state.currentPhase}")
+              messageCallbacks.get("gameState").foreach(_(msg))
+              
+            case msg @ GameActionResultMessage(success, message) =>
+              if (success) {
+                println(s"Azione completata: $message")
+              } else {
+                println(s"Azione fallita: $message")
+              }
+              messageCallbacks.get("gameActionResult").foreach(_(msg))
+              
+            case msg @ TurnChangedMessage(gameId, playerId, phase) =>
+              println(s"Cambio turno: giocatore $playerId, fase $phase")
+              messageCallbacks.get("turnChanged").foreach(_(msg))
+              
+            case msg @ TerritoryUpdateMessage(gameId, territoryName, owner, troops) =>
+              println(s"Territorio $territoryName aggiornato: proprietario=$owner, truppe=$troops")
+              messageCallbacks.get("territoryUpdate").foreach(_(msg))
+              
+            case msg @ BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerLosses, defenderLosses, newOwner) =>
+              println(s"Risultato battaglia: $attackerTerritory vs $defenderTerritory (perdite: $attackerLosses/$defenderLosses)")
+              if (newOwner.isDefined) {
+                println(s"Nuovo proprietario di $defenderTerritory: ${newOwner.get}")
+              }
+              messageCallbacks.get("battleResult").foreach(_(msg))
+              
+            case msg @ GameOverMessage(gameId, winnerId, winnerUsername) =>
+              println(s"Partita terminata. Vincitore: $winnerUsername ($winnerId)")
+              messageCallbacks.get("gameOver").foreach(_(msg))
+              
+            case msg @ PlayerLeftMessage(gameId, player) =>
+              println(s"Giocatore $player ha lasciato la partita $gameId")
+              messageCallbacks.get("playerLeft").foreach(_(msg))
 
             case _ =>
               println(s"Messaggio di tipo sconosciuto: $text")
@@ -236,7 +282,7 @@ class ClientNetworkManager:
   def shutdown(): Unit =
     // Chiudi la connessione WebSocket se presente
     webSocketConnection.foreach { case (_, promise) => 
-      promise.success(None) // Completa con None per chiudere
+      promise.success(None) 
     }
     system.terminate()
 

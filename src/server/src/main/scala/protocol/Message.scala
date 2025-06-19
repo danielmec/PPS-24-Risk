@@ -21,7 +21,7 @@ object ClientMessages:
   case class GameAction(
     gameId: String,
     action: String,
-    parameters: Map[String, String] // Parametri dell'azione di gioco come mappa di stringhe
+    parameters: Map[String, String] 
   ) extends Message
 
   case class LeaveGame(gameId: String) extends Message
@@ -66,10 +66,10 @@ object ServerMessages:
     ) extends Message
 
     case class GameState(
-        gameId: String,
-        players: List[String],
-        currentPlayer: String,
-        state: Map[String, Any] // Stato del gioco come mappa di stringhe
+      gameId: String,
+      players: List[String],  
+      currentPlayer: String,  
+      state: Map[String, Any] //stato del gioco generico
     ) extends Message
 
     case class GameActionResult(
@@ -87,3 +87,42 @@ object ServerMessages:
       override val messageType: String = "ping"
     }
     case class GameRemoved(gameId: String) extends Message
+
+    case class GameSetupStarted(
+        gameId: String,
+        message: String
+    ) extends Message
+
+    case class GameStarted(
+        gameId: String,
+        currentPlayerId: String,
+        initialState: Map[String, Any]  
+    ) extends Message
+
+    case class TurnChanged(
+        gameId: String,
+        playerId: String,
+        phase: String
+    ) extends Message
+
+    case class TerritoryUpdate(
+        gameId: String,
+        territoryName: String,
+        owner: String,
+        troops: Int
+    ) extends Message
+
+    case class BattleResult(
+        gameId: String,
+        attackerTerritory: String,
+        defenderTerritory: String,
+        attackerLosses: Int,
+        defenderLosses: Int,
+        newOwner: Option[String]
+    ) extends Message
+
+    case class GameOver(
+        gameId: String,
+        winnerId: String,
+        winnerUsername: String
+    ) extends Message
