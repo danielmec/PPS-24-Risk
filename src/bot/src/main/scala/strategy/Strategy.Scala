@@ -1,6 +1,7 @@
 package strategy
 
 import engine.GameState
+import engine.GameAction
 
 /**
  * Trait che definisce il comportamento di una strategia per il bot
@@ -11,4 +12,4 @@ trait Strategy:
    * @param gameState stato corrente del gioco
    * @return lista di azioni che il bot deve eseguire
    */
-  def decideMove(gameState: GameState): BotAction
+  def decideMove(gameState: GameState): GameAction

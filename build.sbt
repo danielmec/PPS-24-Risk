@@ -1,26 +1,28 @@
 ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "3.3.6"
+
 lazy val core = (project in file("src/core"))
-.settings(
-  name := "RiskCore",
-  libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % "3.2.17" % Test,
-    "com.typesafe.play" %% "play-json" % "2.10.0-RC5" 
+  .settings(
+    name := "RiskCore",
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+      "com.typesafe.play" %% "play-json" % "2.10.0-RC5",
+      "it.unibo.alice.tuprolog" % "tuprolog" % "3.3.0"
+    )
   )
-)
 
 lazy val client = (project in file("src/client"))
-.settings(
-  name := "RiskClient",
-  libraryDependencies ++= Seq(
-    "org.scalafx" %% "scalafx" % "20.0.0-R31",
-    "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
-    "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
-     "io.spray" %% "spray-json" % "1.3.6",
-    "com.typesafe.akka" %% "akka-http" % "10.5.3",
-  )
-).dependsOn(core)
+  .settings(
+    name := "RiskClient",
+    libraryDependencies ++= Seq(
+      "org.scalafx" %% "scalafx" % "20.0.0-R31",
+      "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
+      "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
+      "io.spray" %% "spray-json" % "1.3.6",
+      "com.typesafe.akka" %% "akka-http" % "10.5.3"
+    )
+  ).dependsOn(core)
 
 lazy val server = (project in file("src/server"))
   .settings(
@@ -33,8 +35,7 @@ lazy val server = (project in file("src/server"))
       "ch.qos.logback" % "logback-classic" % "1.4.5",
       "org.scalatest" %% "scalatest" % "3.2.16" % Test
     )
-  )
-
+  ).dependsOn(core)
 
 lazy val bot = (project in file("src/bot"))
   .settings(
@@ -44,4 +45,4 @@ lazy val bot = (project in file("src/bot"))
 lazy val root = (project in file("."))
   .settings(
     name := "Risk"
-  ).aggregate(core, client, server)
+  ).aggregate(core, client, server, bot)
