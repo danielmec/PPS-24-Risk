@@ -33,9 +33,12 @@ object PrologEngine:
   // Conversioni implicite per facilitare l'uso
   given Conversion[String, Term] = Term.createTerm(_)
   given Conversion[Seq[_], Term] = _.mkString("[", ",", "]")
-  given Conversion[String, Theory] = fileName =>
-    new Theory(getClass.getResourceAsStream(fileName))
+  // Conversione implicita da String (percorso file) a Theory
+  given Conversion[String, Theory] with
+    def apply(fileName: String): Theory =
+      new Theory(getClass.getResourceAsStream(fileName))
 
+  // Factory method per creare un PrologEngine da uno o più Theory
   def apply(theories: Theory*): PrologEngine = PrologEngineImpl(theories*)
 
   private case class PrologEngineImpl(theories: Theory*) extends PrologEngine:

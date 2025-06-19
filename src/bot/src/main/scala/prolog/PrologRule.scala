@@ -1,14 +1,17 @@
 package prolog
 
 import strategy.*
+import engine.GameState
+import engine.GameAction
+import alice.tuprolog.*
 
 /**
  * Trait che implementa una regola di strategia usando Prolog
  * @param theory nome del file Prolog (senza estensione)
  */
-trait PrologRule(val theory: String) extends StrategyRule:
+trait PrologRule(val theoryName: String) extends StrategyRule:
 
-  private val engine: PrologEngine = PrologEngine("/theories/" + theory + ".pl")
+  private val engine: PrologEngine = PrologEngine("/theories/" + theoryName + ".pl")
 
   /**
    * Genera azioni valutate basandosi sul file Prolog specificato
@@ -24,7 +27,7 @@ trait PrologRule(val theory: String) extends StrategyRule:
     val scoreString = "Score" 
     val descString = "Description"
     
-    val goal = s"$theory($encodedState, '$phase', '$playerId', $actionString, $scoreString, $descString)"
+    val goal = s"$theoryName($encodedState, '$phase', '$playerId', $actionString, $scoreString, $descString)"
     
     engine
       .solveAll(goal, actionString, scoreString, descString)
