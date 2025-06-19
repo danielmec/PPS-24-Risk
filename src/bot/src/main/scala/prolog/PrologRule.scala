@@ -1,3 +1,77 @@
 package prolog
 
+import strategy.*
 
+/**
+ * Trait che implementa una regola di strategia usando Prolog
+ * @param theory nome del file Prolog (senza estensione)
+ */
+trait PrologRule(val theory: String) extends StrategyRule:
+
+  private val engine: PrologEngine = PrologEngine("/theories/" + theory + ".pl")
+
+  /**
+   * Genera azioni valutate basandosi sul file Prolog specificato
+   * @param gameState stato corrente del gioco
+   * @param playerId ID del giocatore per cui generare le azioni
+   * @return insieme di azioni valutate generate dalla regola Prolog
+   */
+  override def evaluateActions(gameState: GameState, playerId: String): Set[RatedAction] =
+    val encodedState = encodeGameState(gameState)
+    val phase = gameState.turnManager.currentPhase.toString
+    
+    val actionString = "Action"
+    val scoreString = "Score" 
+    val descString = "Description"
+    
+    val goal = s"$theory($encodedState, '$phase', '$playerId', $actionString, $scoreString, $descString)"
+    
+    engine
+      .solveAll(goal, actionString, scoreString, descString)
+      .map(terms => {
+        val actionTerm = terms(actionString)
+        val score = terms(scoreString).toString.toDouble
+        val description = terms(descString).toString.replaceAll("'", "")
+        
+        RatedAction(parseAction(actionTerm, playerId), score, description)
+      }).toSet
+      
+  /**
+   * Converte lo stato di gioco in un formato adatto per Prolog
+   */
+  protected def encodeGameState(gameState: GameState): String = {
+    // Codifica di territori, giocatori e altre informazioni
+    val territoriesStr = gameState.board.territories.map { t =>
+      val owner = t.owner.map(_.id).getOrElse("none")
+      s"territory('${t.name}', '$owner', ${t.troops})"
+    }.mkString("[", ",", "]")
+    
+    territoriesStr
+  }
+  
+  /**
+   * Converte un termine Prolog in un'azione di gioco
+   */
+  protected def parseAction(actionTerm: Term, playerId: String): GameAction = {
+    val functor = actionTerm.toString
+    
+    if (functor.startsWith("place_troops")) {
+      val args = extractArgs(actionTerm)
+      GameAction.PlaceTroops(playerId, args(1).toInt, args(0))
+    } else if (functor.startsWith("attack")) {
+      val args = extractArgs(actionTerm)
+      GameAction.Attack(playerId, args(0), args(1), args(2), args(3).toInt)
+    } else if (functor.startsWith("end_phase")) {
+      GameAction.EndPhase
+    } else if (functor.startsWith("end_turn")) {
+      GameAction.EndTurn
+    } else {
+      throw new IllegalArgumentException(s"Unknown action: $functor")
+    }
+  }
+  
+  private def extractArgs(term: Term): Array[String] = {
+    val content = term.toString
+    val argsStr = content.substring(content.indexOf("(") + 1, content.lastIndexOf(")"))
+    argsStr.split(",").map(_.trim.replaceAll("'", ""))
+  }
