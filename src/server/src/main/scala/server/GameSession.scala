@@ -149,7 +149,7 @@ class GameSession(
         case StartGame if phase == Setup =>
             log.info(s"Game $gameId setup completed, starting game")
             
-            // avvia il gioco assegnando territori iniziali ecc.
+            // Avvia il gioco assegnando territori iniziali ecc.
             startGame()
             
             val engineState = gameEngine.get.getGameState
@@ -157,8 +157,10 @@ class GameSession(
             
             val clientState = convertGameStateToClient(engineState)
             
-            val playersList = playerData.values.map(_.id).toList
+            // Converte in lista e aggiunge i nomi utente per UI
+            val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
 
+            // Notifica tutti i giocatori che la partita è iniziata
             players.values.foreach(player =>
                 player ! ServerMessages.GameStarted(
                     gameId, 
@@ -171,7 +173,6 @@ class GameSession(
                     )
                 )
             )
-            
             
             val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
             context.become(running(players, playerData, Playing, Some(currentPlayerId), mutableState))
@@ -248,29 +249,24 @@ class GameSession(
                     )
                 
                 case (Some(_), Playing, Some(engine)) =>
-                    
                     log.info(s"Processing action ${action.action} from player $playerId")
                     
                     try {
-                      //converte l'azione client in azione core
+                      // Converte l'azione client in azione core
                       val coreAction = convertToGameAction(action, playerId)
                       
-                      //Esegue l'azione e ottieni lo stato aggiornato
-                      val gameState = engine.getGameState
-                      val engineState = EngineState(gameState) // Crea un EngineState dal GameState
-                      val updatedEngineState = engine.performActions(engineState, coreAction)
+                      // Esegue l'azione e ottieni lo stato aggiornato
+                      // CORREZIONE: ora usiamo direttamente processAction() invece di performActions()
+                      val updatedGameState = engine.processAction(coreAction)
+                    
+                      val nextPlayerId = updatedGameState.turnManager.currentPlayer.id
                       
-                      //aggiorna il motore con il nuovo stato
-                      engine.setGameState(updatedEngineState.gameState)
-                      
-                      val nextPlayerId = updatedEngineState.gameState.turnManager.currentPlayer.id
-                      
-                      val clientState = convertGameStateToClient(updatedEngineState.gameState)
+                      val clientState = convertGameStateToClient(updatedGameState)
                       val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
 
                       players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
 
-                      // aggiorna tutti i giocatori con il nuovo stato
+                      // Aggiorna tutti i giocatori con il nuovo stato
                       players.values.foreach(player => 
                         player ! ServerMessages.GameState(
                           gameId, 
@@ -345,26 +341,30 @@ class GameSession(
         try {
           log.info(s"Starting game $gameId")
           
-          //Usa l'engine
-          val finalState = engine.initGame()
+          // usa l'engine per inizializzare il gioco 
+          val finalState = engine.setup()
           
-          // Converti lo stato per invio ai client
+          /* GameEngine produce GameState
+              convertGameStateToClient converte in GameStateDto
+              Il DTO viene inserito in una Map[String, Any]
+              La mappa viene serializzata in JSON */
+
           val clientState = convertGameStateToClient(finalState)
-          
-          // notifica i giocatori con lo stato iniziale
-          val playersList = clientState.playerStates.map(_.playerId).toList
-          players.values.foreach(player =>
-            player ! ServerMessages.GameState(
-              gameId,
-              playersList,
-              finalState.turnManager.currentPlayer.id,
-              scala.collection.immutable.Map("gameStateDto" -> clientState)
-            )
-          )
           
           log.info(s"Game $gameId started with ${finalState.playerStates.size} players")
           log.info(s"Current player: ${finalState.turnManager.currentPlayer.name}")
           log.info(s"Current phase: ${finalState.turnManager.currentPhase}")
+          log.info(s"Initial state has ${finalState.board.territories.size} territories")
+          log.info(s"First few territories: ${
+            finalState.board.territories.take(5).map(t => 
+              s"${t.name} (owner=${t.owner.map(_.id).getOrElse("none")}, troops=${t.troops})"
+            ).mkString(", ")
+          }")
+          log.info(s"Player states: ${
+            finalState.playerStates.map(ps => 
+              s"${ps.playerId} (bonus=${ps.bonusTroops}, cards=${ps.territoryCards.size}, objective=${ps.objectiveCard.map(_.description).getOrElse("none")})"
+            ).mkString(", ")
+          }")
           
         } catch {
           case ex: Exception =>
@@ -452,7 +452,7 @@ class GameSession(
             cards = playerState.territoryCards.size.toString,
             bonusTroops = playerState.bonusTroops.toString,
             territoryCards = playerState.territoryCards.map { card =>
-              // Correzione per TerritoryCard
+          
               TerritoryCardDto(
                 id = card.hashCode().toString, 
                 territoryName = card.territory.name, 
@@ -474,5 +474,32 @@ class GameSession(
       )
     }
 
+    /**
+     * Estrae i dettagli dell'obiettivo in base al tipo
+     */
+    private def extractObjectiveDetails(objective: model.cards.ObjectiveCard): (String, String) = {
+      objective match {
+        case ct: model.cards.ObjectiveCard.ConquerTerritories => 
+          ("TERRITORY_COUNT", s"${ct.num}")
+          
+        case cc: model.cards.ObjectiveCard.ConquerContinents => 
+          ("CONTINENTS", cc.continents.map(_.name).mkString(","))
+          
+        case dp: model.cards.ObjectiveCard.DefeatPlayer => 
+          ("ELIMINATE_PLAYER", dp.targetColor.toString)
+          
+        case _ => ("UNKNOWN", "")
+      }
+    }
+
+    /**
+     * Genera un colore giocatore casuale
+     */
+    private def generatePlayerColor(playerId: String): PlayerColor = {
+      // Genera un colore basato sull'ID del giocatore
+      val colors = PlayerColor.values
+      val index = Math.abs(playerId.hashCode % colors.length)
+      colors(index)
+    }
   
 end GameSession

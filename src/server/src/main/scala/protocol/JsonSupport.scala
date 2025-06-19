@@ -270,6 +270,13 @@ object JsonSupport extends DefaultJsonProtocol:
             "state" -> gameStateDto.toJson
           )
           
+        case msg: ServerMessages.GameActionResult =>
+          JsObject(
+            "type" -> JsString("gameActionResult"),
+            "success" -> JsBoolean(msg.success),
+            "message" -> JsString(msg.message)
+          )
+          
         case _ =>
           println(s"[WARN] Messaggio di tipo sconosciuto: ${obj.getClass.getName}")
           JsObject("type" -> JsString("unknown"))
