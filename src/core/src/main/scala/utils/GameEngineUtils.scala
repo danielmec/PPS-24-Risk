@@ -12,10 +12,10 @@ object GameEngineUtils:
     eliminatedPlayerId: String,
     conquererPlayerId: String
   ): GameState = {
-    val eliminatedPlayer = gameState.playerStates.find(_.playerId == eliminatedPlayerId).getOrElse(
+    val eliminatedPlayer = gameState.getPlayerState(eliminatedPlayerId).getOrElse(
       throw new IllegalArgumentException(s"Player $eliminatedPlayerId not found")
     )
-    val conquererPlayer = gameState.playerStates.find(_.playerId == conquererPlayerId).getOrElse(
+    val conquererPlayer = gameState.getPlayerState(conquererPlayerId).getOrElse(
       throw new IllegalArgumentException(s"Player $conquererPlayerId not found")
     )
     val eliminatedCards = eliminatedPlayer.territoryCards
@@ -34,7 +34,7 @@ object GameEngineUtils:
   ): (GameState, DecksManager) = {
     try {
       val (updatedDecksManager, card) = decksManager.drawTerritory()
-      val playerState = gameState.playerStates.find(_.playerId == playerId).getOrElse(
+      val playerState = gameState.getPlayerState(playerId).getOrElse(
         throw new IllegalArgumentException(s"Player $playerId not found")
       )
       val updatedPlayerState = playerState.copy(
@@ -55,9 +55,8 @@ object GameEngineUtils:
   def countPlayerTerritories(gameState: GameState, playerId: String): Int =
     gameState.board.territories.count(_.owner.exists(_.id == playerId))
 
-  def getAdjacentTerritories(gameState: GameState, territoryName: String, playerId: String): Set[Territory] = {
-    val territory = gameState.board.territories.find(_.name == territoryName).getOrElse(
+  def getAdjacentTerritories(gameState: GameState, territoryName: String, playerId: String): Set[Territory] =
+    val territory = gameState.getTerritoryByName(territoryName).getOrElse(
       throw new IllegalArgumentException(s"Territory $territoryName not found")
     )
-    territory.neighbors.filter(_.owner.exists(_.id == playerId)).toSet
-  }
+    territory.neighbors.filter(_.isOwnedBy(playerId)).toSet

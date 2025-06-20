@@ -40,7 +40,7 @@ class GameEngine(
     val updatedBoard = distributeInitialTerritories()
     val (updatedDeckManager, playerStatesWithObjectives) = assignObjectivesToPlayers(currentDecksManager)
     currentDecksManager = updatedDeckManager
-    val playerStatesWithTroops = calculateInitialTroops(playerStatesWithObjectives, updatedBoard)
+    val playerStatesWithTroops = BonusCalculator.calculateInitialTroops(players, playerStatesWithObjectives, updatedBoard)
     val firstPlayer = Random.shuffle(players).head
     val firstPlayerIndex = players.indexOf(firstPlayer)
     val updatedTurnManager = TurnManagerImpl(
@@ -108,21 +108,6 @@ class GameEngine(
         val playerState = playerStates.find(_.playerId == player.id).get
         (updatedDM, states :+ playerState.setObjectiveCard(objective))
     }
-
-  private def calculateInitialTroops(playerStates: List[PlayerState], board: Board): List[PlayerState] = 
-    val baseTroops = players.size match {
-      case 2 => 40
-      case 3 => 35
-      case 4 => 30
-      case 5 => 25
-      case _ => 20
-    }
-    playerStates.map:
-      playerState =>
-        val playerId = playerState.playerId
-        val territoriesOwned = board.territoriesOwnedBy(playerId).size
-        val remainingTroops = baseTroops - territoriesOwned
-        playerState.copy(bonusTroops = remainingTroops, phase = TurnPhase.PlacingTroops)
 
   private def placeTroopsAction(gameState: GameState, playerId: String, state: EngineState, territoryName: String, troops: Int): EngineState =
     val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidTerritoryException())
