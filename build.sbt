@@ -35,8 +35,7 @@ lazy val server = (project in file("src/server"))
       "ch.qos.logback" % "logback-classic" % "1.4.5",
       "org.scalatest" %% "scalatest" % "3.2.16" % Test
     )
-  )
-
+  ).dependsOn(core)
 
 lazy val bot = (project in file("src/bot"))
   .settings(
