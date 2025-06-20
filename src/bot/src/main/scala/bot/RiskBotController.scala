@@ -17,7 +17,7 @@ class RiskBotController extends BotController:
   /**
    * Ottiene la prossima azione del bot in base alla sua strategia
    */
-  override def getNextAction(gameState: GameState, playerId: String): GameAction =
+  override def nextAction(gameState: GameState, playerId: String): GameAction =
     botStrategies.get(playerId) match
       case Some(strategy) => strategy.decideMove(gameState)
       case None => throw new IllegalStateException(s"No strategy registered for bot $playerId")
