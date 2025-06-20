@@ -7,18 +7,21 @@ import model.player.{Player, PlayerColor, PlayerType}
 import engine.TurnPhase
 import engine.GameAction
 
-//////////////////////////""""DEFINITIVO"""""/////////////////////////////
+class BotPlayer(
+    override val id: String,
+    override val name: String,
+    override val color: PlayerColor,
+    val strategyRules: Set[StrategyRule]
+) extends Player, Strategy:
+  override def playerType: PlayerType = PlayerType.Bot
 
-class BotPlayer(playerId: String, strategyRules: Set[StrategyRule]) extends Strategy:
-  override def decideMove(gameState: GameState): GameAction = 
-    val ratedActions = strategyRules.evaluateAction(gameState, playerId)
-
+  override def decideMove(gameState: GameState): GameAction =
+    val ratedActions = strategyRules.evaluateAction(gameState, id)
+    //nessuna azione -> termina turno
     if ratedActions.isEmpty then
-      //nessuna azione -> termina turno
       gameState.turnManager.currentPhase match
         case TurnPhase.Attacking => GameAction.EndAttack
         case TurnPhase.Reinforcement => GameAction.EndTurn
         case _ => GameAction.EndPhase
-    else 
+    else
       ratedActions.max.action
-      

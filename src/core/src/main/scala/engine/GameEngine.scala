@@ -16,7 +16,8 @@ case class EngineState(
 
 class GameEngine(
     val players: List[PlayerImpl],
-    val gameId: String = java.util.UUID.randomUUID().toString
+    val gameId: String = java.util.UUID.randomUUID().toString,
+    val botController: Option[BotController] = None
 ):
   private val (continents, _) = CardsBuilder.createBoard()
   private val board = Board(gameId, continents)
@@ -224,3 +225,25 @@ class GameEngine(
   def checkVictory: Option[PlayerState] = engineState.gameState.checkWinCondition
 
   private def checkVictory(state: EngineState): Option[PlayerState] = state.gameState.checkWinCondition
+
+  //to do: collegamento con client
+  def executeBotTurn(): GameState =
+    val currentPlayer = engineState.gameState.turnManager.currentPlayer
+    if currentPlayer.playerType != PlayerType.Bot || botController.isEmpty then
+      throw new IllegalStateException("Current player is not a bot or bot controller is missing")  
+    var isCurrentTurn = true
+    while isCurrentTurn do
+      try {
+        val action = botController.get.nextAction(engineState.gameState, currentPlayer.id)
+        engineState = performActions(engineState, action)
+        action match
+          case GameAction.EndTurn => isCurrentTurn = false
+          case _ => 
+            val updatedPlayer = engineState.gameState.turnManager.currentPlayer
+            if updatedPlayer.id != currentPlayer.id then isCurrentTurn = false
+      } catch {
+        case e: Exception => 
+          println(s"Bot error: ${e.getMessage}")
+          isCurrentTurn = false
+      }
+    engineState.gameState

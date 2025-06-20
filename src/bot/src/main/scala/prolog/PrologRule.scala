@@ -4,6 +4,8 @@ import strategy.*
 import engine.GameState
 import engine.GameAction
 import alice.tuprolog.*
+import prolog.PrologEngine.given_Conversion_String_Theory
+import prolog.PrologEngine.given_Conversion_String_Term
 
 /**
  * Trait che implementa una regola di strategia usando Prolog
@@ -19,7 +21,7 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
    * @param playerId ID del giocatore per cui generare le azioni
    * @return insieme di azioni valutate generate dalla regola Prolog
    */
-  override def evaluateActions(gameState: GameState, playerId: String): Set[RatedAction] =
+  override def evaluateAction(gameState: GameState, playerId: String): Set[RatedAction] =
     val encodedState = encodeGameState(gameState)
     val phase = gameState.turnManager.currentPhase.toString
     
