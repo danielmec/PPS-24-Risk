@@ -186,12 +186,12 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
 
   test("Defend - resolves battle and conquers territory"):
     val allTerritories = engine.getGameState.board.territories.toList
-    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 5)
+    val t1 = allTerritories.head.copy(owner = Some(player1), troops = 50)  // Molte truppe attaccanti
     val t2 = allTerritories.tail.head.copy(owner = Some(player2), troops = 1, neighbors = Set(t1))
     val updatedT1 = t1.copy(neighbors = Set(t2))
     val updatedBoard = updateTerritoriesInBoard(engine.getGameState.board, updatedT1, t2)
     engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
-    engine.processAction(GameAction.Attack("1", "2", t1.name, t2.name, 3))
+    engine.processAction(GameAction.Attack("1", "2", t1.name, t2.name, 30))
     val gameState = engine.processAction(GameAction.Defend("2", t2.name, 1))
     val conquered = gameState.board.territories.find(_.name == t2.name).get.owner.contains(player1)
     conquered shouldBe true
