@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  actions: read
+  security-events: write
 
 jobs:
   build:
