@@ -8,7 +8,10 @@ import scala.sys.Prop
 import java.util.UUID
 import akka.actor.ActorRef
 import akka.actor.ActorLogging
-import protocol.{Message, ServerMessages}
+import protocol.{Message, ServerMessages, ClientMessages}
+import akka.pattern.ask
+import scala.concurrent.duration._
+import akka.util.Timeout
 
 object GameManager:
 
@@ -22,6 +25,8 @@ object GameManager:
     case class PlayerDisconnected(player: ActorRef) extends Command
     case class RegisterClient(client: ActorRef) extends Command
     case class GameSessionEnded(gameId: String) extends Command 
+
+    case class ProcessGameAction(gameId: String, playerId: String, action: ClientMessages.GameAction) extends Command
 
     //Factory method per creare un'istanza di GameManager
     def props: Props = Props(new GameManager())
@@ -45,7 +50,7 @@ class GameManager extends Actor with ActorLogging:
             log.info("GameManager initialized with empty state") 
     
     def running(
-        games: Map[String, ActorRef],
+        games: Map[String, ActorRef], //actorref si riferisce a un'istanza di GameSession
         connectedClients: Set[ActorRef],
         playerToGame: Map[ActorRef, String]
     ): Receive = 
@@ -59,7 +64,7 @@ class GameManager extends Actor with ActorLogging:
             context.become(running(games, updatedClients, playerToGame))
             
         case CreateGameSession(gameName, maxPlayers, creator, username) =>
-            val gameId = UUID.randomUUID().toString() // crea ID randomico per la nuova partita
+            val gameId = UUID.randomUUID().toString().take(6) 
             log.warning(s"Creating game session: $gameName with ID: $gameId for user ${username}")
 
             val gameSession = context.actorOf(
@@ -88,12 +93,10 @@ class GameManager extends Actor with ActorLogging:
                     log.warning(s"Player ${player.path.name} joining game session: $gameId")
                     gameSession ! GameSession.JoinGame(player.path.name, player,username)
 
-                    // Aggiorna la mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
                     context.become(running(games, connectedClients, updatedPlayerToGame))
                     
                 case None =>
-                    // partita non trovata
                     log.warning(s"Game session $gameId not found for player ${player.path.name}")
                     player ! ServerMessages.Error(s"Game session $gameId not found")
             
@@ -104,7 +107,6 @@ class GameManager extends Actor with ActorLogging:
                     log.info(s"Player ${player.path.name} leaving game session: $gameId")
                     gameSession ! GameSession.LeaveGame(player.path.name)
 
-                    //Rimuove il giocatore dalla mappatura dei giocatori al gioco
                     val updatedPlayerToGame = playerToGame - player
                     context.become(running(games, connectedClients, updatedPlayerToGame))
                     
@@ -134,14 +136,9 @@ class GameManager extends Actor with ActorLogging:
                     log.info(s"Player ${player.path.name} disconnected from game session: $gameId")
                     games.get(gameId) match 
                         case Some(gameSession) =>
-                            // Rimuovi il giocatore dalla partita
+                            
                             gameSession ! GameSession.LeaveGame(player.path.name)
                             
-                            // Verifica immediatamente se questa è l'ultima disconnessione
-                            // che potrebbe lasciare la partita vuota
-                            import akka.pattern.ask
-                            import scala.concurrent.duration._
-                            import akka.util.Timeout
                             implicit val timeout: Timeout = 3.seconds
                             implicit val ec = context.dispatcher
                             
@@ -151,36 +148,41 @@ class GameManager extends Actor with ActorLogging:
                                     case state: ServerMessages.GameState if state.players.isEmpty =>
                                         log.warning(s"Partita $gameId rimasta vuota dopo disconnessione, rimuovo...")
                                         self ! GameSessionEnded(gameId)
-                                    case _ => // La partita ha ancora giocatori, non fare nulla
+                                    case _ => 
                                 }
                             }
                             
                         case None =>
                             log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
             
-                // Rimuove il giocatore dalla mappatura dei giocatori al gioco
+                
                 val updatedPlayerToGame = playerToGame - player
                 context.become(running(games, updatedClients, updatedPlayerToGame))
         
         case GameSessionEnded(gameId) =>
-            // Gestisce la fine di una sessione di gioco
+
             log.info(s"Game session $gameId has ended, removing from active games")
             
-            // Rimuovi la sessione dalla mappa dei giochi attivi
             val updatedGames = games - gameId
             
-            // Notifica tutti i client connessi che la partita è stata rimossa
             connectedClients.foreach { client =>
                 client ! ServerMessages.GameRemoved(gameId)
             }
-            
-            // Aggiorna la mappatura playerToGame rimuovendo tutti i giocatori associati a questo gioco
             val playersInGame = playerToGame.filter(_._2 == gameId).keys.toSet
             val updatedPlayerToGame = playerToGame -- playersInGame
             
-            // Aggiorna lo stato con le nuove mappe
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
+       
+        case ProcessGameAction(gameId, playerId, action) =>
+            games.get(gameId) match 
+                case Some(gameSession) =>
+                    log.info(s"Forwarding game action '${action.action}' from player $playerId to game $gameId")
+                    gameSession ! GameSession.ProcessAction(playerId, action)
+                case None =>
+                    log.warning(s"Game action processing failed: Game session $gameId not found")
+                    sender() ! ServerMessages.Error(s"Game session $gameId not found")
+            
 end GameManager
 
 

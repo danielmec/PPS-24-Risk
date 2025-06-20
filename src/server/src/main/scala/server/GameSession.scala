@@ -3,7 +3,8 @@ package server
 import akka.actor.{ Actor,  ActorRef,  Props,  ActorLogging}
 import protocol.{ Message, ServerMessages, ClientMessages }
 import java.util.UUID
-import scala.collection.mutable.{Map, ListBuffer}
+import scala.collection.mutable.{  Map, ListBuffer }
+
 import engine.{GameEngine, GameState, TurnPhase, GameAction, EngineState}
 import model.player.{Player => CorePlayer, PlayerImpl => CorePlayerImpl}
 import model.player.PlayerColor
@@ -63,7 +64,6 @@ class GameSession(
 
     import GameSession._
 
-    // Aggiungi questi campi per GameEngine
     private var gameEngine: Option[GameEngine] = None
     private var corePlayers: List[model.player.PlayerImpl] = List.empty
 
@@ -254,8 +254,7 @@ class GameSession(
                       // Converte l'azione client in azione core
                       val coreAction = convertToGameAction(action, playerId)
                       
-                      // Esegue l'azione e ottieni lo stato aggiornato
-                      // CORREZIONE: ora usiamo direttamente processAction() invece di performActions()
+                      //processa l'azione con il motore di gioco e ne prende il nuovo stato
                       val updatedGameState = engine.processAction(coreAction)
                     
                       val nextPlayerId = updatedGameState.turnManager.currentPlayer.id

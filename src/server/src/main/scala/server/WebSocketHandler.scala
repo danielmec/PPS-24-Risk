@@ -170,6 +170,12 @@ object WebSocketHandler:
           println(s"Inoltro richiesta lista partite")
           gameManager ! GameManager.GetAllGames(self)
           
+        case action: protocol.ClientMessages.GameAction =>
+          println(s"Inoltro azione di gioco: ${action.action} per partita ${action.gameId}")
+          
+          val playerId = self.path.name 
+          gameManager ! GameManager.ProcessGameAction(action.gameId, playerId, action)
+    
         case _ => 
           println(s"Messaggio non gestito: $msg")
           // Usa un oggetto di protocollo per l'errore
