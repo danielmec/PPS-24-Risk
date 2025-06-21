@@ -35,21 +35,24 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
   private val armiesLabel = new Label("--")
   private val continentLabel = new Label("--")
   
-  // ComboBox per selezionare i territori
+  //ComboBox per tutti i territori del giocatore
   private val territoriesComboBox = new ComboBox[String] {
     items = ObservableBuffer("Seleziona territorio...")
     prefWidth = 200
     onAction = _ => {
       val selectedTerritory = value.value
-      if (selectedTerritory != "Seleziona territorio..." && territories != null) {
+      if (selectedTerritory != "Seleziona territorio..." && territories != null) { 
+        
+        //appena selezionato un territorio, mostra i dettagli
         territories.find(_.name == selectedTerritory).foreach { territory =>
+          // aggiorna le label con i dettagli del territorio
           updateTerritoryDetails(territory.name, territory.armies.value, territory.continent)
+
         }
       }
     }
   }
   
-  // Costruisci la griglia dei continenti dinamicamente
   private val continentsGrid = new GridPane {
     hgap = 10
     vgap = 5
@@ -69,7 +72,6 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
   minHeight = 100
   
   children = Seq(
-    // ComboBox per selezionare territori del giocatore
     new VBox(5) {
       alignment = Pos.CenterLeft
       children = Seq(
@@ -80,7 +82,7 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       )
     },
     
-    // Pannello statistiche del territorio selezionato
+    //pannello centrale con statistiche del territorio selezionato
     new VBox(5) {
       alignment = Pos.CenterLeft
       minWidth = 200
@@ -114,7 +116,7 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
   )
   
   /**
-   * Aggiorna i dettagli del territorio selezionato
+   * Aggiorna i dettagli di 1 territorio selezionato
    */
   def updateTerritoryDetails(name: String, armies: Int, continent: String): Unit = {
     nameLabel.text = name
@@ -123,7 +125,7 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
   }
   
   /**
-   * Aggiorna la combobox con i territori di un giocatore
+   * Aggiorna la lista(combobox) con i territori di un giocatore
    */
   def updatePlayerTerritories(playerName: String): Unit = {
     if (territories != null) {
