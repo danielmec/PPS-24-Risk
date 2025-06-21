@@ -84,6 +84,7 @@ class GameEngine(
         else gameState
       else gameState
     val updatedState = engineState.copy(gameState = gameStateWithBonus) 
+    if !gameState.turnManager.isValidAction(action, gameStateWithBonus, engineState) then throw new InvalidActionException()
     action match
       case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameStateWithBonus, playerId, updatedState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
@@ -111,10 +112,8 @@ class GameEngine(
     }
 
   private def placeTroopsAction(gameState: GameState, playerId: String, state: EngineState, territoryName: String, troops: Int): EngineState =
-    val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidTerritoryException())
-    val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidPlayerException())
-    if !territory.isOwnedBy(playerId) then throw new InvalidTerritoryException()
-    if troops <= 0 || troops > playerState.bonusTroops then throw new InvalidTroopsException()
+    val territory = gameState.getTerritoryByName(territoryName).get
+    val playerState = gameState.getPlayerState(playerId).get
     val updatedTerritory = territory.addTroops(troops)
     val updatedPlayerState = playerState.copy(bonusTroops = playerState.bonusTroops - troops)
     val updatedGameState = gameState
@@ -123,11 +122,8 @@ class GameEngine(
     state.copy(gameState = updatedGameState)
 
   private def reinforceAction(from: String, gameState: GameState, playerId: String, state: EngineState, to: String, troops: Int): EngineState =
-    val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidTerritoryException())
-    val toTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidTerritoryException())
-    if (!fromTerritory.isOwnedBy(playerId) || !toTerritory.isOwnedBy(playerId)) throw new InvalidTerritoryException()   
-    if (!fromTerritory.hasEnoughTroops(troops + 1) || troops <= 0) throw new InvalidTroopsException()
-    if (!gameState.board.areNeighbors(fromTerritory, toTerritory)) throw new InvalidTerritoryException()
+    val fromTerritory = gameState.getTerritoryByName(from).get
+    val toTerritory = gameState.getTerritoryByName(to).get
     val updatedFrom = fromTerritory.removeTroops(troops)
     val updatedTo = toTerritory.addTroops(troops)
     val updatedBoard = gameState.board
@@ -136,48 +132,44 @@ class GameEngine(
     state.copy(gameState = gameState.updateBoard(updatedBoard))
 
   private def attackAction(attackerId: String, defenderId: String, from: String, gameState: GameState, state: EngineState, to: String, troops: Int): EngineState =
-    val attacker = players.find(_.id == attackerId).getOrElse(throw new InvalidPlayerException())
-    val defender = players.find(_.id == defenderId).getOrElse(throw new InvalidPlayerException())
-    val attackerTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidTerritoryException())
-    val defenderTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidTerritoryException())
-    if (!attackerTerritory.hasEnoughTroops(troops + 1) || troops <= 0) throw new InvalidTroopsException()    
-    if (!attackerTerritory.isOwnedBy(attackerId) || !defenderTerritory.isOwnedBy(defenderId)) throw new InvalidTerritoryException()    
-    if (!gameState.board.areNeighbors(attackerTerritory, defenderTerritory)) throw new InvalidTerritoryException()    
-    state.copy(pendingAttack = Some((attacker, defender, attackerTerritory, defenderTerritory, troops)))
-  
-  private def defendAction(defendTroops: Int, defenderId: String, gameState: GameState, state: EngineState, territoryName: String): EngineState =
-    state.pendingAttack match
-      case Some((attacker, defender, attackerTerritory, defenderTerritory, attackingTroops))
-        if defender.id == defenderId && defenderTerritory.name == territoryName =>
-          val maxDefend = math.min(3, defenderTerritory.troops)
-          if (defendTroops <= 0 || defendTroops > maxDefend) throw new InvalidActionException()
-          val (_, updatedAttackerTerritory, updatedDefenderTerritory) = Battle.battle(
-            attacker, defender, attackerTerritory, defenderTerritory, attackingTroops,
-            attackerDiceRoll = utils.Dice.roll,
-            defenderDiceRoll = _ => utils.Dice.roll(defendTroops)
-          )
-          val conquered = updatedDefenderTerritory.isOwnedBy(attacker.id)  
-          val updatedBoard = gameState.board
-            .updatedTerritory(updatedAttackerTerritory)
-            .updatedTerritory(updatedDefenderTerritory)      
-          val updatedGameState = gameState.updateBoard(updatedBoard)   
-          val afterElimination = if !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty
-            then transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
-            else updatedGameState
-          state.copy(
-            gameState = afterElimination,
-            pendingAttack = None,
-            territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
-          )   
-      case _ => throw new InvalidActionException()
+    val attacker = players.find(_.id == attackerId).get
+    val defender = players.find(_.id == defenderId).get
+    val attackerTerritory = gameState.getTerritoryByName(from).get
+    val defenderTerritory = gameState.getTerritoryByName(to).get
+    val updatedTurnManager = gameState.turnManager.asInstanceOf[TurnManagerImpl].copy(phase = TurnPhase.Defending)
+    val updatedGameState = gameState.updateTurnManager(updatedTurnManager)
+    state.copy(
+      gameState = updatedGameState,
+      pendingAttack = Some((attacker, defender, attackerTerritory, defenderTerritory, troops))
+    )  
+
+  private def defendAction(defendTroops: Int, defenderId: String, gameState: GameState, engineState: EngineState, territoryName: String): EngineState =
+    engineState.pendingAttack match
+      case Some((attacker, defender, attackerTerritory, defenderTerritory, attackingTroops)) =>
+        val (result, updatedAttackerTerritory, updatedDefenderTerritory) = Battle.battle(
+          attacker, defender, attackerTerritory, defenderTerritory, attackingTroops,
+          attackerDiceRoll = utils.Dice.roll,
+          defenderDiceRoll = _ => utils.Dice.roll(defendTroops)
+        )
+        val conquered = updatedDefenderTerritory.isOwnedBy(attacker.id)
+        val updatedBoard = gameState.board
+          .updatedTerritory(updatedAttackerTerritory)
+          .updatedTerritory(updatedDefenderTerritory)
+        val updatedGameState = gameState.updateBoard(updatedBoard)
+        val afterElimination = if !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty
+          then transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
+          else updatedGameState
+        engineState.copy(
+          gameState = afterElimination,
+          pendingAttack = None,  
+          territoryConqueredThisTurn = engineState.territoryConqueredThisTurn || conquered
+        )
+      case None => throw new InvalidActionException()
 
   private def tradeCardsAction(cards: Set[TerritoryCard], gameState: GameState, state: EngineState): EngineState =
     val currentPlayerId = gameState.turnManager.currentPlayer.id
-    val playerState = gameState.getPlayerState(currentPlayerId).getOrElse(throw new InvalidPlayerException())
-    if (cards.size != 3) throw new InvalidCardException()
-    if (!cards.subsetOf(playerState.territoryCards)) throw new InvalidCardException()
+    val playerState = gameState.getPlayerState(currentPlayerId).get
     val bonus = BonusCalculator.calculateTradeBonus(cards)
-    if (bonus == 0) throw new InvalidCardException()
     val updatedPlayerState = playerState
       .removeTerritoryCards(cards)
       .copy(bonusTroops = playerState.bonusTroops + bonus)  
@@ -207,9 +199,7 @@ class GameEngine(
 
   def getGameState: GameState = engineState.gameState
 
-  def checkVictory: Option[PlayerState] = engineState.gameState.checkWinCondition
-
-  private def checkVictory(state: EngineState): Option[PlayerState] = state.gameState.checkWinCondition
+  private def checkVictory(engineState: EngineState): Option[PlayerState] = engineState.gameState.checkWinCondition
 
   //to do: collegamento con client
   def executeBotTurn(): GameState =

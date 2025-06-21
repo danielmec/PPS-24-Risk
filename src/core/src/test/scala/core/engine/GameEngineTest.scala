@@ -59,33 +59,33 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
 
   test("PlaceTroops - fails if too many troops"):
     val territoryName = engine.getGameState.board.territories.find(_.owner.exists(_.id == "1")).get.name
-    an [InvalidTroopsException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("1", 10, territoryName))
     }
 
   test("PlaceTroops - fails if zero or negative troops"):
     val territoryName = engine.getGameState.board.territories.find(_.owner.exists(_.id == "1")).get.name
-    an [InvalidTroopsException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("1", 0, territoryName))
     }
-    an [InvalidTroopsException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("1", -1, territoryName))
     }
 
   test("PlaceTroops - fails if territory not owned"):
     val emptyTerritoryName = engine.getGameState.board.territories.find(_.owner.isEmpty).get.name
-    an [InvalidTerritoryException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("1", 2, emptyTerritoryName))
     }
 
   test("PlaceTroops - fails if territory does not exist"):
-    an [InvalidTerritoryException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("1", 2, "NonExistentTerritory"))
     }
 
   test("PlaceTroops - fails if player does not exist"):
     val territoryName = engine.getGameState.board.territories.find(_.owner.exists(_.id == "1")).get.name  
-    an [InvalidPlayerException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.PlaceTroops("999", 2, territoryName))
     }
 
@@ -160,7 +160,7 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
       board = updatedBoard,
       turnManager = resetTurnManager(List(player1, player2), TurnPhase.Reinforcement)
     ))
-    an [InvalidTerritoryException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.Reinforce("1", "Territory1", "Territory2", 2))
     }
 
@@ -213,13 +213,13 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     val updatedT1 = t1.copy(neighbors = Set(t2))
     val updatedBoard = updateTerritoriesInBoard(engine.getGameState.board, updatedT1, t2)
     engine.setGameState(engine.getGameState.copy(board = updatedBoard, turnManager = resetTurnManager(List(player1, player2), TurnPhase.Attacking)))
-    an [InvalidTroopsException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.Attack("1", "2", t1.name, t2.name, 2))
     }
 
   test("TradeCards - fails with invalid card combination"):
     val cards = Set.empty[TerritoryCard] 
-    an [InvalidCardException] should be thrownBy {
+    an [InvalidActionException] should be thrownBy {
       engine.processAction(GameAction.TradeCards(cards))
     }
 

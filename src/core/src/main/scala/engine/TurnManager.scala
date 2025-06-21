@@ -1,14 +1,16 @@
 package engine
-import model.cards.*
-import model.player.*
-import exceptions.*
+import model.cards._
+import model.player._
+import model.board._
+import utils._
+import exceptions._
 
 trait TurnManager:
     def currentPlayer: Player
     def nextPlayer(): TurnManager
     def currentPhase: TurnPhase
     def nextPhase(): TurnManager
-    def isValidAction(action: GameAction): Boolean
+    def isValidAction(action: GameAction, gameState: GameState, engineState: EngineState): Boolean
 
 case class TurnManagerImpl(
     players: List[Player],
@@ -36,20 +38,52 @@ case class TurnManagerImpl(
         case TurnPhase.Attacking => copy(phase = TurnPhase.Defending)
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
 
-    def isValidAction(action: GameAction): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(playerId, troops, territoryId), TurnPhase.PlacingTroops) => 
-            playerId == currentPlayer.id && troops > 0
+    def isValidAction(action: GameAction, gameState: GameState, engineState: EngineState): Boolean = (action, phase) match
+        case (GameAction.PlaceTroops(playerId, troops, territoryName), TurnPhase.PlacingTroops) => 
+            val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
+            val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidActionException())
+            playerId == currentPlayer.id && 
+            troops > 0 &&
+            territory.isOwnedBy(playerId) && 
+            troops <= playerState.bonusTroops
             
         case (GameAction.Reinforce(playerId, from, to, troops), TurnPhase.Reinforcement) => 
-            playerId == currentPlayer.id && troops > 0
+            val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidActionException())
+            val toTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidActionException())
+            playerId == currentPlayer.id &&
+            fromTerritory.isOwnedBy(playerId) && 
+            toTerritory.isOwnedBy(playerId) &&
+            fromTerritory.hasEnoughTroops(troops + 1) &&
+            gameState.board.areNeighbors(fromTerritory, toTerritory) &&
+            troops > 0
             
-        case (GameAction.TradeCards(_), TurnPhase.Reinforcement) => true
+        case (GameAction.TradeCards(territoryCards), TurnPhase.Reinforcement) => 
+            val playerState = gameState.getPlayerState(currentPlayer.id).getOrElse(throw new InvalidActionException())  
+            territoryCards.size == 3 && 
+            territoryCards.subsetOf(playerState.territoryCards) &&
+            BonusCalculator.calculateTradeBonus(territoryCards) > 0
             
         case (GameAction.Attack(attackerId, defenderId, from, to, numTroops), TurnPhase.Attacking) =>
-            attackerId == currentPlayer.id && attackerId != defenderId && numTroops > 0
+            val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidActionException())
+            val toTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidActionException())
+            attackerId == currentPlayer.id && 
+            attackerId != defenderId && 
+            numTroops > 0 &&
+            fromTerritory.isOwnedBy(attackerId) && 
+            toTerritory.isOwnedBy(defenderId) &&
+            fromTerritory.hasEnoughTroops(numTroops + 1) &&
+            gameState.board.areNeighbors(fromTerritory, toTerritory)
             
         case (GameAction.Defend(defenderId, territory, troops), TurnPhase.Defending) => 
-            defenderId != currentPlayer.id && troops > 0 && troops <= 3
+            engineState.pendingAttack match
+                case Some((_, defender, _, defenderTerritory, _)) =>
+                    defenderId != currentPlayer.id &&
+                    defender.id == defenderId && 
+                    defenderTerritory.name == territory &&
+                    troops <= defenderTerritory.troops && 
+                    troops > 0 &&
+                    troops <= 3
+                case None => false
             
         case (GameAction.EndAttack, TurnPhase.Attacking) => true
         case (GameAction.EndPhase, _) => true

@@ -19,13 +19,28 @@ class GameStateTest extends AnyFunSuite:
   val continent = Continent("Europe", Set(territory1, territory2), 5)
   val board = Board("game1", Set(continent.copy(territories = Set(territory1, territory2)), Continent("Asia", Set(territory3), 3)))
 
+  def createGameState(tm: TurnManager): GameState = GameState(
+    gameId = "test",
+    board = board,
+    playerStates = List(playerState, otherState),
+    turnManager = tm,
+    decksManager = DecksManagerImpl(List.empty, List.empty),
+    objectiveCards = List.empty
+  )
+
+  def createEngineState(
+    gs: GameState,
+    pendingAttack: Option[(PlayerImpl, PlayerImpl, Territory, Territory, Int)] = None
+  ): EngineState =
+    EngineState(gs, pendingAttack, false)
+
   val turnManager = new TurnManager:
     def currentPlayer: Player = player
     def nextPlayer(): TurnManager = this
     def currentPhase: TurnPhase = TurnPhase.WaitingForTurn
     def nextPhase(): TurnManager = this
-    def isValidAction(action: GameAction): Boolean = true
-  
+    def isValidAction(action: GameAction, gs: GameState, es: EngineState): Boolean = true
+
   val decksManager = DecksManagerImpl(List(), List())
 
   val gameState = GameState(
@@ -33,7 +48,8 @@ class GameStateTest extends AnyFunSuite:
     board = board,
     playerStates = List(playerState, otherState),
     turnManager = turnManager,
-    decksManager = decksManager
+    decksManager = decksManager,
+    objectiveCards = List.empty
   )
 
   test("getPlayerState returns the correct player"):
@@ -55,7 +71,7 @@ class GameStateTest extends AnyFunSuite:
       def nextPlayer(): TurnManager = this
       def currentPhase: TurnPhase = TurnPhase.Attacking
       def nextPhase(): TurnManager = this
-      def isValidAction(action: GameAction): Boolean = true
+      def isValidAction(action: GameAction, gs: GameState, es: EngineState): Boolean = true
     val newGameState = gameState.updateTurnManager(newTurnManager)
     assert(newGameState.turnManager.currentPlayer == otherPlayer)
 
