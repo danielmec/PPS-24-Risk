@@ -237,43 +237,24 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           // gestisce sia il vecchio che il nuovo formato
           val gameState = if (initialStateFields.contains("state")) {
             val stateJson = initialStateFields.getOrElse("state", JsObject.empty).asJsObject
-            val stateFields = stateJson.fields
-            
-            if (stateFields.contains("gameStateDto") && stateFields("gameStateDto") != JsNull) {
-              val dto = stateFields("gameStateDto").asJsObject
-              
-              //Costruisce il GameState utilizzando le informazioni dal DTO
-              GameState(
-                gameId = initialStateFields.getOrElse("gameId", JsString(gameId)).convertTo[String],
-                players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
-                currentPlayer = initialStateFields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
-                state = GameStateData(
-                  currentPlayer = dto.fields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
-                  currentPhase = dto.fields.getOrElse("currentPhase", JsString("PlacingTroops")).convertTo[String],
-                  territories = dto.fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
-                    _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-                  ),
-                  playerStates = dto.fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map(
-                    _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-                  )
+
+            GameState(
+              gameId = initialStateFields.getOrElse("gameId", JsString(gameId)).convertTo[String],
+              players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
+              currentPlayer = initialStateFields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
+              state = GameStateData(
+                currentPlayer = stateJson.fields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
+                currentPhase = stateJson.fields.getOrElse("currentPhase", JsString("PlacingTroops")).convertTo[String],
+                territories = stateJson.fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
+                  _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
+                ),
+                playerStates = stateJson.fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map(
+                  _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
                 )
               )
-            } else {
-              // Fallback: crea uno stato vuoto ma valido
-              GameState(
-                gameId = gameId,
-                players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
-                currentPlayer = currentPlayerId,
-                state = GameStateData(
-                  currentPlayer = currentPlayerId,
-                  currentPhase = "PlacingTroops",
-                  territories = List(),
-                  playerStates = List()
-                )
-              )
-            }
+            )
           } else {
-            // formato molto vecchio, fallback sicuro
+            // fallback
             GameState(
               gameId = gameId,
               players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
