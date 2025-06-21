@@ -136,6 +136,24 @@ object JsonSupport extends DefaultJsonProtocol:
         case Some(JsString("getAllGames")) =>
           ClientMessages.GetAllGames()
           
+        case Some(JsString("gameAction")) =>
+          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
+          val action = fields.getOrElse("action", JsString("")).convertTo[String]
+          
+          
+          val params = fields.getOrElse("parameters", JsObject.empty) match {
+            case obj: JsObject => obj.fields.map { case (k, v) => 
+              k -> (v match {
+                case JsString(s) => s
+                case JsNumber(n) => n.toString
+                case _ => ""
+              })
+            }
+            case _ => Map.empty[String, String]
+          }
+          
+          ClientMessages.GameAction(gameId, action, params)
+        
         case Some(JsString(unknown)) => 
           throw DeserializationException(s"Tipo di messaggio non riconosciuto: $unknown")
           
