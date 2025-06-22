@@ -6,6 +6,7 @@ import model.player._
 import scala.collection.mutable
 
 class RiskBotController extends BotController:
+  
   private val botStrategies = mutable.Map[String, Strategy]()
   
   /**

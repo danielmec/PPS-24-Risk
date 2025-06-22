@@ -25,6 +25,5 @@ trait RuleHelpers:
       .sum
     
     val ownTroops = territory.troops
-    
     if ownTroops == 1 then Double.MaxValue  // Territorio vuoto: priorità massima
     else enemyNeighborTroops.toDouble / ownTroops
