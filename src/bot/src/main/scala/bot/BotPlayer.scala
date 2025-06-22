@@ -3,7 +3,9 @@ package bot
 import strategy.Strategy
 import strategy.StrategyRule
 import engine.GameState
-import model.player.{Player, PlayerColor, PlayerType}
+import model.player.Player
+import model.player.PlayerType
+import model.player.PlayerColor
 import engine.TurnPhase
 import engine.GameAction
 

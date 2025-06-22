@@ -25,15 +25,12 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
   override def evaluateAction(gameState: GameState, playerId: String): Set[RatedAction] =
     val encodedState = encodeGameState(gameState)
     val phase = gameState.turnManager.currentPhase.toString
-    
     val actionString = "Action"
     val scoreString = "Score" 
     val descString = "Description"
-    
     val goal = s"$theoryName($encodedState, '$phase', '$playerId', $actionString, $scoreString, $descString)"
     
-    engine
-      .solveAll(goal, actionString, scoreString, descString)
+    engine.solveAll(goal, actionString, scoreString, descString)
       .map(terms => {
         val actionTerm = terms(actionString)
         val score = terms(scoreString).toString.toDouble

@@ -48,7 +48,6 @@ object PrologEngine:
       theories.foreach(prolog.addTheory)
       goal =>
         new Iterable[SolveInfo] {
-
           override def iterator: Iterator[SolveInfo] = new Iterator[SolveInfo]:
             var solution: Option[SolveInfo] = Some(prolog.solve(goal))
 
