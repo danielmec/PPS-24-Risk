@@ -6,6 +6,7 @@ import engine.GameAction
 import alice.tuprolog.*
 import prolog.PrologEngine.given_Conversion_String_Theory
 import prolog.PrologEngine.given_Conversion_String_Term
+import exceptions._
 
 /**
  * Trait che implementa una regola di strategia usando Prolog
@@ -38,7 +39,7 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
         val score = terms(scoreString).toString.toDouble
         val description = terms(descString).toString.replaceAll("'", "")
         
-        RatedAction(parseAction(actionTerm, playerId), score, description)
+        RatedAction(parseAction(gameState, actionTerm, playerId), score, description)
       }).toSet
       
   /**
@@ -57,23 +58,36 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
   /**
    * Converte un termine Prolog in un'azione di gioco
    */
-  protected def parseAction(actionTerm: Term, playerId: String): GameAction = {
+  protected def parseAction(gameState: GameState, actionTerm: Term, playerId: String): GameAction =
     val functor = actionTerm.toString
     
     if (functor.startsWith("place_troops")) {
       val args = extractArgs(actionTerm)
-      GameAction.PlaceTroops(playerId, args(1).toInt, args(0))
-    } else if (functor.startsWith("attack")) {
+      val territoryName = args(0)
+      val troops = args(1).toInt
+      GameAction.PlaceTroops(playerId, troops, territoryName)
+    } 
+    else if (functor.startsWith("attack")) {
       val args = extractArgs(actionTerm)
-      GameAction.Attack(playerId, args(0), args(1), args(2), args(3).toInt)
-    } else if (functor.startsWith("end_phase")) {
+      val from = args(0)
+      val to = args(1)
+      val troops = args(2).toInt
+      val defenderId = gameState.board.territories
+        .find(_.name == to)
+        .flatMap(_.owner)
+        .map(_.id)
+        .getOrElse(throw new InvalidActionException())
+      GameAction.Attack(playerId, defenderId, from, to, troops)
+    } 
+    else if (functor.startsWith("end_phase")) {
       GameAction.EndPhase
-    } else if (functor.startsWith("end_turn")) {
+    } 
+    else if (functor.startsWith("end_turn")) {
       GameAction.EndTurn
-    } else {
+    } 
+    else {
       throw new IllegalArgumentException(s"Unknown action: $functor")
     }
-  }
   
   private def extractArgs(term: Term): Array[String] = {
     val content = term.toString

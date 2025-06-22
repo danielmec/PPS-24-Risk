@@ -3,7 +3,7 @@ package strategy
 import engine.GameState
 import model.board.Territory
 
-trait RuleHelpers:
+object RuleHelpers:
   // Trova territori di confine
   def findBorderTerritories(gameState: GameState, playerId: String): Set[Territory] =
     gameState.board.territories
@@ -23,8 +23,6 @@ trait RuleHelpers:
       .filter(n => n.owner.exists(o => o.id != territory.owner.get.id))
       .map(_.troops)
       .sum
-    
     val ownTroops = territory.troops
-    
     if ownTroops == 1 then Double.MaxValue  // Territorio vuoto: priorità massima
     else enemyNeighborTroops.toDouble / ownTroops

@@ -205,7 +205,7 @@ class GameEngine(
   def executeBotTurn(): GameState =
     val currentPlayer = engineState.gameState.turnManager.currentPlayer
     if currentPlayer.playerType != PlayerType.Bot || botController.isEmpty then
-      throw new IllegalStateException("Current player is not a bot or bot controller is missing")  
+      throw new InvalidPlayerException()  
     var isCurrentTurn = true
     while isCurrentTurn do
       try {
