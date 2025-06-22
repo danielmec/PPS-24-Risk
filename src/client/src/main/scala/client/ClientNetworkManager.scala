@@ -41,7 +41,9 @@ class ClientNetworkManager:
   
   //Aggiunge una proprietà per memorizzare i callback
   private var messageCallbacks: Map[String, Any => Unit] = Map.empty
-  
+  // Aggiungi questo campo e metodo nella classe ClientNetworkManager
+  private var filteredCallbacks: Map[String, (Any, String) => Unit] = Map.empty
+
   def login(username: String): Future[Boolean] =
     val request = HttpRequest(
       method = HttpMethods.POST,
@@ -291,4 +293,5 @@ class ClientNetworkManager:
     messageCallbacks = messageCallbacks + (messageType -> callback)
   }
 
+  
 end ClientNetworkManager
