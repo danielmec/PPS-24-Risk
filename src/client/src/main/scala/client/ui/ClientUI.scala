@@ -104,7 +104,7 @@ object ClientUI extends JFXApp3:
           statusLabel.text = statusLabel.text.value + " - Connesso al server"
           
           // una volta connessi, si apre la finestra delle lobby
-          val lobbyWindow = new LobbyWindow(networkManager, playerId)
+          val lobbyWindow = new LobbyWindow(networkManager)
           lobbyWindow.show()
           
           // nasconde la finestra di login

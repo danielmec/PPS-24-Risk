@@ -79,6 +79,10 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
   
   cancelButton.onAction = _ => close()
   
+  // Aggiungi questi campi per tenere traccia dello stato
+  private var gameCreated = false
+  private var lastUsedUsername = ""
+
   createButton.onAction = _ => {
     val gameName = gameNameField.text.value.trim
     val username = usernameField.text.value.trim
@@ -92,18 +96,28 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
       java.util.prefs.Preferences.userNodeForPackage(getClass)
         .put("username", username)
       
+      // Salva l'username usato per questa creazione
+      lastUsedUsername = username
+      
       val maxPlayers = playersCombo.value.value
       val createMsg = CreateGameMessage(gameName, maxPlayers, username)
       
       networkManager.sendMessage(createMsg).onComplete {
-        case scala.util.Success(_) => Platform.runLater(close())
+        case scala.util.Success(_) => Platform.runLater {
+          gameCreated = true
+          close()
+        }
         case scala.util.Failure(e) => Platform.runLater {
           showError(s"Errore: ${e.getMessage}")
         }
       }(networkManager.executionContext)
     }
   }
-  
+
+  // Aggiungi questi metodi per accedere ai valori
+  def wasGameCreated: Boolean = gameCreated
+  def getLastUsername: String = lastUsedUsername
+
   // Metodo di utilità per mostrare un messaggio di errore
   private def showError(message: String): Unit = {
     import scalafx.scene.control.Alert

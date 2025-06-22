@@ -17,7 +17,7 @@ import java.util.prefs.Preferences
 /**
  * Finestra che mostra le lobby di gioco disponibili
  */
-class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extends Stage {
+class LobbyWindow(networkManager: ClientNetworkManager) extends Stage {
   
   // preferenze utente per salvare il nome
   private val userPrefs = Preferences.userNodeForPackage(getClass)
@@ -33,8 +33,6 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
   // Componenti UI
   val titleLabel = new Label("Lobby di gioco")
   titleLabel.font = Font.font("Arial", FontWeight.Bold, 18)
-  
-  val playerIdLabel = new Label(s"Giocatore: $playerId")
   
   val gameListView = new ListView[GameInfo]()
   gameListView.items = availableGames
@@ -62,7 +60,7 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
   buttonBar.alignment = Pos.Center
   
   val mainLayout = new BorderPane {
-    top = new VBox(10, titleLabel, playerIdLabel) {
+    top = new VBox(10, titleLabel) {
       alignment = Pos.Center
       padding = Insets(10)
     }
@@ -88,11 +86,21 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
   }
   
   createGameButton.onAction = _ => {
-    //apre una finestra di dialogo per creare una nuova partita
+    // Apre una finestra di dialogo per creare una nuova partita
     val dialog = new CreateGameDialog(networkManager)
+    
+    // Mostra la dialog e poi verifica se la partita è stata creata
     dialog.showAndWait()
+    
+    // Dopo che la dialog è stata chiusa, verifica se la partita è stata creata
+    if (dialog.wasGameCreated) {
+      lastEnteredUsername = Some(dialog.getLastUsername)
+    }
   }
   
+  // Aggiungi questo campo all'inizio della classe LobbyWindow
+  private var lastEnteredUsername: Option[String] = None
+
   /**
    * Mostra una finestra di dialogo per richiedere il nome utente
    */
@@ -107,7 +115,7 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
       height = 150
       
       // carica il nome precedentemente salvato
-      val savedUsername = userPrefs.get("username", "")
+      val savedUsername = ("")
       
       val usernameLabel = new Label("Nome utente:")
       val usernameField = new TextField {
@@ -144,8 +152,9 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
       okButton.onAction = _ => {
         val username = usernameField.text.value.trim
         if (username.nonEmpty) {
-          // salva il nome utente per usi futuri
+          // salva nelle preferenze ma anche nel campo locale
           userPrefs.put("username", username)
+          lastEnteredUsername = Some(username) // Salva localmente
           result = Some(username)
           close()
         } else {
@@ -237,37 +246,65 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
   networkManager.registerCallback("gameJoined", {
     case msg: GameJoinedMessage =>
       Platform.runLater {
-        // Verifica se esiste già una finestra di gioco per questo gameId
-        val shouldOpenNewWindow = currentGameWindow match {
-          case Some(existingWindow) if existingWindow.gameId == msg.gameId =>
-            // Aggiorna la finestra esistente con i nuovi dati dei giocatori
-            existingWindow.updatePlayers(msg.players)
-            false
-          case _ =>
-            // Nessuna finestra esistente per questo gioco, o è una partita diversa
-            true
-        }
+        // Ottieni l'ultimo username inserito in questa finestra specifica
+        val myUsername = lastEnteredUsername.getOrElse("")
         
-        if (shouldOpenNewWindow) {
-          // Chiudi la finestra corrente della lobby
-          this.hide()
+        if (myUsername.nonEmpty) {
+          // Verifica se questo messaggio è per me
+          val isForMe = msg.players.exists(_.startsWith(s"$myUsername ("))
           
-          //chiude la finestra di gioco corrente se esiste per evitare duplicati in caso di aggiornamenti
-          currentGameWindow.foreach(_.close())
+          // Verifica se sono già in questa partita
+          val alreadyInThisGame = currentGameWindow.exists(_.getGameId == msg.gameId)
           
-          val gameName = msg.gameName
-          
-          // Apri la finestra di gioco
-          val gameWindow = new GameWindow(networkManager, msg.gameId, gameName, msg.players)
-          gameWindow.show()
-          
-          // memorizza il riferimento alla finestra
-          currentGameWindow = Some(gameWindow)
-          
-          //quando la finestra di gioco viene chiusa, riapri la lobby
-          gameWindow.onCloseRequest = _ => {
-            this.show()
-            currentGameWindow = None
+          if (isForMe && !alreadyInThisGame) {
+            // Cerca il mio ID nella lista dei giocatori
+            val myConnectionId = msg.players.find(_.startsWith(s"$myUsername ("))
+              .map(playerString => {
+                val startIdx = playerString.indexOf("(") + 1
+                val endIdx = playerString.indexOf(")")
+                playerString.substring(startIdx, endIdx)
+              })
+            
+            // Log per debug
+            println(s"Il mio username è: $myUsername")
+            println(s"Il mio connection ID è: $myConnectionId")
+            
+            this.hide()
+            currentGameWindow.foreach(_.close())
+            
+            // Passa myUsername e myConnectionId alla GameWindow
+            myConnectionId.foreach { connectionId =>
+              val gameWindow = new GameWindow(
+                networkManager, 
+                msg.gameId, 
+                msg.gameName, 
+                msg.players,
+                myUsername,
+                connectionId
+              )
+              
+              // Verifica se c'è un messaggio gameStarted in attesa
+              pendingGameStartedMsg.foreach { startedMsg =>
+                println("Trovato messaggio gameStarted in attesa, processandolo...")
+                Platform.runLater {
+                  gameWindow.handleGameStarted(startedMsg)
+                  pendingGameStartedMsg = None
+                }
+              }
+              
+              gameWindow.show()
+              
+              // Memorizza il riferimento alla finestra
+              currentGameWindow = Some(gameWindow)
+              
+              // Quando la finestra di gioco viene chiusa, riapri la lobby
+              gameWindow.onCloseRequest = _ => {
+                this.show()
+                currentGameWindow = None
+              }
+            }
+          } else {
+            println(s"Ignorato messaggio gameJoined: ${if (!isForMe) "non per me" else "già nella partita"}")
           }
         }
       }
@@ -298,6 +335,29 @@ class LobbyWindow(networkManager: ClientNetworkManager, playerId: String) extend
       refreshLobby()
   })
   
+  // Aggiungi un campo per memorizzare temporaneamente il messaggio gameStarted
+  private var pendingGameStartedMsg: Option[GameStartedMessage] = None
+
+  // Nel costruttore di LobbyWindow, registra anche il callback per gameStarted
+  networkManager.registerCallback("gameStarted", {
+    case msg: GameStartedMessage =>
+      Platform.runLater {
+        println("Messaggio gameStarted ricevuto nella LobbyWindow")
+        
+        // Se c'è già una GameWindow aperta, inoltrale il messaggio
+        currentGameWindow match {
+          case Some(gameWindow) =>
+            println("Inoltrando il messaggio alla GameWindow esistente")
+            gameWindow.handleGameStarted(msg)
+          
+          case None =>
+            // Altrimenti, salva il messaggio per passarlo alla GameWindow quando verrà creata
+            println("Memorizzando il messaggio per la futura GameWindow")
+            pendingGameStartedMsg = Some(msg)
+        }
+      }
+  })
+
   // Classi di supporto
   
   case class GameInfo(id: String, name: String, players: Int, maxPlayers: Int) {
