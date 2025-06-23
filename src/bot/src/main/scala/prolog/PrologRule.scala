@@ -42,15 +42,20 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
   /**
    * Converte lo stato di gioco in un formato adatto per Prolog
    */
-  protected def encodeGameState(gameState: GameState): String = {
+  protected def encodeGameState(gameState: GameState): String = 
     // Codifica di territori, giocatori e altre informazioni
     val territoriesStr = gameState.board.territories.map { t =>
       val owner = t.owner.map(_.id).getOrElse("none")
       s"territory('${t.name}', '$owner', ${t.troops})"
     }.mkString("[", ",", "]")
+
+    // Codifica neighbor
+    val neighborStr = gameState.board.territories.flatMap { t =>
+      t.neighbors.map(n => s"neighbor('${t.name}', '${n.name}')")
+    }.mkString("[", ",", "]")
     
-    territoriesStr
-  }
+    s"$territoriesStr, $neighborStr"
+  
   
   /**
    * Converte un termine Prolog in un'azione di gioco
@@ -86,8 +91,8 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
       throw new IllegalArgumentException(s"Unknown action: $functor")
     }
   
-  private def extractArgs(term: Term): Array[String] = {
+  private def extractArgs(term: Term): Array[String] = 
     val content = term.toString
     val argsStr = content.substring(content.indexOf("(") + 1, content.lastIndexOf(")"))
     argsStr.split(",").map(_.trim.replaceAll("'", ""))
-  }
+  

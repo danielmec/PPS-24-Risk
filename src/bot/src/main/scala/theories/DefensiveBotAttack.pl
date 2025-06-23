@@ -2,7 +2,7 @@
 
 % Attack nearby territories with up to half of Bot troops
 
-attack(PlayerId, Territories, From, To, TroopsToUse) :-
+attack(PlayerId, Territories, From, To, TroopsToUse) :-             % output: troops involved to attack
     member(territory(From, PlayerId, BotTroops), Territories),      % takes its own territory data
     BotTroops > 1,                                                  % at least 2 troops
     neighbor(From, To),                                             % territories involved should be neighbors
