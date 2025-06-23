@@ -59,9 +59,9 @@ object Battle:
     defenderTerritory: Territory,
     attackingTroops: Int
   ): Either[String, Unit] =
-    if (!attackerTerritory.owner.contains(attacker))
+    if (!attackerTerritory.isOwnedBy(attacker.id))
       Left("Attacker does not own the attacking territory")
-    else if (!defenderTerritory.owner.contains(defender))
+    else if (!defenderTerritory.isOwnedBy(defender.id))
       Left("Defender does not own the defending territory")
     else if (attackingTroops <= 0)
       Left("Must attack with at least 1 troop")
@@ -141,7 +141,6 @@ object Battle:
           createBattleResult(finalState, attackingTroops)
     }
 
-  // Versione con Either per un controllo più esplicito degli errori
   def battleEither(
     attacker: Player,
     defender: Player,
