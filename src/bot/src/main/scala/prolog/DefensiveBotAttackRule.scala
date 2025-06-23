@@ -1,3 +1,3 @@
 package prolog
 
-class DefensiveBotAttackRule() extends PrologRule("DefensiveBotAttackRule")
+class DefensiveBotAttackRule() extends PrologRule("DefensiveBotAttack")
