@@ -45,15 +45,21 @@ class GameWindow(
   //Inizializzazione dei territori
   val territories = createTerritories()
   
-  
-  val titleLabel = new Label(s"Partita: $gameName")
+    val titleLabel = new Label(s"Partita: $gameName")
   titleLabel.font = Font.font("Arial", FontWeight.Bold, 18)
   
   val playersLabel = new Label(s"Giocatori: ${initPlayers.size}")
+    // Panel per mostrare il nome del giocatore corrente
+  val playerInfoLabel = new Label(s"Giocatore: $myUsername")
+  playerInfoLabel.font = Font.font("Arial", FontWeight.Bold, 14)
+  playerInfoLabel.style = "-fx-text-fill: #2E8B57; -fx-background-color: #F0FFF0; -fx-padding: 5px; -fx-border-color: #2E8B57; -fx-border-width: 1px; -fx-border-radius: 3px; -fx-background-radius: 3px;"
+  
+  // Debug print per il nome utente
+  println(s"Panel giocatore creato per: $myUsername")
   
   val topPane = new VBox(10) {
     padding = Insets(10)
-    children = Seq(titleLabel, playersLabel)
+    children = Seq(titleLabel, playerInfoLabel, playersLabel)
   }
   
   //creazione componenti
