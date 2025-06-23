@@ -18,12 +18,19 @@ class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
     onAction = _ => onShowTerritories
   }
   
+  val endTurnButton: Button = new Button("Fine Turno") {
+    prefWidth = 120
+    style = "-fx-font-weight: bold; -fx-font-size: 13px;"
+    tooltip = new Tooltip("Termina il tuo turno")
+    disable = false
+  }
+
   children = Seq(
     createActionButton("Attacca", "Attacca un territorio nemico confinante"),
     createActionButton("Sposta", "Sposta armate tra territori confinanti"),
     createActionButton("Mostra Carte", "Visualizza e gestisci le tue carte territorio"),
     showTerritoriesButton,
-    createActionButton("Fine Turno", "Termina il tuo turno")
+    endTurnButton
   )
   
   // metodo di supporto 

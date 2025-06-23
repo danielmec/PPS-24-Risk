@@ -418,10 +418,7 @@ class GameWindow(
               
               val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
               
-              println(s"Condizione 1 - È il mio turno? ${myPlayerId == stateData.currentPlayer} (io: $myPlayerId, corrente: ${stateData.currentPlayer})")
-              println(s"Condizione 2 - Siamo in fase di piazzamento? ${stateData.currentPhase == "PlacingTroops"} (fase: ${stateData.currentPhase})")
-              println(s"Condizione 3 - Ho truppe bonus? ${bonusTroops > 0} (truppe: $bonusTroops)")
-              
+
               //se sono il giocatore corrente e siamo in fase di piazzamento, apri il dialog
               if (myPlayerId == stateData.currentPlayer && stateData.currentPhase == "PlacingTroops" && bonusTroops > 0) 
                 {
@@ -519,5 +516,36 @@ class GameWindow(
     println("Finestra di gioco visualizzata")
   }
   
+  //Collega la callback al pulsante Fine Turno
+  actionPane.endTurnButton.onAction = handle {
+    actionPane.endTurnButton.disable = true
+    println("[UI] Fine turno richiesto dall'utente")
+    actionHandler.endTurn(gameId).onComplete {
+      case scala.util.Success(true) =>
+        println("[UI] Fine turno inviato con successo al server")
+      case scala.util.Success(false) =>
+        Platform.runLater {
+          val alert = new Alert(Alert.AlertType.Warning) {
+            initOwner(GameWindow.this)
+            title = "Azione non consentita"
+            headerText = "Impossibile terminare il turno"
+            contentText = "Il server ha rifiutato la richiesta di fine turno."
+          }
+          alert.showAndWait()
+          actionPane.endTurnButton.disable = false
+        }
+      case scala.util.Failure(ex) =>
+        Platform.runLater {
+          val alert = new Alert(Alert.AlertType.Error) {
+            initOwner(GameWindow.this)
+            title = "Errore"
+            headerText = "Errore di comunicazione"
+            contentText = s"Errore durante la richiesta di fine turno: ${ex.getMessage}"
+          }
+          alert.showAndWait()
+          actionPane.endTurnButton.disable = false // Riabilita in caso di errore
+        }
+    }(networkManager.executionContext)
+  }
   
 }
