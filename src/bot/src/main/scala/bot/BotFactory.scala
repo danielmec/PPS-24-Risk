@@ -21,7 +21,7 @@ object BotFactory:
     val defensiveRules = Set[StrategyRule](
       //aggiungere prolog rules
       new defensiveBot_attackRule(),
-      new mockupRule()
+      new defensiveBot_placeTroopsRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, defensiveRules)
     controller.registerStrategy(playerId, botPlayer)
