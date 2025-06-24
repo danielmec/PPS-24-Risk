@@ -1,47 +1,47 @@
 # Risk
 
-## Descrizione del Progetto
-Risk è un'applicazione desktop multiplayer ispirata al gioco da tavolo Risiko, sviluppata interamente in Scala. Il progetto è progettato con un'architettura modulare e funzionale, supportando due modalità di gioco: locale e online.
+## Project Description
+Risk is a multiplayer desktop application inspired by the board game Risiko, developed entirely in Scala. The project is designed with a modular and functional architecture, supporting two game modes: local and online.
 
-### Modalità di Gioco
-- **Modalità Locale**: Giocatori affrontano avversari controllati da bot senza necessità di connessione di rete.
-- **Modalità Online**: Più client possono connettersi a un server centrale per partecipare a partite multiplayer.
+### Game Modes
+- **Local Mode**: Players face bot-controlled opponents without requiring a network connection.
+- **Online Mode**: Multiple clients can connect to a central server to participate in multiplayer matches.
 
 ---
 
-## Requisiti
-- **Java 17** o superiore
+## Requirements
+- **Java 17** or higher
 - **Scala 3**
 - **SBT** (Scala Build Tool)
-- **Akka** per la gestione della concorrenza e della comunicazione di rete
-- **ScalaFX** per l'interfaccia grafica
+- **Akka** for concurrency and network communication
+- **ScalaFX** for the graphical interface
 
 ---
 
-## Installazione
+## Installation
 
-1. **Clona il repository**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/danielmec/PPS-25-Risk.git
    cd PPS-25-Risk
    ```
 
-2. **Assicurati di avere Java, Scala e SBT installati**
-   - Puoi verificare con:
+2. **Ensure Java, Scala, and SBT are installed**
+   - Verify with:
      ```bash
      java -version
      scala -version
      sbt --version
      ```
 
-3. **(Opzionale) Installa ScalaFX**
-   - ScalaFX viene gestito come dipendenza SBT, non serve installazione manuale.
+3. **(Optional) Install ScalaFX**
+   - ScalaFX is managed as an SBT dependency, no manual installation is required.
 
 ---
 
-## Esecuzione del Server
+## Running the Server
 
-Apri un terminale nella cartella del progetto e avvia il server con:
+Open a terminal in the project folder and start the server with:
 
 ```bash
 sbt "project server" run
@@ -49,33 +49,33 @@ sbt "project server" run
 
 ---
 
-## Esecuzione del Client
+## Running the Client
 
-Apri un altro terminale nella cartella del progetto e avvia il client con:
+Open another terminal in the project folder and start the client with:
 
 ```bash
 sbt "project client" run
 ```
 
-Puoi avviare più client per simulare più giocatori.
+You can start multiple clients to simulate multiple players.
 
 ---
 
-## Note
+## Notes
 
-- Assicurati che il server sia avviato **prima** di avviare i client per la modalità online.
-- Per la modalità locale, puoi avviare solo il client.
-- Il progetto è compatibile con Mac, Linux e Windows (richiede JavaFX/ScalaFX funzionanti sul sistema).
-
----
-
-## Problemi noti
-
-- Se hai problemi con JavaFX su Mac/Linux, assicurati che le librerie JavaFX siano correttamente installate e configurate nel tuo ambiente.
-- In caso di errori di dipendenze, esegui `sbt clean` seguito da `sbt compile`.
+- Ensure the server is started **before** launching the clients for online mode.
+- For local mode, you can start only the client.
+- The project is compatible with Mac, Linux, and Windows (requires JavaFX/ScalaFX to be properly configured on the system).
 
 ---
 
-## Contatti
+## Known Issues
 
-Per segnalare bug o richiedere supporto, apri una issue su GitHub o contatta gli sviluppatori tramite la repository.
+- If you encounter issues with JavaFX on Mac/Linux, ensure the JavaFX libraries are correctly installed and configured in your environment.
+- In case of dependency errors, run `sbt clean` followed by `sbt compile`.
+
+---
+
+## Contact
+
+To report bugs or request support, open an issue on GitHub or contact the developers
