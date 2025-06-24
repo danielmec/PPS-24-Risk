@@ -17,7 +17,6 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val leaveGameFormat: RootJsonFormat[ClientMessages.LeaveGame] = jsonFormat1(ClientMessages.LeaveGame)
   implicit val pongFormat: RootJsonFormat[ClientMessages.Pong] = jsonFormat0(ClientMessages.Pong)
   implicit val getAllGamesFormat: RootJsonFormat[ClientMessages.GetAllGames] = jsonFormat0(ClientMessages.GetAllGames)
-
   implicit val gameActionFormat: RootJsonFormat[ClientMessages.GameAction] = jsonFormat3(ClientMessages.GameAction)
   
   // Formato per i messaggi server 

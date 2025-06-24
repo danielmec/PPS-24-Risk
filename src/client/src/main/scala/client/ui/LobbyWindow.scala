@@ -322,7 +322,7 @@ class LobbyWindow(networkManager: ClientNetworkManager) extends Stage {
         } else {
           //aggiungi le partite ricevute dal server
           msg.games.foreach { gameId =>
-            availableGames += GameInfo(gameId, s"Partita: $gameId", 0, 4)
+            availableGames += GameInfo(gameId, s"Partita: $gameId", 1, 6)
           }
         }
       }

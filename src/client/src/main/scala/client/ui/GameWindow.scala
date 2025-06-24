@@ -10,7 +10,6 @@ import scalafx.scene.text._
 import scalafx.stage.Stage
 import scalafx.collections.ObservableBuffer
 import scala.math.Numeric.Implicits.infixNumericOps 
-
 import client.ClientNetworkManager
 import client.ClientJsonSupport._
 import client.ui.components._
@@ -19,7 +18,6 @@ import client.ui.dialogs.TroopPlacementDialog
 import client.GameActionHandler
 import client.AdapterMap
 import client.AdapterMap.UITerritory
-
 import model.board.Territory
 import client.AdapterMap.UITerritory
 

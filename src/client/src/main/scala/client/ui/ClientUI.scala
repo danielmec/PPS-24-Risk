@@ -26,18 +26,13 @@ object ClientUI extends JFXApp3:
     titleLabel.font = Font.font("Arial", FontWeight.Bold, 20)
 
     
-    val loginButton = new Button("Entra in Modalità Multigiocatore")
-    val singlePlayerButton = new Button("Entra in Modalità Singolo")
+    val loginButton = new Button("Gioca")
+    //val singlePlayerButton = new Button("Entra in Modalità Singolo")
     val statusLabel = new Label("In attesa di login...")
     statusLabel.style = "-fx-text-fill: gray;"
 
 
-    singlePlayerButton.onAction = _ => {
-      
-      statusLabel.text = "Modalità singolo non ancora implementata"
-      statusLabel.style = "-fx-text-fill: orange;"
-        
-    }
+
 
     loginButton.onAction = _ => {
       val username = "player"
@@ -77,7 +72,7 @@ object ClientUI extends JFXApp3:
     
     //creazione del layout principale
     val mainBox = new VBox(20)
-    mainBox.children = Seq(titleLabel, loginButton, singlePlayerButton, statusLabel)
+    mainBox.children = Seq(titleLabel, loginButton, statusLabel)
     mainBox.alignment = Pos.Center
     mainBox.padding = Insets(20)
     
