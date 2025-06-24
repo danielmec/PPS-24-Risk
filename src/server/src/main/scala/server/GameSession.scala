@@ -155,13 +155,8 @@ class GameSession(
             val currentPlayerId = engineState.turnManager.currentPlayer.id
             
             //converte lo state del engine in un GameStateDto con oggetti tipizzati
-            //(TerritoryDto, PlayerStateDto, MissionCardDto, ecc.)
             val clientState = convertGameStateToClient(engineState)
 
-            //Errore nel parsing del MissionCardDto
-            //MissionCardDto è un oggetto strutturato: String, String, String, String
-            //In jsonSupport viene serializzato in Json tipo {"description": "Conquista 3 territori", "targetType": "TERRITORY_COUNT", "targetValue": "3"}
-            
             // Converte in lista e aggiunge i nomi utente per UI
             val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
 

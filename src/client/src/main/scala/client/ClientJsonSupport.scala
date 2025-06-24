@@ -2,7 +2,6 @@ package client
 
 import spray.json._
 import DefaultJsonProtocol._
-import scalafx.scene.input.KeyCode.O
 
 /**
  * Fornisce supporto per serializzazione/deserializzazione dei messaggi JSON lato client
@@ -15,13 +14,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class LeaveGameMessage(gameId: String)
   case class GetAllGamesMessage() 
   case class PongMessage() // Risposta ai ping del server
-  
-  
-  case class GameActionMessage(
-    gameId: String, 
-    action: String, 
-    parameters: Map[String, String]
-  )
+  case class GameActionMessage(gameId: String, action: String, parameters: Map[String, String])
 
   // Definizione dei messaggi che il client può ricevere
   case class GameCreatedMessage(gameId: String, gameName: String, creatorId: String)
@@ -33,20 +26,14 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class PingMessage() 
   case class GameListMessage(games: List[String])
   
-  // Nuovi messaggi di gioco che il client può ricevere
-  case class GameSetupStartedMessage(
-    gameId: String, 
-    message: String
-  )
+  // Messaggi di gioco che il client può ricevere
+  case class GameSetupStartedMessage(gameId: String, message: String)
+  case class PlayerLeftMessage(gameId: String, player: String)
   
-  case class PlayerLeftMessage(
-    gameId: String,
-    player: String
-  )
-  
-  // Classe per rappresentare il game state complesso
+  // Strutture dati di gioco
   case class Territory(name: String, owner: String, troops: Int)
   case class PlayerState(playerId: String, cards: Int, bonusTroops: Int)
+  case class MissionCardDto(id: String, description: String, targetType: String, targetValue: String)
   
   case class GameStateData(
     currentPlayer: String,
@@ -68,24 +55,9 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     initialState: GameState
   )
   
-  case class GameActionResultMessage(
-    success: Boolean,
-    message: String
-  )
-  
-  case class TurnChangedMessage(
-    gameId: String,
-    playerId: String,
-    phase: String
-  )
-  
-  case class TerritoryUpdateMessage(
-    gameId: String,
-    territoryName: String,
-    owner: String,
-    troops: Int
-  )
-  
+  case class GameActionResultMessage(success: Boolean, message: String)
+  case class TurnChangedMessage(gameId: String, playerId: String, phase: String)
+  case class TerritoryUpdateMessage(gameId: String, territoryName: String, owner: String, troops: Int)
   case class BattleResultMessage(
     gameId: String,
     attackerTerritory: String,
@@ -94,25 +66,48 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     defenderLosses: Int,
     newOwner: Option[String]
   )
-  
-  case class GameOverMessage(
-    gameId: String,
-    winnerId: String,
-    winnerUsername: String
-  )
+  case class GameOverMessage(gameId: String, winnerId: String, winnerUsername: String)
 
-  // Formati per i messaggi in uscita
+  // Helper methods per l'estrazione di valori dai campi JSON
+  private def extractString(fields: Map[String, JsValue], key: String, default: String = ""): String =
+    fields.getOrElse(key, JsString(default)).convertTo[String]
+    
+  private def extractInt(fields: Map[String, JsValue], key: String, default: Int = 0): Int =
+    fields.getOrElse(key, JsNumber(default)).convertTo[Int]
+    
+  private def extractBoolean(fields: Map[String, JsValue], key: String, default: Boolean = false): Boolean =
+    fields.getOrElse(key, JsBoolean(default)).convertTo[Boolean]
+    
+  private def extractStringList(fields: Map[String, JsValue], key: String): List[String] =
+    fields.getOrElse(key, JsArray()).convertTo[List[String]]
+    
+  private def extractOption[T](fields: Map[String, JsValue], key: String)(convert: JsValue => T): Option[T] =
+    fields.get(key) match
+      case Some(JsNull) => None
+      case Some(value) => Some(convert(value))
+      case None => None
+      
+  private def handleMissionCard(json: JsObject): Map[String, String] =
+    json.fields.map {
+      case (k, v: JsObject) if k == "missionCard" => 
+        // Estrai direttamente la description
+        val description = v.fields.getOrElse("description", JsString(""))
+        k -> description.convertTo[String]
+      case (k, JsString(s)) => k -> s
+      case (k, JsNumber(n)) => k -> n.toString
+      case (k, JsBoolean(b)) => k -> b.toString
+      case (k, JsNull) => k -> ""
+      case (k, v) => k -> v.toString.replace("\"", "")
+    }
+
+  // Formati JSON per messaggi semplici (usati da spray-json)
   implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat3(CreateGameMessage)
   implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(JoinGameMessage)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
   implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
   implicit val getAllGamesFormat: RootJsonFormat[GetAllGamesMessage] = jsonFormat0(GetAllGamesMessage) 
   implicit val pingFormat: RootJsonFormat[PingMessage] = jsonFormat0(PingMessage)
-  
-  // Nuovo formato per GameAction
   implicit val gameActionFormat: RootJsonFormat[GameActionMessage] = jsonFormat3(GameActionMessage)
-
-  // Formati per i messaggi in entrata
   implicit val gameCreatedFormat: RootJsonFormat[GameCreatedMessage] = jsonFormat3(GameCreatedMessage)
   implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(PlayerJoinedMessage)
   implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(ErrorMessage)
@@ -121,10 +116,11 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse)
   implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(PongMessage)
   implicit val gameListFormat: RootJsonFormat[GameListMessage] = jsonFormat1(GameListMessage)
-  
-  // Nuovi formati per i messaggi di gioco
   implicit val gameSetupStartedFormat: RootJsonFormat[GameSetupStartedMessage] = jsonFormat2(GameSetupStartedMessage)
   implicit val playerLeftFormat: RootJsonFormat[PlayerLeftMessage] = jsonFormat2(PlayerLeftMessage)
+  implicit val missionCardDtoFormat: RootJsonFormat[MissionCardDto] = jsonFormat4(MissionCardDto)
+  
+  // Formato personalizzato per GameStateData (gestione speciale di missionCard)
   implicit object GameStateDataFormat extends RootJsonFormat[GameStateData] {
     def write(obj: GameStateData): JsValue = {
       JsObject(
@@ -143,27 +139,18 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       val fields = json.asJsObject.fields
       
       GameStateData(
-        currentPlayer = fields.getOrElse("currentPlayer", JsString("")).convertTo[String],
-        currentPhase = fields.getOrElse("currentPhase", JsString("")).convertTo[String],
+        currentPlayer = extractString(fields, "currentPlayer"),
+        currentPhase = extractString(fields, "currentPhase", "PlacingTroops"),
         territories = fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
           _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
         ),
         playerStates = fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map { playerState =>
-          playerState.fields.map {
-            case (k, v: JsObject) if k == "missionCard" => 
-              // Estrai direttamente la description
-              val description = v.fields.getOrElse("description", JsString(""))
-              k -> description.convertTo[String]
-            case (k, JsString(s)) => k -> s
-            case (k, JsNumber(n)) => k -> n.toString
-            case (k, JsBoolean(b)) => k -> b.toString
-            case (k, JsNull) => k -> ""
-            case (k, v) => k -> v.toString.replace("\"", "")
-          }
+          handleMissionCard(playerState)
         }
       )
     }
   }
+  
   implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(GameState)
   implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(GameStartedMessage)
   implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(GameActionResultMessage)
@@ -189,20 +176,15 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       )
     case _: JoinLobbyMessage => 
       JsObject("type" -> JsString("joinGame"), "gameId" -> JsString(""))
-
     case msg: LeaveGameMessage => 
       JsObject(
         "type" -> JsString("leaveGame"),
         "gameId" -> JsString(msg.gameId)
       )
-    
-    case msg: GetAllGamesMessage => 
+    case _: GetAllGamesMessage => 
       JsObject("type" -> JsString("getAllGames"))
-    
     case _: PongMessage => 
       JsObject("type" -> JsString("pong"))
-      
-    // nuovo caso per serializzare le azioni di gioco
     case msg: GameActionMessage =>
       JsObject(
         "type" -> JsString("gameAction"),
@@ -210,7 +192,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         "action" -> JsString(msg.action),
         "parameters" -> JsObject(msg.parameters.map { case (k, v) => k -> JsString(v) })
       )
-      
     case msg: GameJoinedMessage =>
       JsObject(
         "type" -> JsString("gameJoined"),
@@ -219,155 +200,180 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       )
     case _ => JsObject("type" -> JsString("unknown"))
   
-  //Metodo per deserializzare i messaggi in entrata
+  // è una mappa per gestire i messaggi in arrivo
+  //ogni chiave è il tipo di messaggio e il valore è una funzione che
+  //prende i campi del messaggio e restituisce l'istanza del messaggio
+  // In questo modo si evita l'uso di classi case per ogni messaggio
+  //e rende il codice più conciso e flessibile.
+  private val messageHandlers: Map[String, Map[String, JsValue] => Any] = Map(
+    "gameCreated" -> { fields => 
+      GameCreatedMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "gameName"),
+        extractString(fields, "creatorId")
+      )
+    },
+    
+    "playerJoined" -> { fields => 
+      PlayerJoinedMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "playerId")
+      )
+    },
+    
+    "error" -> { fields => 
+      ErrorMessage(extractString(fields, "message", "Errore sconosciuto"))
+    },
+    
+    "lobbyJoined" -> { fields => 
+      LobbyJoinedMessage(extractString(fields, "message"))
+    },
+    
+    "gameJoined" -> { fields => 
+      GameJoinedMessage(
+        extractString(fields, "gameId"),
+        extractStringList(fields, "players"),
+        extractString(fields, "gameName")
+      )
+    },
+    
+    "gameList" -> { fields => 
+      GameListMessage(extractStringList(fields, "games"))
+    },
+    
+    "ping" -> { _ => PingMessage() },
+    
+    "gameSetupStarted" -> { fields => 
+      GameSetupStartedMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "message")
+      )
+    },
+    
+    "gameStarted" -> { fields =>
+      val gameId = extractString(fields, "gameId")
+      val currentPlayerId = extractString(fields, "currentPlayerId")
+      
+      val initialStateJson = fields.getOrElse("initialState", JsObject.empty).asJsObject
+      val initialStateFields = initialStateJson.fields
+      
+      val gameState = if (initialStateFields.contains("state")) {
+        val stateJson = initialStateFields.getOrElse("state", JsObject.empty).asJsObject
+        
+        GameState(
+          gameId = extractString(initialStateFields, "gameId", gameId),
+          players = extractStringList(initialStateFields, "players"),
+          currentPlayer = extractString(initialStateFields, "currentPlayer", currentPlayerId),
+          state = stateJson.convertTo[GameStateData]  // Usa il formato personalizzato
+        )
+      } else {
+        // fallback
+        GameState(
+          gameId = gameId,
+          players = extractStringList(initialStateFields, "players"),
+          currentPlayer = currentPlayerId,
+          state = GameStateData(
+            currentPlayer = currentPlayerId,
+            currentPhase = "PlacingTroops",
+            territories = List(),
+            playerStates = List()
+          )
+        )
+      }
+      
+      GameStartedMessage(gameId, currentPlayerId, gameState)
+    },
+    
+    "gameState" -> { fields =>
+      val gameId = extractString(fields, "gameId")
+      val players = extractStringList(fields, "players")
+      val currentPlayer = extractString(fields, "currentPlayer")
+      
+      val stateJson = fields.getOrElse("state", JsObject.empty).asJsObject
+      val stateFields = stateJson.fields
+      
+      val gameStateData = if (stateFields.contains("gameStateDto") && stateFields("gameStateDto") != JsNull) {
+        stateFields("gameStateDto").convertTo[GameStateData]
+      } else {
+        // Formato vecchio o fallback
+        stateJson.convertTo[GameStateData]
+      }
+      
+      GameState(gameId, players, currentPlayer, gameStateData)
+    },
+    
+    "gameActionResult" -> { fields =>
+      GameActionResultMessage(
+        extractBoolean(fields, "success", false),
+        extractString(fields, "message")
+      )
+    },
+    
+    "turnChanged" -> { fields =>
+      TurnChangedMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "playerId"),
+        extractString(fields, "phase")
+      )
+    },
+    
+    "territoryUpdate" -> { fields =>
+      TerritoryUpdateMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "territoryName"),
+        extractString(fields, "owner"),
+        extractInt(fields, "troops")
+      )
+    },
+    
+    "battleResult" -> { fields =>
+      BattleResultMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "attackerTerritory"),
+        extractString(fields, "defenderTerritory"),
+        extractInt(fields, "attackerLosses"),
+        extractInt(fields, "defenderLosses"),
+        extractOption(fields, "newOwner")(_.convertTo[String])
+      )
+    },
+    
+    "gameOver" -> { fields =>
+      GameOverMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "winnerId"),
+        extractString(fields, "winnerUsername")
+      )
+    },
+    
+    "playerLeft" -> { fields =>
+      PlayerLeftMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "player")
+      )
+    }
+  )
+
+  // Metodo per deserializzare i messaggi in entrata (approccio funzionale)
   def fromJson(json: String): Any = 
     try
       val jsValue = json.parseJson
       val fields = jsValue.asJsObject.fields
       
       fields.get("type") match
-        case Some(JsString("gameCreated")) => 
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val gameName = fields.getOrElse("gameName", JsString("")).convertTo[String]
-          val creatorId = fields.getOrElse("creatorId", JsString("")).convertTo[String]
-          GameCreatedMessage(gameId, gameName, creatorId)
-          
-        case Some(JsString("playerJoined")) => 
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val playerId = fields.getOrElse("playerId", JsString("")).convertTo[String]
-          PlayerJoinedMessage(gameId, playerId)
-          
-        case Some(JsString("error")) => 
-          val message = fields.getOrElse("message", JsString("Errore sconosciuto")).convertTo[String]
-          ErrorMessage(message)
-          
-        case Some(JsString("lobbyJoined")) => 
-          val message = fields.getOrElse("message", JsString("")).convertTo[String]
-          LobbyJoinedMessage(message)
-          
-        case Some(JsString("gameJoined")) => 
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val players = fields.getOrElse("players", JsArray()).convertTo[List[String]]
-          val gameName = fields.getOrElse("gameName", JsString("")).convertTo[String]
-          GameJoinedMessage(gameId, players, gameName)
-
-        case Some(JsString("gameList")) => 
-          val games = fields.getOrElse("games", JsArray()).convertTo[List[String]]
-          GameListMessage(games)
-          
-        case Some(JsString("ping")) => 
-          PingMessage()
-          
-        // nuovi casi per i messaggi di gioco
-        case Some(JsString("gameSetupStarted")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val message = fields.getOrElse("message", JsString("")).convertTo[String]
-          GameSetupStartedMessage(gameId, message)
-          
-        case Some(JsString("gameStarted")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val currentPlayerId = fields.getOrElse("currentPlayerId", JsString("")).convertTo[String]
-          
-          // estrae lo stato iniziale
-          val initialStateJson = fields.getOrElse("initialState", JsObject.empty).asJsObject
-          val initialStateFields = initialStateJson.fields
-          
-          // gestisce sia il vecchio che il nuovo formato
-          val gameState = if (initialStateFields.contains("state")) {
-            val stateJson = initialStateFields.getOrElse("state", JsObject.empty).asJsObject
-            
-            GameState(
-              gameId = initialStateFields.getOrElse("gameId", JsString(gameId)).convertTo[String],
-              players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
-              currentPlayer = initialStateFields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
-              state = stateJson.convertTo[GameStateData]  // Usa il formato personalizzato automaticamente
-            )
-          } else {
-            // fallback
-            GameState(
-              gameId = gameId,
-              players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
-              currentPlayer = currentPlayerId,
-              state = GameStateData(
-                currentPlayer = currentPlayerId,
-                currentPhase = "PlacingTroops",
-                territories = List(),
-                playerStates = List()
-              )
-            )
-          }
-          
-          GameStartedMessage(gameId, currentPlayerId, gameState)
-
-        case Some(JsString("gameState")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val players = fields.getOrElse("players", JsArray()).convertTo[List[String]]
-          val currentPlayer = fields.getOrElse("currentPlayer", JsString("")).convertTo[String]
-          
-          
-          val stateJson = fields.getOrElse("state", JsObject.empty).asJsObject
-          val stateFields = stateJson.fields
-          
-          // geestisce sia il vecchio che il nuovo formato
-          val gameStateData = if (stateFields.contains("gameStateDto") && stateFields("gameStateDto") != JsNull) {
-            stateFields("gameStateDto").convertTo[GameStateData]
-          } else {
-            // Formato vecchio o fallback
-            stateJson.convertTo[GameStateData]
-          }
-          
-          GameState(gameId, players, currentPlayer, gameStateData)
-          
-        case Some(JsString("gameActionResult")) =>
-          val success = fields.getOrElse("success", JsBoolean(false)).convertTo[Boolean]
-          val message = fields.getOrElse("message", JsString("")).convertTo[String]
-          GameActionResultMessage(success, message)
-          
-        case Some(JsString("turnChanged")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val playerId = fields.getOrElse("playerId", JsString("")).convertTo[String]
-          val phase = fields.getOrElse("phase", JsString("")).convertTo[String]
-          TurnChangedMessage(gameId, playerId, phase)
-          
-        case Some(JsString("territoryUpdate")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val territoryName = fields.getOrElse("territoryName", JsString("")).convertTo[String]
-          val owner = fields.getOrElse("owner", JsString("")).convertTo[String]
-          val troops = fields.getOrElse("troops", JsNumber(0)).convertTo[Int]
-          TerritoryUpdateMessage(gameId, territoryName, owner, troops)
-          
-        case Some(JsString("battleResult")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val attackerTerritory = fields.getOrElse("attackerTerritory", JsString("")).convertTo[String]
-          val defenderTerritory = fields.getOrElse("defenderTerritory", JsString("")).convertTo[String]
-          val attackerLosses = fields.getOrElse("attackerLosses", JsNumber(0)).convertTo[Int]
-          val defenderLosses = fields.getOrElse("defenderLosses", JsNumber(0)).convertTo[Int]
-          val newOwner = fields.get("newOwner") match
-            case Some(JsNull) => None
-            case Some(JsString(owner)) => Some(owner)
-            case _ => None
-          BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerLosses, defenderLosses, newOwner)
-          
-        case Some(JsString("gameOver")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val winnerId = fields.getOrElse("winnerId", JsString("")).convertTo[String]
-          val winnerUsername = fields.getOrElse("winnerUsername", JsString("")).convertTo[String]
-          GameOverMessage(gameId, winnerId, winnerUsername)
-          
-        case Some(JsString("playerLeft")) =>
-          val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
-          val player = fields.getOrElse("player", JsString("")).convertTo[String]
-          PlayerLeftMessage(gameId, player)
-
+        case Some(JsString(msgType)) if messageHandlers.contains(msgType) =>
+          messageHandlers(msgType)(fields)
         
-          
         case Some(JsString(unknownType)) => 
           ErrorMessage(s"Tipo di messaggio sconosciuto: $unknownType")
           
         case _ => 
           ErrorMessage("Messaggio non valido: campo 'type' mancante")
     catch
-      case ex: Exception => 
-        ErrorMessage(s"Errore durante il parsing JSON: ${ex.getMessage}")
+      case e: DeserializationException => 
+        ErrorMessage(s"Errore di formato: ${e.getMessage}")
+      case e: NoSuchElementException => 
+        ErrorMessage(s"Campo mancante: ${e.getMessage}")
+      case e: Exception => 
+        ErrorMessage(s"Errore durante il parsing JSON: ${e.getMessage}")
 
 end ClientJsonSupport

@@ -14,50 +14,37 @@ import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 
 /**
- * Finestra di dialogo per il piazzamento delle truppe sui territori
- *
- * @param owner La finestra proprietaria
- * @param territories Lista dei territori su cui piazzare le truppe
- * @param initialTroops Numero totale di truppe disponibili
- * @param onPlaceTroops Callback da invocare quando si piazzano le truppe
+ * Finestra di dialogo semplificata per il piazzamento delle truppe
  */
 class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
-  initialTroops: Int,
-  onPlaceTroops: (UITerritory, Int) => Unit //callback per piazzare le truppe
+  initialTroops: Int
 ) extends Stage {
   
   println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")
-  territories.foreach(t => println(s"Territorio disponibile: ${t.name}, Owner: ${t.owner.value}, Truppe: ${t.armies.value}"))
   
-  // proprietà per tenere traccia delle truppe rimanenti
   val remainingTroops = IntegerProperty(initialTroops)
+  
+  //mappa usata per tenere traccia delle assegnazioni di truppe per territorio
+  private val troopAssignments = collection.mutable.Map[String, Int]()
   
   // Configurazione della finestra
   initOwner(owner)
-  initModality(Modality.ApplicationModal)
-  initStyle(StageStyle.Utility)
+  initModality(Modality.APPLICATION_MODAL)
+  initStyle(StageStyle.UTILITY)
   title = "Piazzamento Truppe"
-  width = 650
+  width = 600
   height = 700
   
-  
-  val headerLabel = new Label("Piazza le tue truppe sui territori")
+  val headerLabel = new Label("Assegna tutte le tue truppe ai territori")
   headerLabel.style = "-fx-font-size: 16px; -fx-font-weight: bold;"
   
   val troopsLabel = new Label()
   troopsLabel.text <== remainingTroops.asString("Truppe rimanenti: %d")
   troopsLabel.style = "-fx-font-size: 14px;"
   
-  val territoriesList = new VBox(5)
-  territoriesList.padding = Insets(10)
-  
   val territoryControls = territories.map { territory =>
-    //spinner è un componente per selezionare il numero di truppe da piazzare
-    val troopsSpinner = new Spinner[Int](0, 40, 0)
-    troopsSpinner.editable = true
-    
     val nameLabel = new Label(territory.name)
     nameLabel.prefWidth = 200
     nameLabel.style = "-fx-font-weight: bold;"
@@ -65,80 +52,73 @@ class TroopPlacementDialog(
     val currentTroopsLabel = new Label(s"Truppe attuali: ${territory.armies.value}")
     currentTroopsLabel.prefWidth = 100
     
-    val placeButton = new Button("Piazza")
+    val troopsSpinner = new Spinner[Int](0, 40, 0)
+    troopsSpinner.editable = true
     
-    // imposta il valore massimo dello spinner in base alle truppe rimanenti
-    placeButton.disable <== Bindings.createBooleanBinding(
-      () => troopsSpinner.value.value == 0,
-      troopsSpinner.value
-    )
+    troopAssignments(territory.name) = 0
     
-    placeButton.onAction = handle {
-      val troopsToPlace = troopsSpinner.value.value
+    troopsSpinner.valueProperty().addListener { (_, oldValue, newValue) =>
+      val oldVal = oldValue.intValue()
+      val newVal = newValue.intValue()
       
-      if (troopsToPlace > 0 && troopsToPlace <= remainingTroops.value) {
-        
-        val currentTroops = territory.armies.value
-        territory.armies.value = currentTroops + troopsToPlace
-        
-        currentTroopsLabel.text = s"Truppe attuali: ${territory.armies.value}"
-        // invia al callback per piazzare le truppe
-        onPlaceTroops(territory, troopsToPlace)
-        
-        remainingTroops.value -= troopsToPlace
-      
-        Platform.runLater {
-          troopsSpinner.getValueFactory.setValue(0)
+      if (newVal > oldVal) {
+        // L'utente sta aumentando le truppe
+        val diff = newVal - oldVal
+        if (diff > remainingTroops.value) {
+          //non ci sono abbastanza truppe disponibili
+          Platform.runLater {
+            troopsSpinner.getValueFactory.setValue(oldVal + remainingTroops.value)
+          }
+        } else {
+          //aggiorna le truppe rimanenti
+          remainingTroops.value -= diff
+          troopAssignments(territory.name) = newVal
         }
+      } else if (newVal < oldVal) {
+        // L'utente sta diminuendo le truppe
+        val diff = oldVal - newVal
+        remainingTroops.value += diff
+        troopAssignments(territory.name) = newVal
       }
     }
     
-    // aggiorna il valore massimo dello spinner in base alle truppe rimanenti
-    troopsSpinner.valueProperty().addListener { (_, _, newValue) =>
-      if (newValue.intValue() > remainingTroops.value) {
-        Platform.runLater {
-          troopsSpinner.getValueFactory.setValue(remainingTroops.value)
-        }
-      }
-    }
-    //per ogni territorio crea una riga con i controlli
-    val row = new HBox(10)
+    val row = new HBox(15)
     row.alignment = Pos.CenterLeft
-    row.children = Seq(nameLabel, currentTroopsLabel, troopsSpinner, placeButton)
+    row.children = Seq(nameLabel, currentTroopsLabel, troopsSpinner)
     
-    row
+    (row, territory, troopsSpinner)
   }
   
-
-  territoriesList.children = territoryControls
+  val territoriesList = new VBox(10)
+  territoriesList.padding = Insets(10)
+  territoriesList.children = territoryControls.map(_._1)
   
   val scrollPane = new ScrollPane {
     content = territoriesList
     fitToWidth = true
-    vbarPolicy = ScrollPane.ScrollBarPolicy.Always
+    vbarPolicy = ScrollPane.ScrollBarPolicy.ALWAYS
   }
   
-  val finishButton = new Button("Termina Piazzamento")
-  finishButton.onAction = handle {
-    
-    if (remainingTroops.value > 0) {
-      val alert = new Alert(Alert.AlertType.Confirmation) {
-        initOwner(TroopPlacementDialog.this)
-        title = "Conferma"
-        headerText = "Hai ancora truppe da piazzare"
-        contentText = s"Hai ancora ${remainingTroops.value} truppe da piazzare. Sei sicuro di voler terminare il piazzamento?"
+  // Pulsante per confermare il piazzamento
+  val confirmButton = new Button("Conferma Piazzamento")
+  confirmButton.disable <== remainingTroops =!= 0 // Disabilita se ci sono ancora truppe da piazzare
+  
+  confirmButton.onAction = handle {
+    // Invia tutti i piazzamenti al server
+    troopAssignments.foreach { case (territoryName, troops) =>
+      if (troops > 0) {
+        val territory = territories.find(_.name == territoryName).get
+        val currentTroops = territory.armies.value
+        territory.armies.value = currentTroops + troops
+        
+        // Invia al server
+        owner.actionHandler.placeTroops(owner.getGameId, territoryName, troops)
       }
-      
-      val result = alert.showAndWait()
-      
-      if (result.contains(ButtonType.OK)) {
-        owner.actionHandler.endPhase(owner.getGameId)
-        close()
-      }
-    } else {
-      owner.actionHandler.endPhase(owner.getGameId)
-      close()
     }
+    
+    // Termina il piazzamento
+    owner.actionHandler.endPhase(owner.getGameId)
+    close()
   }
   
   // Layout principale
@@ -150,7 +130,7 @@ class TroopPlacementDialog(
     }
     center = scrollPane
     bottom = new HBox(10) {
-      children = Seq(finishButton)
+      children = Seq(confirmButton)
       alignment = Pos.CenterRight
       padding = Insets(10, 0, 0, 0)
     }
@@ -158,4 +138,13 @@ class TroopPlacementDialog(
   
   scene = new Scene(root)
   
+  // Metodo per aggiornare il numero di truppe disponibili
+  def updateTroops(newTroopsCount: Int): Unit = {
+    // calcola quante truppe sono già state assegnate ma non ancora inviate
+    val assignedTroops = troopAssignments.values.sum
+    
+    Platform.runLater {
+      remainingTroops.value = newTroopsCount - assignedTroops
+    }
+  }
 }

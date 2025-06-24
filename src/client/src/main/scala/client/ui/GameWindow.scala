@@ -42,49 +42,40 @@ class GameWindow(
   width = 1100
   height = 800
   
+  // ==================== VARIABILI DI STATO ==================== 
+  private var currentPlayerId: String = ""
+  private var myObjective: Option[String] = None
+  private var placementDialogOpen: Boolean = false
+  private var currentPlacementDialog: Option[TroopPlacementDialog] = None
+  
+  // ==================== COMPONENTI UI ====================
   //Inizializzazione dei territori
   val territories = createTerritories()
+  val actionHandler = new GameActionHandler(networkManager)(networkManager.executionContext)
   
-    val titleLabel = new Label(s"Partita: $gameName")
+  val titleLabel = new Label(s"Partita: $gameName")
   titleLabel.font = Font.font("Arial", FontWeight.Bold, 18)
   
   val playersLabel = new Label(s"Giocatori: ${initPlayers.size}")
-    // Panel per mostrare il nome del giocatore corrente
+  
+  // Panel per mostrare il nome del giocatore corrente
   val playerInfoLabel = new Label(s"Giocatore: $myUsername")
   playerInfoLabel.font = Font.font("Arial", FontWeight.Bold, 14)
   playerInfoLabel.style = "-fx-text-fill: #2E8B57; -fx-background-color: #F0FFF0; -fx-padding: 5px; -fx-border-color: #2E8B57; -fx-border-width: 1px; -fx-border-radius: 3px; -fx-background-radius: 3px;"
-  
-  // Debug print per il nome utente
-  println(s"Panel giocatore creato per: $myUsername")
   
   val topPane = new VBox(10) {
     padding = Insets(10)
     children = Seq(titleLabel, playerInfoLabel, playersLabel)
   }
   
-  //creazione componenti
-  def showTerritoriesDialog(): Unit = {
-    val dialog = new TerritoriesDialog(this, territories)
-    dialog.showAndWait()
-  }
-  
-  // Stampa l'ID del giocatore per debug
-  println(s"GameWindow creata per il giocatore: $myUsername ($myPlayerId)")
-
   val gameMapView = new GameMapView(() => showTerritoriesDialog())
   private val territoryInfoPane = new TerritoryInfoPane(territories)
   val actionPane = new ActionPane(showTerritoriesDialog())
-  
   
   val centerPane = new VBox {
     children = Seq(gameMapView, territoryInfoPane, actionPane)
     VBox.setVgrow(gameMapView, Priority.Always)
   }
-
-  private var currentPlayerId: String = ""
-  private var myObjective: Option[String] = None
-  val actionHandler = new GameActionHandler(networkManager)(networkManager.executionContext)
-
   
   // Barra laterale
   val playersList = ObservableBuffer(initPlayers.map(name => new PlayerInfoView(name, initPlayers, networkManager)): _*)
@@ -92,7 +83,6 @@ class GameWindow(
   
   val sidebarPane = createSidebarPane()
   
- 
   val splitPane = new SplitPane {
     orientation = Orientation.Horizontal
     items.addAll(centerPane, sidebarPane)
@@ -131,17 +121,324 @@ class GameWindow(
   
   scene = new Scene(root)
   
-  // Binding delle dimensioni - usando doubleValue() invece di toDouble
+  // Binding delle dimensioni
   gameMapView.bindToSceneDimensions(scene.width.value.doubleValue(), scene.height.value.doubleValue())
   
-
+  // ==================== REGISTRAZIONE CALLBACK ====================
+  registerCallbacks()
+  
+  // ==================== COLLEGAMENTO EVENTI UI ====================
+  setupUIEventHandlers()
+  
+  // ==================== METODI ====================
+  
+  /**
+   * Registra i callback per i messaggi dal server
+   */
+  private def registerCallbacks(): Unit = {
+    networkManager.registerCallback("gameStarted", msg => {
+      println(s"Callback gameStarted ricevuto!")
+      handleGameStarted(msg.asInstanceOf[GameStartedMessage])
+    })
+    
+    networkManager.registerCallback("gameState", msg => {
+      println(s"Callback gameState ricevuto!")
+      println(s"Sono: $myUsername ($myPlayerId)")
+      
+      val gameState = msg.asInstanceOf[GameState]
+      println(s"Turno aggiornato: ${gameState.state.currentPlayer}")
+      println(s"È il mio turno? ${gameState.state.currentPlayer == myPlayerId}")
+      
+      handleGameState(gameState)
+    })
+    
+    networkManager.registerCallback("gameJoined", msg => {
+      msg match {
+        case GameJoinedMessage(gameId, players, gameName) =>
+          if (gameId == this.gameId) {
+            Platform.runLater {
+              println(s"Aggiornamento lista giocatori tramite gameJoined: ${players.mkString(", ")}")
+              updatePlayers(players)
+            }
+          } else {
+            println(s"Ignorato messaggio gameJoined per partita $gameId (sono nella ${this.gameId})")
+          }
+          
+        case _ => println("Messaggio gameJoined ricevuto con formato non valido")
+      }
+    })
+  }
+  
+  /**
+   * Configura i gestori degli eventi per i componenti UI
+   */
+  private def setupUIEventHandlers(): Unit = {
+    actionPane.endTurnButton.onAction = handle {
+      actionPane.endTurnButton.disable = true
+      println("[UI] Fine turno richiesto dall'utente")
+      actionHandler.endTurn(gameId).onComplete {
+        case scala.util.Success(true) =>
+          println("[UI] Fine turno inviato con successo al server")
+        case scala.util.Success(false) =>
+          Platform.runLater {
+            val alert = new Alert(Alert.AlertType.Warning) {
+              initOwner(GameWindow.this)
+              title = "Azione non consentita"
+              headerText = "Impossibile terminare il turno"
+              contentText = "Il server ha rifiutato la richiesta di fine turno."
+            }
+            alert.showAndWait()
+            actionPane.endTurnButton.disable = false
+          }
+        case scala.util.Failure(ex) =>
+          Platform.runLater {
+            val alert = new Alert(Alert.AlertType.Error) {
+              initOwner(GameWindow.this)
+              title = "Errore"
+              headerText = "Errore di comunicazione"
+              contentText = s"Errore durante la richiesta di fine turno: ${ex.getMessage}"
+            }
+            alert.showAndWait()
+            actionPane.endTurnButton.disable = false // Riabilita in caso di errore
+          }
+      }(networkManager.executionContext)
+    }
+  }
+  
+  /**
+   * Crea e visualizza la finestra di dialogo per il piazzamento delle truppe
+   */
+  private def showTroopPlacementDialog(myTerritories: ObservableBuffer[UITerritory], bonusTroops: Int): Unit = {
+    if (!placementDialogOpen && myTerritories.nonEmpty) {
+      try {
+        println("Tentativo di creare e mostrare il dialogo di piazzamento...")
+        val placementDialog = new TroopPlacementDialog(
+          this, 
+          myTerritories, 
+          bonusTroops
+        )
+        
+        placementDialogOpen = true
+        currentPlacementDialog = Some(placementDialog)
+        
+        placementDialog.onHidden = _ => {
+          placementDialogOpen = false
+          currentPlacementDialog = None
+        }
+        
+        Platform.runLater {
+          placementDialog.show()
+          placementDialog.toFront()
+          println("Dialog visualizzato e portato in primo piano")
+        }
+      } catch {
+        case e: Exception => 
+          println(s"ERRORE nella creazione del dialogo: ${e.getMessage}")
+          e.printStackTrace()
+          placementDialogOpen = false
+          currentPlacementDialog = None
+      }
+    } else if (placementDialogOpen) {
+      // Aggiorna solo il numero di truppe nel dialogo esistente
+      currentPlacementDialog.foreach { dialog =>
+        println("Aggiornamento truppe nel dialogo esistente")
+        Platform.runLater {
+          dialog.updateTroops(bonusTroops)
+        }
+      }
+    }
+  }
+  
+  /**
+   * Chiude il dialogo di piazzamento truppe se aperto
+   */
+  private def closeTroopPlacementDialog(): Unit = {
+    if (placementDialogOpen) {
+      currentPlacementDialog.foreach { dialog =>
+        Platform.runLater {
+          dialog.close()
+        }
+      }
+    }
+  }
+  
+  /**
+   * Gestisce il messaggio GameState ricevuto dal server
+   */
+  private def handleGameState(gameState: GameState): Unit = {
+    Platform.runLater {
+      println(s"Aggiornamento stato di gioco. Fase: ${gameState.state.currentPhase}")
+      
+      gameState.state.territories.foreach { territoryMap =>
+        val name = territoryMap.getOrElse("name", "")
+        val owner = territoryMap.getOrElse("owner", "")
+        val troops = territoryMap.getOrElse("troops", "0").toInt
+        
+        updateTerritory(name, owner, troops)
+      }
+    
+      // aggiorna TerritoryInfoPane
+      territoryInfoPane.updatePlayerTerritories(myPlayerId)
+      territoryInfoPane.updateContinentControl(myPlayerId)
+      
+      val myPlayerState = gameState.state.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
+      //apre il dialogo di piazzamento truppe se necessario
+      myPlayerState.foreach { playerState =>
+        val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
+        
+        if (myPlayerId == gameState.state.currentPlayer && 
+            gameState.state.currentPhase == "PlacingTroops" && 
+            bonusTroops > 0) {
+          
+          // Filtra solo i miei territori
+          val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+          showTroopPlacementDialog(myTerritories, bonusTroops)
+          
+        } else if (placementDialogOpen && 
+                  (myPlayerId != gameState.state.currentPlayer || 
+                   gameState.state.currentPhase != "PlacingTroops" || 
+                   bonusTroops <= 0)) {
+      
+          closeTroopPlacementDialog()
+        }
+      }
+    }
+  }
+  
+  /**
+   * Gestisce il messaggio GameStartedMessage ricevuto dal server.
+   * Inizializza lo stato del gioco e mostra il dialogo di piazzamento truppe se necessario.
+   */
+  def handleGameStarted(gameStartedMsg: GameStartedMessage): Unit = {
+    Platform.runLater {
+      println("GESTIONE GAME STARTED")
+      println(s"Sono: $myUsername ($myPlayerId)")
+      println(s"Turno di: ${gameStartedMsg.currentPlayerId}")
+      println(s"È il mio turno? ${gameStartedMsg.currentPlayerId == myPlayerId}")
+      println("------------------------")
+      
+      currentPlayerId = gameStartedMsg.currentPlayerId
+      
+      val initialState = gameStartedMsg.initialState
+      val stateData = initialState.state
+      
+      println(s"Fase corrente: ${stateData.currentPhase}")
+      println(s"Giocatore corrente: ${stateData.currentPlayer}")
+      println(s"Territori trovati: ${stateData.territories.size}")
+      println(s"Stati giocatore trovati: ${stateData.playerStates.size}")
+      
+      stateData.territories.foreach { territoryMap =>
+        val name = territoryMap.getOrElse("name", "")
+        val owner = territoryMap.getOrElse("owner", "")
+        val troops = territoryMap.getOrElse("troops", "0").toInt
+        
+        updateTerritory(name, owner, troops)
+      }
+      
+      val myPlayerState = stateData.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
+      
+      println(s"Ho trovato il mio stato? ${myPlayerState.isDefined}")
+      
+      myPlayerState.foreach { playerState =>
+        val missionCard = playerState.get("missionCard")
+        println(s"Carta missione: $missionCard")
+        
+        val missionDesc = missionCard.flatMap { missionStr =>
+          try {
+            if (missionStr.trim.startsWith("{")) {
+              // È un oggetto JSON
+              import spray.json._
+              import DefaultJsonProtocol._
+              val json = missionStr.parseJson.asJsObject
+              json.fields.get("description").map {
+                case JsString(s) => s
+                case other => other.toString
+              }
+            } else {
+              // Usa la vecchia regex
+              val pattern = "description:([^,}]+)".r
+              pattern.findFirstMatchIn(missionStr.toString).map(_.group(1))
+            }
+          } catch {
+            case e: Exception => 
+              println(s"Errore nell'estrazione della descrizione missione: ${e.getMessage}")
+              None
+          }
+        }
+        
+        myObjective = missionDesc
+        showObjectiveButton.disable = myObjective.isEmpty
+        
+        println(s"Obiettivo estratto: $missionDesc")
+        println(s"Pulsante obiettivo abilitato: ${!showObjectiveButton.disable.value}")
+        
+        val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
+        
+        if (myPlayerId == stateData.currentPlayer && stateData.currentPhase == "PlacingTroops" && bonusTroops > 0) {
+          val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+          println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
+          
+          /* Debug - stampa tutti i territori e i loro proprietari
+          territories.foreach(t => 
+            println(s"Territorio disponibile: ${t.name}, Owner: ${t.owner.value}, Match? ${t.owner.value == myPlayerId}")
+          ) */
+          
+          showTroopPlacementDialog(myTerritories, bonusTroops)
+        } else if (stateData.currentPhase == "PlacingTroops") {
+          // Non è il mio turno, ma siamo in fase di piazzamento
+          Platform.runLater {
+  
+            val currentPlayerName = initialState.players.find(p => p.contains(stateData.currentPlayer))
+              .map(p => p.split(" \\(").head)
+              .getOrElse("altro giocatore")
+              
+            val waitAlert = new Alert(Alert.AlertType.Information) {
+              initOwner(GameWindow.this)
+              title = "In attesa..."
+              headerText = "Fase di Piazzamento Truppe"
+              contentText = s"In attesa che $currentPlayerName piazzi le sue truppe..."
+            }
+            waitAlert.show()
+          }
+        }
+      }
+      
+      // Aggiorna tutto
+      territoryInfoPane.updatePlayerTerritories(myPlayerId)
+      territoryInfoPane.updateContinentControl(myPlayerId)
+      
+      println(s"Territori dopo l'aggiornamento: ${territories.size}")
+      println(s"Territori del giocatore ${myPlayerId}: ${territories.count(_.owner.value == myPlayerId)}")
+    }
+  }
+  
+  /**
+   * Mostra il dialogo con l'obiettivo segreto del giocatore
+   */
+  private def showObjectiveDialog(): Unit = {
+    myObjective.foreach { objective =>
+      val dialog = new Alert(Alert.AlertType.Information) {
+        initOwner(GameWindow.this)
+        title = "Il Tuo Obiettivo"
+        headerText = "Obiettivo Segreto"
+        contentText = objective
+      }
+      dialog.showAndWait()
+    }
+  }
+  
+  /**
+   * Mostra il dialogo con la lista dei territori
+   */
+  def showTerritoriesDialog(): Unit = {
+    val dialog = new TerritoriesDialog(this, territories)
+    dialog.showAndWait()
+  }
+  
   /**
     * Crea un territorio vuoto con il nome specificato.
-    * @param name
-    * @return UITerritory vuoto con il nome specificato
     */
   private def createEmptyTerritory(name: String): UITerritory = {
-    
     val emptyTerritory = Territory(
       name = name,
       neighbors = Set.empty,
@@ -156,106 +453,12 @@ class GameWindow(
    * Restituisce l'ID della partita
    */
   def getGameId: String = gameId
-
-
-  //callback
-  networkManager.registerCallback("gameStarted", msg => {
-    println(s"Callback gameStarted ricevuto!")
-    handleGameStarted(msg.asInstanceOf[GameStartedMessage])
-  })
-
-  //callback 
-  networkManager.registerCallback("gameState", msg => {
-    println(s"Callback gameState ricevuto!")
-    println(s"Sono: $myUsername ($myPlayerId)")
-    
-    val gameState = msg.asInstanceOf[GameState]
-    println(s"Turno aggiornato: ${gameState.state.currentPlayer}")
-    println(s"È il mio turno? ${gameState.state.currentPlayer == myPlayerId}")
-    
-    Platform.runLater {
-      // Aggiorna i territori
-      gameState.state.territories.foreach { territoryMap =>
-        val name = territoryMap.getOrElse("name", "")
-        val owner = territoryMap.getOrElse("owner", "")
-        val troops = territoryMap.getOrElse("troops", "0").toInt
-        
-        updateTerritory(name, owner, troops)
-      }
-    
-      //aggiorna TerritoryInfoPane
-      territoryInfoPane.updatePlayerTerritories(myPlayerId)
-      territoryInfoPane.updateContinentControl(myPlayerId)
-      
-      // cerca il mio stato giocatore
-      val myPlayerState = gameState.state.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
-      
-      //gestisce la finestra del placement delle truppe
-      myPlayerState.foreach { playerState =>
-        
-        val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
-        
-        if (myPlayerId == gameState.state.currentPlayer && 
-            gameState.state.currentPhase == "PlacingTroops" && 
-            bonusTroops > 0) {
-          
-          // filtra solo i miei territori
-          val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
-          
-          if (myTerritories.nonEmpty) {
-            try {
-              println("Aprendo dialogo di piazzamento dopo gameState...")
-              val placementDialog = new TroopPlacementDialog(
-                GameWindow.this, 
-                myTerritories, 
-                bonusTroops, 
-                (territory, troops) => { //passo una funzione di callback per chiamare l'azione
-                  actionHandler.placeTroops(gameId, territory.name, troops)
-                }
-              )
-              placementDialog.show()
-              placementDialog.toFront()
-            } catch {
-              case e: Exception => 
-                println(s"Errore nella creazione del dialogo (gameState): ${e.getMessage}")
-                e.printStackTrace()
-            }
-          }
-        }
-      }
-    }
-  })
-
-  //callback
-  networkManager.registerCallback("gameJoined", msg => {
-    msg match {
-      case GameJoinedMessage(gameId, players, gameName) =>
-        // Verifica che il messaggio sia per questa partita
-        if (gameId == this.gameId) {
-          Platform.runLater {
-            println(s"🔄 Aggiornamento lista giocatori tramite gameJoined: ${players.mkString(", ")}")
-            updatePlayers(players)
-          }
-        } else {
-          println(s"Ignorato messaggio gameJoined per partita $gameId (sono nella ${this.gameId})")
-        }
-        
-      case _ => println("Messaggio gameJoined ricevuto con formato non valido")
-    }
-  })
-
-  //non usato
-  onShown = _ => {
-    println("Finestra di gioco visualizzata")
-  }
-  
   
   /**
    * Aggiorna la lista dei giocatori nella partita nella barra laterale.
    */
   def updatePlayers(newPlayers: List[String]): Unit = {
     Platform.runLater {
-      
       playersLabel.text = s"Giocatori: ${newPlayers.size}"
       
       val updatedPlayersList = ObservableBuffer(newPlayers.map(name => 
@@ -275,7 +478,6 @@ class GameWindow(
    * Aggiorna le informazioni sui territori
    */
   def updateTerritory(name: String, owner: String, troops: Int): Unit = {
-
     val territory = territories.find(_.name == name)
     
     if (owner == myPlayerId) {
@@ -298,7 +500,7 @@ class GameWindow(
         t.armies.value = troops
         
       case None => 
-        // crea un nuovo territorio vuoto e aggiungilo
+        // Crea un nuovo territorio vuoto e aggiungilo
         val newTerritory = createEmptyTerritory(name)
         newTerritory.owner.value = owner
         newTerritory.armies.value = troops
@@ -317,235 +519,45 @@ class GameWindow(
     diceDisplay.updateValues(attackerValues, defenderValues)
   }
   
-  //Metodo di supporto
+  /**
+   * Crea il pannello laterale della UI
+   */
   private def createSidebarPane(players: ObservableBuffer[PlayerInfoView] = playersList): VBox = {
-      new VBox(15) {
-        padding = Insets(10)
-        style = "-fx-background-color: #e8e8e8;"
-        
-        children = Seq(
-          new Label("Giocatori") {
-            font = Font.font("Arial", FontWeight.Bold, 16)
-            textAlignment = TextAlignment.Center
-            alignment = Pos.Center
-            maxWidth = Double.MaxValue
-          },
-          new Separator(),
-          new VBox(10) {
-            children = players
-            VBox.setVgrow(this, Priority.Always)
-          },
-          new Separator(),
-          new Label("Dadi") {
-            font = Font.font("Arial", FontWeight.Bold, 16)
-            textAlignment = TextAlignment.Center
-            alignment = Pos.Center
-            maxWidth = Double.MaxValue
-          },
-          diceDisplay
-        )
-        
-        maxWidth = 250
-        prefWidth = 250
-      }
+    new VBox(15) {
+      padding = Insets(10)
+      style = "-fx-background-color: #e8e8e8;"
+      
+      children = Seq(
+        new Label("Giocatori") {
+          font = Font.font("Arial", FontWeight.Bold, 16)
+          textAlignment = TextAlignment.Center
+          alignment = Pos.Center
+          maxWidth = Double.MaxValue
+        },
+        new Separator(),
+        new VBox(10) {
+          children = players
+          VBox.setVgrow(this, Priority.Always)
+        },
+        new Separator(),
+        new Label("Dadi") {
+          font = Font.font("Arial", FontWeight.Bold, 16)
+          textAlignment = TextAlignment.Center
+          alignment = Pos.Center
+          maxWidth = Double.MaxValue
+        },
+        diceDisplay
+      )
+      
+      maxWidth = 250
+      prefWidth = 250
+    }
   }
   
+  /**
+   * Inizializza e carica i territori
+   */
   private def createTerritories(): ObservableBuffer[UITerritory] = {
-      AdapterMap.loadTerritories() //resituisce una Buffer[UITerritory]
+    AdapterMap.loadTerritories() //resituisce una Buffer[UITerritory]
   }
-  
-
-
-  /**
-   * Gestisce il messaggio GameStartedMessage ricevuto dal server.
-   * Inizializza lo stato del gioco e mostra il dialogo di piazzamento truppe se necessario.
-   */
-  def handleGameStarted(gameStartedMsg: GameStartedMessage): Unit = {
-      Platform.runLater {
-    
-        println("GESTIONE GAME STARTED")
-        println(s"Sono: $myUsername ($myPlayerId)")
-        println(s"Turno di: ${gameStartedMsg.currentPlayerId}")
-        println(s"È il mio turno? ${gameStartedMsg.currentPlayerId == myPlayerId}")
-        println("------------------------")
-        
-        currentPlayerId = gameStartedMsg.currentPlayerId
-        
-        println(s"GameStarted ricevuto: currentPlayerId = $currentPlayerId")
-        println(s"Il mio ID è: $myPlayerId")
-        
-        val initialState = gameStartedMsg.initialState
-        val stateData = initialState.state
-        
-        println(s"Fase corrente: ${stateData.currentPhase}")
-        println(s"Giocatore corrente: ${stateData.currentPlayer}")
-        println(s"Territori trovati: ${stateData.territories.size}")
-        println(s"Stati giocatore trovati: ${stateData.playerStates.size}")
-        println(s"Esempi di territori: ${stateData.territories.take(3)}")
-        
-        //estrae i territori dallo stato iniziale
-        stateData.territories.foreach { territoryMap =>
-          val name = territoryMap.getOrElse("name", "")
-          val owner = territoryMap.getOrElse("owner", "")
-          val troops = territoryMap.getOrElse("troops", "0").toInt
-          
-          updateTerritory(name, owner, troops)
-        }
-        
-        // cerca il mio stato giocatore (playerStates è una List[Map[String, String]])
-        val myPlayerState = stateData.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
-        
-        println(s"Ho trovato il mio stato? ${myPlayerState.isDefined}")
-        println(s"Tutti gli ID giocatore: ${stateData.playerStates.map(_.getOrElse("playerId", "")).mkString(", ")}")
-
-        myPlayerState.foreach { playerState =>
-          
-              val missionCard = playerState.get("missionCard")
-              println(s"Carta missione: $missionCard")
-              
-              val missionDesc = missionCard.flatMap { missionStr =>
-                
-                val pattern = "description:([^,}]+)".r
-                pattern.findFirstMatchIn(missionStr.toString).map(_.group(1))
-
-              }
-              
-              myObjective = missionDesc
-              showObjectiveButton.disable = myObjective.isEmpty
-              
-              println(s"Obiettivo estratto: $missionDesc")
-              println(s"Pulsante obiettivo abilitato: ${!showObjectiveButton.disable.value}")
-              
-              val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
-              
-
-              //se sono il giocatore corrente e siamo in fase di piazzamento, apri il dialog
-              if (myPlayerId == stateData.currentPlayer && stateData.currentPhase == "PlacingTroops" && bonusTroops > 0) 
-                {
-                
-                  val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
-                  
-                  println(s"Condizione 4 - Ho territori? ${myTerritories.nonEmpty} (territori: ${myTerritories.size})")
-                  
-                  // Debug - stampa tutti i territori e i loro proprietari
-                  territories.foreach(t => 
-                    println(s"Territorio disponibile: ${t.name}, Owner: ${t.owner.value}, Match? ${t.owner.value == myPlayerId}")
-                  )
-                  
-                  if (myTerritories.nonEmpty) {
-                    try {
-                      println("Tentativo di creare e mostrare il dialogo di piazzamento...")
-                      val placementDialog = new TroopPlacementDialog(
-                        this, 
-                        myTerritories, 
-                        bonusTroops, 
-                        (territory, troops) => {
-                          actionHandler.placeTroops(gameId, territory.name, troops)
-                        }
-                      )
-                      
-                      Platform.runLater {
-                        placementDialog.show()
-                        placementDialog.toFront()
-                        println("Dialog visualizzato e portato in primo piano")
-                      }
-                    } catch {
-                      case e: Exception => 
-                        println(s"ERRORE nella creazione del dialogo: ${e.getMessage}")
-                        e.printStackTrace()
-                    }
-                  } else {
-                    println("Nessun territorio trovato per il piazzamento delle truppe!")
-                  }
-                } else if (stateData.currentPhase == "PlacingTroops") 
-                  {
-                      // Non è il mio turno, ma siamo in fase di piazzamento
-                      Platform.runLater {
-                        //ottiene il nome dell'altro giocatore
-                        val currentPlayerName = initialState.players.find(p => p.contains(stateData.currentPlayer))
-                          .map(p => p.split(" \\(").head)
-                          .getOrElse("altro giocatore")
-                          
-                        val waitAlert = new Alert(Alert.AlertType.Information) {
-                          initOwner(GameWindow.this)
-                          title = "In attesa..."
-                          headerText = "Fase di Piazzamento Truppe"
-                          contentText = s"In attesa che $currentPlayerName piazzi le sue truppe..."
-                        }
-                        waitAlert.show()
-                      }
-                    }
-            }
-        
-        //aggiorna tutto
-        territoryInfoPane.updatePlayerTerritories(myPlayerId)
-        territoryInfoPane.updateContinentControl(myPlayerId)
-        
-        println(s"Territori dopo l'aggiornamento: ${territories.size}")
-        println(s"Territori del giocatore ${myPlayerId}: ${territories.count(_.owner.value == myPlayerId)}")
-
-        /*territories.foreach(t => 
-          println(s"Territorio: ${t.name}, Owner: ${t.owner.value}, È mio? ${t.owner.value == myPlayerId}")
-        )*/
-
-        //filtra i territori di proprietà del giocatore
-        val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
-      }
-  }
-
-
-  /**
-   * Mostra il dialogo con l'obiettivo segreto del giocatore
-   */
-  private def showObjectiveDialog(): Unit = {
-      myObjective.foreach { objective =>
-        val dialog = new Alert(Alert.AlertType.Information) {
-          initOwner(GameWindow.this)
-          title = "Il Tuo Obiettivo"
-          headerText = "Obiettivo Segreto"
-          contentText = objective
-        }
-        dialog.showAndWait()
-      }
-  }
-  /**
-    * Metodo chiamato quando la finestra viene mostrata.
-    * Registra i callback per gli eventi di gioco e aggiorna lo stato iniziale. 
-   */
-  onShown = _ => {
-    println("Finestra di gioco visualizzata")
-  }
-  
-  //Collega la callback al pulsante Fine Turno
-  actionPane.endTurnButton.onAction = handle {
-    actionPane.endTurnButton.disable = true
-    println("[UI] Fine turno richiesto dall'utente")
-    actionHandler.endTurn(gameId).onComplete {
-      case scala.util.Success(true) =>
-        println("[UI] Fine turno inviato con successo al server")
-      case scala.util.Success(false) =>
-        Platform.runLater {
-          val alert = new Alert(Alert.AlertType.Warning) {
-            initOwner(GameWindow.this)
-            title = "Azione non consentita"
-            headerText = "Impossibile terminare il turno"
-            contentText = "Il server ha rifiutato la richiesta di fine turno."
-          }
-          alert.showAndWait()
-          actionPane.endTurnButton.disable = false
-        }
-      case scala.util.Failure(ex) =>
-        Platform.runLater {
-          val alert = new Alert(Alert.AlertType.Error) {
-            initOwner(GameWindow.this)
-            title = "Errore"
-            headerText = "Errore di comunicazione"
-            contentText = s"Errore durante la richiesta di fine turno: ${ex.getMessage}"
-          }
-          alert.showAndWait()
-          actionPane.endTurnButton.disable = false // Riabilita in caso di errore
-        }
-    }(networkManager.executionContext)
-  }
-  
 }

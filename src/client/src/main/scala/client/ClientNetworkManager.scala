@@ -39,9 +39,9 @@ class ClientNetworkManager:
   //coda per i messaggi in uscita
   private var messageQueue: Option[SourceQueueWithComplete[String]] = None
   
-  //Aggiunge una proprietà per memorizzare i callback
+  // serve per i callback generici che non richiedono un argomento specifico
   private var messageCallbacks: Map[String, Any => Unit] = Map.empty
-  // Aggiungi questo campo e metodo nella classe ClientNetworkManager
+  // serve per i callback che richiedono un argomento specifico
   private var filteredCallbacks: Map[String, (Any, String) => Unit] = Map.empty
 
   def login(username: String): Future[Boolean] =
