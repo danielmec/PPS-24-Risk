@@ -10,7 +10,9 @@ object BotFactory:
 
   def createAggressiveBot(playerId: String, name: String, color: PlayerColor): BotPlayer =
     val aggressiveRules = Set[StrategyRule](
-      //aggiungere prolog rules
+      new OffensiveBotAttackRule(),
+      new OffensiveBotPlaceTroopsRule(),
+      new OffensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, aggressiveRules)
     controller.registerStrategy(playerId, botPlayer)
@@ -18,9 +20,9 @@ object BotFactory:
 
   def createDefensiveBot(playerId: String, name: String, color: PlayerColor): BotPlayer =
     val defensiveRules = Set[StrategyRule](
-      //aggiungere prolog rules
       new DefensiveBotAttackRule(),
-      new DefensiveBotPlaceTroopsRule()
+      new DefensiveBotPlaceTroopsRule(),
+      new DefensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, defensiveRules)
     controller.registerStrategy(playerId, botPlayer)
