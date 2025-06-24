@@ -125,7 +125,45 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   // Nuovi formati per i messaggi di gioco
   implicit val gameSetupStartedFormat: RootJsonFormat[GameSetupStartedMessage] = jsonFormat2(GameSetupStartedMessage)
   implicit val playerLeftFormat: RootJsonFormat[PlayerLeftMessage] = jsonFormat2(PlayerLeftMessage)
-  implicit val gameStateDataFormat: RootJsonFormat[GameStateData] = jsonFormat4(GameStateData)
+  implicit object GameStateDataFormat extends RootJsonFormat[GameStateData] {
+    def write(obj: GameStateData): JsValue = {
+      JsObject(
+        "currentPlayer" -> JsString(obj.currentPlayer),
+        "currentPhase" -> JsString(obj.currentPhase),
+        "territories" -> JsArray(obj.territories.map(t => 
+          JsObject(t.map { case (k, v) => k -> JsString(v) })
+        )),
+        "playerStates" -> JsArray(obj.playerStates.map(ps => 
+          JsObject(ps.map { case (k, v) => k -> JsString(v) })
+        ))
+      )
+    }
+    
+    def read(json: JsValue): GameStateData = {
+      val fields = json.asJsObject.fields
+      
+      GameStateData(
+        currentPlayer = fields.getOrElse("currentPlayer", JsString("")).convertTo[String],
+        currentPhase = fields.getOrElse("currentPhase", JsString("")).convertTo[String],
+        territories = fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
+          _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
+        ),
+        playerStates = fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map { playerState =>
+          playerState.fields.map {
+            case (k, v: JsObject) if k == "missionCard" => 
+              // Estrai direttamente la description
+              val description = v.fields.getOrElse("description", JsString(""))
+              k -> description.convertTo[String]
+            case (k, JsString(s)) => k -> s
+            case (k, JsNumber(n)) => k -> n.toString
+            case (k, JsBoolean(b)) => k -> b.toString
+            case (k, JsNull) => k -> ""
+            case (k, v) => k -> v.toString.replace("\"", "")
+          }
+        }
+      )
+    }
+  }
   implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(GameState)
   implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(GameStartedMessage)
   implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(GameActionResultMessage)
@@ -237,21 +275,12 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           // gestisce sia il vecchio che il nuovo formato
           val gameState = if (initialStateFields.contains("state")) {
             val stateJson = initialStateFields.getOrElse("state", JsObject.empty).asJsObject
-
+            
             GameState(
               gameId = initialStateFields.getOrElse("gameId", JsString(gameId)).convertTo[String],
               players = initialStateFields.getOrElse("players", JsArray()).convertTo[List[String]],
               currentPlayer = initialStateFields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
-              state = GameStateData(
-                currentPlayer = stateJson.fields.getOrElse("currentPlayer", JsString(currentPlayerId)).convertTo[String],
-                currentPhase = stateJson.fields.getOrElse("currentPhase", JsString("PlacingTroops")).convertTo[String],
-                territories = stateJson.fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
-                  _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-                ),
-                playerStates = stateJson.fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map(
-                  _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-                )
-              )
+              state = stateJson.convertTo[GameStateData]  // Usa il formato personalizzato automaticamente
             )
           } else {
             // fallback
@@ -281,18 +310,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           
           // geestisce sia il vecchio che il nuovo formato
           val gameStateData = if (stateFields.contains("gameStateDto") && stateFields("gameStateDto") != JsNull) {
-            val dto = stateFields("gameStateDto").asJsObject
-            
-            GameStateData(
-              currentPlayer = dto.fields.getOrElse("currentPlayer", JsString(currentPlayer)).convertTo[String],
-              currentPhase = dto.fields.getOrElse("currentPhase", JsString("PlacingTroops")).convertTo[String],
-              territories = dto.fields.getOrElse("territories", JsArray()).convertTo[List[JsObject]].map(
-                _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-              ),
-              playerStates = dto.fields.getOrElse("playerStates", JsArray()).convertTo[List[JsObject]].map(
-                _.fields.map { case (k, v) => k -> v.toString.replace("\"", "") }
-              )
-            )
+            stateFields("gameStateDto").convertTo[GameStateData]
           } else {
             // Formato vecchio o fallback
             stateJson.convertTo[GameStateData]

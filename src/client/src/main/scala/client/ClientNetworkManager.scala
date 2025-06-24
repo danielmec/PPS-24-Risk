@@ -118,7 +118,7 @@ class ClientNetworkManager:
               messageCallbacks.get("lobbyJoined").foreach(_(parsedMessage))
 
             case ErrorMessage(message) =>
-              println(s" Errore: $message")
+              println(s" Errore nell ClientNetworkManager: $message")
               messageCallbacks.get("error").foreach(_(parsedMessage))
 
             case msg @ GameCreatedMessage(gameId, gameName, creatorId) =>
