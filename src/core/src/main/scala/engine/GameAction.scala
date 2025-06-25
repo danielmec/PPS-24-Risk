@@ -10,3 +10,4 @@ enum GameAction:
   case EndAttack
   case EndPhase
   case EndTurn
+  case EndSetup

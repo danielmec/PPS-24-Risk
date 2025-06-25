@@ -129,4 +129,16 @@ class GameActionHandler(networkManager: ClientNetworkManager)(implicit ec: Execu
     )
     networkManager.sendMessage(action)
   }
+
+  /**
+   * Termina la fase di piazzamento truppe iniziale (setup)
+   */
+  def endSetup(gameId: String): Future[Boolean] = {
+    val action = GameActionMessage(
+      gameId = gameId,
+      action = "end_setup",
+      parameters = Map()
+    )
+    networkManager.sendMessage(action)
+  }
 }

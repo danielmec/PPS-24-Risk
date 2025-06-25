@@ -285,7 +285,8 @@ class GameWindow(
         val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
         
         if (myPlayerId == gameState.state.currentPlayer && 
-            gameState.state.currentPhase == "PlacingTroops" && 
+           (gameState.state.currentPhase == "PlacingTroops" || 
+            gameState.state.currentPhase == "SetupPlacing") && 
             bonusTroops > 0) {
           
           // Filtra solo i miei territori
@@ -294,7 +295,8 @@ class GameWindow(
           
         } else if (placementDialogOpen && 
                   (myPlayerId != gameState.state.currentPlayer || 
-                   gameState.state.currentPhase != "PlacingTroops" || 
+                   gameState.state.currentPhase != "PlacingTroops" ||
+                   gameState.state.currentPhase != "SetupPlacing" || 
                    bonusTroops <= 0)) {
       
           closeTroopPlacementDialog()
@@ -357,7 +359,7 @@ class GameWindow(
         
         val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
         
-        if (myPlayerId == stateData.currentPlayer && stateData.currentPhase == "PlacingTroops" && bonusTroops > 0) {
+        if (myPlayerId == stateData.currentPlayer && (stateData.currentPhase == "PlacingTroops" || stateData.currentPhase == "SetupPlacing") && bonusTroops > 0) {
           val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
           println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
           
@@ -367,7 +369,7 @@ class GameWindow(
           ) */
           
           showTroopPlacementDialog(myTerritories, bonusTroops)
-        } else if (stateData.currentPhase == "PlacingTroops") {
+        } else if (stateData.currentPhase == "PlacingTroops" || stateData.currentPhase == "SetupPlacing") {
           // Non è il mio turno, ma siamo in fase di piazzamento
           Platform.runLater {
   

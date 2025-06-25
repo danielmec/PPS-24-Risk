@@ -402,6 +402,9 @@ class GameSession(
           
         case "end_turn" =>
           engine.GameAction.EndTurn
+
+        case "end_setup" =>
+          engine.GameAction.EndSetup  
           
         case "end_phase" =>
           engine.GameAction.EndPhase

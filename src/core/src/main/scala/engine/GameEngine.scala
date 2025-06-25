@@ -47,7 +47,7 @@ class GameEngine(
     val updatedTurnManager = TurnManagerImpl(
       players = players,
       currentPlayerIndex = firstPlayerIndex,  
-      phase = TurnPhase.PlacingTroops         
+      phase = TurnPhase.SetupPlacing         
     )
     val updatedGameState = GameState(
       gameId = gameId,
@@ -86,6 +86,7 @@ class GameEngine(
     val updatedState = engineState.copy(gameState = gameStateWithBonus) 
     if !gameState.turnManager.isValidAction(action, gameStateWithBonus, engineState) then throw new InvalidActionException()
     action match
+      case GameAction.EndSetup => endSetup(engineState)
       case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameStateWithBonus, playerId, updatedState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
       case GameAction.Attack(attackerId, defenderId, from, to, troops) => attackAction(attackerId, defenderId, from, gameState, engineState, to, troops)
@@ -174,6 +175,19 @@ class GameEngine(
       .removeTerritoryCards(cards)
       .copy(bonusTroops = playerState.bonusTroops + bonus)  
     val updatedGameState = gameState.updatePlayerState(currentPlayerId, updatedPlayerState)
+    state.copy(gameState = updatedGameState)
+
+  private def endSetup(state: EngineState): EngineState =
+    val gameState = state.gameState
+    val currentPlayerId = gameState.turnManager.currentPlayer.id
+    val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
+    val allPlaced = gameState.playerStates.forall(_.bonusTroops == 0)
+    val updatedTurnManager =
+      if (allPlaced)
+        gameState.turnManager.nextPlayer()
+      else
+        gameState.turnManager.nextSetupPlayer()
+    val updatedGameState = gameState.updateTurnManager(updatedTurnManager)
     state.copy(gameState = updatedGameState)
 
   private def endAction(state: EngineState, action: GameAction): EngineState = 

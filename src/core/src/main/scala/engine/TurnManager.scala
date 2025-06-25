@@ -7,6 +7,7 @@ import exceptions._
 
 trait TurnManager:
     def currentPlayer: Player
+    def nextSetupPlayer(): TurnManager
     def nextPlayer(): TurnManager
     def currentPhase: TurnPhase
     def nextPhase(): TurnManager
@@ -15,7 +16,7 @@ trait TurnManager:
 case class TurnManagerImpl(
     players: List[Player],
     currentPlayerIndex: Int = 0,
-    phase: TurnPhase = TurnPhase.WaitingForTurn
+    phase: TurnPhase = TurnPhase.SetupPlacing
 ) extends TurnManager:
 
     def currentPlayer: Player = players match
@@ -29,9 +30,15 @@ case class TurnManagerImpl(
             val nextIndex = (currentPlayerIndex + 1) % players.size
             copy(currentPlayerIndex = nextIndex, phase = TurnPhase.WaitingForTurn)
 
+    def nextSetupPlayer(): TurnManager = players match
+        case Nil => throw InvalidPlayerException()
+        case _ => 
+            val nextIndex = (currentPlayerIndex + 1) % players.size
+            copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPlacing)
     def currentPhase: TurnPhase = phase
 
     def nextPhase(): TurnManager = phase match
+        case TurnPhase.SetupPlacing => copy(phase = TurnPhase.SetupPlacing)
         case TurnPhase.WaitingForTurn => copy(phase = TurnPhase.PlacingTroops)
         case TurnPhase.PlacingTroops => copy(phase = TurnPhase.Reinforcement)
         case TurnPhase.Reinforcement => copy(phase = TurnPhase.Attacking)
@@ -39,7 +46,7 @@ case class TurnManagerImpl(
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
 
     def isValidAction(action: GameAction, gameState: GameState, engineState: EngineState): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(playerId, troops, territoryName), TurnPhase.PlacingTroops) => 
+        case (GameAction.PlaceTroops(playerId, troops, territoryName), TurnPhase.SetupPlacing) => 
             val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
             val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidActionException())
             playerId == currentPlayer.id && 
@@ -88,4 +95,5 @@ case class TurnManagerImpl(
         case (GameAction.EndAttack, TurnPhase.Attacking) => true
         case (GameAction.EndPhase, _) => true
         case (GameAction.EndTurn, _) => true
+        case (GameAction.EndSetup, _) => true
         case _ => false
