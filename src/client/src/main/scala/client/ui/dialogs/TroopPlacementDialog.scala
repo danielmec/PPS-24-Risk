@@ -117,7 +117,7 @@ class TroopPlacementDialog(
     }
     
     // Termina il piazzamento
-    owner.actionHandler.endPhase(owner.getGameId)
+    owner.actionHandler.endTurn(owner.getGameId)
     close()
   }
   

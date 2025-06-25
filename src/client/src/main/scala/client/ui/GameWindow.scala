@@ -341,30 +341,15 @@ class GameWindow(
         val missionCard = playerState.get("missionCard")
         println(s"Carta missione: $missionCard")
         
-        val missionDesc = missionCard.flatMap { missionStr =>
-          try {
-            if (missionStr.trim.startsWith("{")) {
-              // È un oggetto JSON
-              import spray.json._
-              import DefaultJsonProtocol._
-              val json = missionStr.parseJson.asJsObject
-              json.fields.get("description").map {
-                case JsString(s) => s
-                case other => other.toString
-              }
-            } else {
-              // Usa la vecchia regex
-              val pattern = "description:([^,}]+)".r
-              pattern.findFirstMatchIn(missionStr.toString).map(_.group(1))
-            }
-          } catch {
-            case e: Exception => 
-              println(s"Errore nell'estrazione della descrizione missione: ${e.getMessage}")
-              None
-          }
+        val missionDesc = missionCard match {
+          case Some(desc) => desc
+          case None => "Nessun obiettivo assegnato"
         }
         
-        myObjective = missionDesc
+        myObjective = missionDesc match {
+          case "Nessun obiettivo assegnato" => None
+          case _ => Some(missionDesc)
+        }
         showObjectiveButton.disable = myObjective.isEmpty
         
         println(s"Obiettivo estratto: $missionDesc")
@@ -478,21 +463,21 @@ class GameWindow(
   def updateTerritory(name: String, owner: String, troops: Int): Unit = {
     val territory = territories.find(_.name == name)
     
-    if (owner == myPlayerId) {
+   /* if (owner == myPlayerId) {
       println(s" Territorio MIO: $name ($troops truppe)")
-    }
+    }*/
     
     territory match {
       case Some(t) => 
         val wasMyTerritory = t.owner.value == myPlayerId
         val becomesMyTerritory = owner == myPlayerId
         
-        // Log per i cambi di proprietà significativi
+        /* Log per i cambi di proprietà significativi
         if (!wasMyTerritory && becomesMyTerritory) {
           println(s" Ho acquisito il territorio: $name")
         } else if (wasMyTerritory && !becomesMyTerritory) {
           println(s"Ho perso il territorio: $name")
-        }
+        }*/
         
         t.owner.value = owner
         t.armies.value = troops
@@ -504,9 +489,9 @@ class GameWindow(
         newTerritory.armies.value = troops
         territories += newTerritory
         
-        if (owner == myPlayerId) {
+       /* if (owner == myPlayerId) {
           println(s"Nuovo territorio MIO: $name ($troops truppe)")
-        }
+        }*/
     }
   }
   
