@@ -37,7 +37,7 @@ case class TurnManagerImpl(
     def nextPhase(): TurnManager = phase match
         case TurnPhase.SetupPlacing => copy(phase = TurnPhase.SetupPlacing)
         case TurnPhase.WaitingForTurn => copy(phase = TurnPhase.PlacingTroops)
-        case TurnPhase.PlacingTroops => copy(phase = TurnPhase.Reinforcement)
+        case TurnPhase.PlacingTroops => copy(phase = TurnPhase.Attacking)
         case TurnPhase.Reinforcement => copy(phase = TurnPhase.Attacking)
         case TurnPhase.Attacking => copy(phase = TurnPhase.Defending)
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
