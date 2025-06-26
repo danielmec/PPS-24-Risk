@@ -7,7 +7,6 @@ import exceptions._
 
 trait TurnManager:
     def currentPlayer: Player
-    def nextSetupPlayer(): TurnManager
     def nextPlayer(): TurnManager
     def currentPhase: TurnPhase
     def nextPhase(): TurnManager
@@ -28,13 +27,11 @@ case class TurnManagerImpl(
         case _ => 
             // if nextIndex grows beyond the list size, it wraps around
             val nextIndex = (currentPlayerIndex + 1) % players.size
-            copy(currentPlayerIndex = nextIndex, phase = TurnPhase.PlacingTroops)
+            if (phase == TurnPhase.SetupPlacing && nextIndex != 0)
+                copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPlacing)
+            else
+                copy(currentPlayerIndex = nextIndex, phase = TurnPhase.PlacingTroops)
 
-    def nextSetupPlayer(): TurnManager = players match
-        case Nil => throw InvalidPlayerException()
-        case _ => 
-            val nextIndex = (currentPlayerIndex + 1) % players.size
-            copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPlacing)
     def currentPhase: TurnPhase = phase
 
     def nextPhase(): TurnManager = phase match

@@ -171,19 +171,15 @@ class GameEngine(
     val gameState = state.gameState
     val currentPlayerId = gameState.turnManager.currentPlayer.id
     val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
-    val allPlaced = gameState.playerStates.forall(_.bonusTroops == 0)
     
     // Decide the next turn manager state
-    val nextTurnManager = if (allPlaced)
-      gameState.turnManager.nextPlayer()
-    else
-      gameState.turnManager.nextSetupPlayer()
+    val nextTurnManager = gameState.turnManager.nextPlayer()
 
     // Update the game state with the new turn manager
     var updatedGameState = gameState.updateTurnManager(nextTurnManager)
     
     // If we're transitioning to normal play, calculate bonus troops for the next player
-    if (allPlaced && nextTurnManager.currentPhase == TurnPhase.PlacingTroops) 
+    if (nextTurnManager.currentPhase == TurnPhase.PlacingTroops) 
       val nextPlayerId = nextTurnManager.currentPlayer.id
       val nextPlayerState = updatedGameState.getPlayerState(nextPlayerId).get
       val bonus = BonusCalculator.calculateStartTurnBonus(nextPlayerId, updatedGameState.board)
