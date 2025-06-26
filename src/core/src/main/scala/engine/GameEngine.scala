@@ -181,12 +181,7 @@ class GameEngine(
     val gameState = state.gameState
     val currentPlayerId = gameState.turnManager.currentPlayer.id
     val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
-    val allPlaced = gameState.playerStates.forall(_.bonusTroops == 0)
-    val updatedTurnManager =
-      if (allPlaced)
-        gameState.turnManager.nextPlayer()
-      else
-        gameState.turnManager.nextSetupPlayer()
+    val updatedTurnManager = gameState.turnManager.nextPlayer()
     val updatedGameState = gameState.updateTurnManager(updatedTurnManager)
     state.copy(gameState = updatedGameState)
 

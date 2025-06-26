@@ -14,7 +14,7 @@ class GameMapView(onMapClicked: => Unit) extends ScrollPane {
   
   // caricamento dell'immagine 
   val mapImage = try {
-    new Image("file:src/client/src/main/scala/client/ui/resources/Risk_game_map.png")
+    new Image("file:src/client/src/main/scala/client/ui/resources/RiskMap.drawio.png")
   } catch {
     case e: Exception => 
       println(s"Errore nel caricamento della mappa: ${e.getMessage}")
