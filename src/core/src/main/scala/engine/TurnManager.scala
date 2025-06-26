@@ -46,13 +46,12 @@ case class TurnManagerImpl(
         case TurnPhase.Defending => copy(phase = TurnPhase.WaitingForTurn)
 
     def isValidAction(action: GameAction, gameState: GameState, engineState: EngineState): Boolean = (action, phase) match
-        case (GameAction.PlaceTroops(playerId, troops, territoryName), TurnPhase.SetupPlacing) => 
+        case (GameAction.PlaceTroops(playerId, troops, territoryName), (TurnPhase.SetupPlacing | TurnPhase.PlacingTroops)) => 
             val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
             val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidActionException())
             playerId == currentPlayer.id && 
             troops > 0 &&
-            territory.isOwnedBy(playerId) && 
-            troops <= playerState.bonusTroops
+            territory.isOwnedBy(playerId)
             
         case (GameAction.Reinforce(playerId, from, to, troops), TurnPhase.Reinforcement) => 
             val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidActionException())

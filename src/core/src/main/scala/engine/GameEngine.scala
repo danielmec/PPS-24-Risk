@@ -74,20 +74,10 @@ class GameEngine(
 
   def performActions(engineState: EngineState, action: GameAction): EngineState =
     val gameState = engineState.gameState
-    val gameStateWithBonus = 
-      if (gameState.turnManager.currentPhase == TurnPhase.PlacingTroops) 
-        val currentPlayerId = gameState.turnManager.currentPlayer.id
-        val playerState = gameState.getPlayerState(currentPlayerId).get  
-        if (playerState.bonusTroops == 0)
-          val bonus = BonusCalculator.calculateStartTurnBonus(currentPlayerId, gameState.board)
-          gameState.updatePlayerState(currentPlayerId, playerState.copy(bonusTroops = bonus))
-        else gameState
-      else gameState
-    val updatedState = engineState.copy(gameState = gameStateWithBonus) 
-    if !gameState.turnManager.isValidAction(action, gameStateWithBonus, engineState) then throw new InvalidActionException()
+    if !gameState.turnManager.isValidAction(action, gameState, engineState) then throw new InvalidActionException()
     action match
       case GameAction.EndSetup => endSetup(engineState)
-      case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameStateWithBonus, playerId, updatedState, territoryName, troops)
+      case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameState, playerId, engineState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
       case GameAction.Attack(attackerId, defenderId, from, to, troops) => attackAction(attackerId, defenderId, from, gameState, engineState, to, troops)
       case GameAction.Defend(defenderId, territoryName, defendTroops) => defendAction(defendTroops, defenderId, gameState, engineState, territoryName)
@@ -182,12 +172,24 @@ class GameEngine(
     val currentPlayerId = gameState.turnManager.currentPlayer.id
     val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
     val allPlaced = gameState.playerStates.forall(_.bonusTroops == 0)
-    val updatedTurnManager =
-      if (allPlaced)
-        gameState.turnManager.nextPlayer()
-      else
-        gameState.turnManager.nextSetupPlayer()
-    val updatedGameState = gameState.updateTurnManager(updatedTurnManager)
+    
+    // Decide the next turn manager state
+    val nextTurnManager = if (allPlaced)
+      gameState.turnManager.nextPlayer()
+    else
+      gameState.turnManager.nextSetupPlayer()
+
+    // Update the game state with the new turn manager
+    var updatedGameState = gameState.updateTurnManager(nextTurnManager)
+    
+    // If we're transitioning to normal play, calculate bonus troops for the next player
+    if (allPlaced && nextTurnManager.currentPhase == TurnPhase.PlacingTroops) 
+      val nextPlayerId = nextTurnManager.currentPlayer.id
+      val nextPlayerState = updatedGameState.getPlayerState(nextPlayerId).get
+      val bonus = BonusCalculator.calculateStartTurnBonus(nextPlayerId, updatedGameState.board)
+      val updatedPlayerState = nextPlayerState.copy(bonusTroops = bonus)
+      updatedGameState = updatedGameState.updatePlayerState(nextPlayerId, updatedPlayerState)
+    
     state.copy(gameState = updatedGameState)
 
   private def endAction(state: EngineState, action: GameAction): EngineState = 
@@ -199,8 +201,18 @@ class GameEngine(
         val (updatedGameState, _) = drawTerritoryCard(gameState, gameState.decksManager, currentPlayerId)
         (updatedGameState, false)
       else (gameState, state.territoryConqueredThisTurn)  
+    
     val nextTurnManager = afterCardDraw.turnManager.nextPhase()
-    val updatedGameState = afterCardDraw.updateTurnManager(nextTurnManager)
+    var updatedGameState = afterCardDraw.updateTurnManager(nextTurnManager)
+    
+    // If we're ending turn, calculate bonus troops for the next player
+    if (isEndTurn) 
+      val nextPlayerId = nextTurnManager.currentPlayer.id
+      val nextPlayerState = updatedGameState.getPlayerState(nextPlayerId).get
+      val bonus = BonusCalculator.calculateStartTurnBonus(nextPlayerId, updatedGameState.board)
+      val updatedPlayerState = nextPlayerState.copy(bonusTroops = bonus)
+      updatedGameState = updatedGameState.updatePlayerState(nextPlayerId, updatedPlayerState)
+    
     val newState = state.copy(
       gameState = updatedGameState,
       territoryConqueredThisTurn = afterConquered

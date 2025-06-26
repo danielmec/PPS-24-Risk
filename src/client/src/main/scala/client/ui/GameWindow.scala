@@ -266,7 +266,6 @@ class GameWindow(
   private def handleGameState(gameState: GameState): Unit = {
     Platform.runLater {
       println(s"Aggiornamento stato di gioco. Fase: ${gameState.state.currentPhase}")
-      
       gameState.state.territories.foreach { territoryMap =>
         val name = territoryMap.getOrElse("name", "")
         val owner = territoryMap.getOrElse("owner", "")
@@ -283,11 +282,12 @@ class GameWindow(
       //apre il dialogo di piazzamento truppe se necessario
       myPlayerState.foreach { playerState =>
         val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
-        
+        println("gestione Bonus" + bonusTroops)
         if (myPlayerId == gameState.state.currentPlayer && 
            (gameState.state.currentPhase == "PlacingTroops" || 
             gameState.state.currentPhase == "SetupPlacing") && 
             bonusTroops > 0) {
+          
           
           // Filtra solo i miei territori
           val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
