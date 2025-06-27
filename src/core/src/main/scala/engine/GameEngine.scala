@@ -80,9 +80,8 @@ class GameEngine(
       case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameState, playerId, engineState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
       case GameAction.Attack(attackerId, defenderId, from, to, troops) => attackAction(attackerId, defenderId, from, gameState, engineState, to, troops)
-      case GameAction.Defend(defenderId, territoryName, defendTroops) => defendAction(defendTroops, defenderId, gameState, engineState, territoryName)
       case GameAction.TradeCards(cards) => tradeCardsAction(cards, gameState, engineState)
-      case GameAction.EndAttack | GameAction.EndPhase | GameAction.EndTurn => endAction(engineState, action)
+      case GameAction.EndTurn => endAction(engineState, action)
 
   private def distributeInitialTerritories(): Board =
     val shuffledTerritories = Random.shuffle(board.territories)

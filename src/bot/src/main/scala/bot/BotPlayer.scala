@@ -19,11 +19,9 @@ class BotPlayer(
 
   override def decideMove(gameState: GameState): GameAction =
     val ratedActions = strategyRules.evaluateAction(gameState, id)
-    //nessuna azione -> termina turno
     if ratedActions.isEmpty then
       gameState.turnManager.currentPhase match
-        case TurnPhase.Attacking => GameAction.EndAttack
-        case TurnPhase.Reinforcement => GameAction.EndTurn
-        case _ => GameAction.EndPhase
+        case TurnPhase.SetupPhase => GameAction.EndSetup
+        case TurnPhase.MainPhase  => GameAction.EndTurn
     else
       ratedActions.max.action

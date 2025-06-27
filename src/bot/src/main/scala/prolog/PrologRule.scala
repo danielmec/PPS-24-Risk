@@ -81,9 +81,6 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
         .getOrElse(throw new InvalidActionException())
       GameAction.Attack(playerId, defenderId, from, to, troops)
     } 
-    else if (functor.startsWith("end_phase")) {
-      GameAction.EndPhase
-    } 
     else if (functor.startsWith("end_turn")) {
       GameAction.EndTurn
     } 
