@@ -440,7 +440,10 @@ class GameSession(
       GameStateDto(
         gameId = gameState.gameId,
         currentPlayer = gameState.turnManager.currentPlayer.id,
-        currentPhase = gameState.turnManager.currentPhase.toString,
+        currentPhase = gameState.turnManager.currentPhase match {
+          case TurnPhase.SetupPhase => "SetupPhase"  
+          case TurnPhase.MainPhase => "MainPhase"
+        },  // Modificato per usare solo le due fasi
         territories = gameState.board.territories.map { territory =>
           TerritoryDto(
             name = territory.name,

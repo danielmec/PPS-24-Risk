@@ -15,7 +15,7 @@ object TestUtils:
       case ps if ps.playerId == playerId => ps.copy(bonusTroops = bonus)
       case ps => ps
 
-  def resetTurnManager(players: List[PlayerImpl], phase: TurnPhase = TurnPhase.WaitingForTurn): TurnManagerImpl =
+  def resetTurnManager(players: List[PlayerImpl], phase: TurnPhase = TurnPhase.SetupPhase): TurnManagerImpl =
     TurnManagerImpl(
       players = players,
       currentPlayerIndex = 0,

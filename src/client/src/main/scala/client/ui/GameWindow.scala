@@ -266,6 +266,8 @@ class GameWindow(
   private def handleGameState(gameState: GameState): Unit = {
     Platform.runLater {
       println(s"Aggiornamento stato di gioco. Fase: ${gameState.state.currentPhase}")
+      
+      // Aggiorna territori
       gameState.state.territories.foreach { territoryMap =>
         val name = territoryMap.getOrElse("name", "")
         val owner = territoryMap.getOrElse("owner", "")
@@ -274,33 +276,55 @@ class GameWindow(
         updateTerritory(name, owner, troops)
       }
     
-      // aggiorna TerritoryInfoPane
+      // Aggiorna TerritoryInfoPane
       territoryInfoPane.updatePlayerTerritories(myPlayerId)
       territoryInfoPane.updateContinentControl(myPlayerId)
       
-      val myPlayerState = gameState.state.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
-      //apre il dialogo di piazzamento truppe se necessario
-      myPlayerState.foreach { playerState =>
-        val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
-        println("gestione Bonus" + bonusTroops)
-        if (myPlayerId == gameState.state.currentPlayer && 
-           (gameState.state.currentPhase == "PlacingTroops" || 
-            gameState.state.currentPhase == "SetupPlacing") && 
-            bonusTroops > 0) {
-          
-          
-          // Filtra solo i miei territori
-          val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
-          showTroopPlacementDialog(myTerritories, bonusTroops)
-          
-        } else if (placementDialogOpen && 
-                  (myPlayerId != gameState.state.currentPlayer || 
-                   gameState.state.currentPhase != "PlacingTroops" ||
-                   gameState.state.currentPhase != "SetupPlacing" || 
-                   bonusTroops <= 0)) {
+      val isMyTurn = myPlayerId == gameState.state.currentPlayer
+      val currentPhase = gameState.state.currentPhase
       
-          closeTroopPlacementDialog()
+      // Gestisci i controlli dell'interfaccia in base alla fase e al turno
+      if (isMyTurn) {
+        val myPlayerState = gameState.state.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
+        
+        myPlayerState.foreach { playerState =>
+          val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
+          
+          if (currentPhase == "SetupPhase") {
+            // Nella fase di setup, mostra solo il dialogo di piazzamento
+            actionPane.attackButton.disable = true
+            actionPane.reinforceButton.disable = true
+            actionPane.endTurnButton.disable = false
+            
+            val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+            showTroopPlacementDialog(myTerritories, bonusTroops)
+          } 
+          else if (currentPhase == "MainPhase") {
+            if (bonusTroops > 0) {
+              // Se ci sono truppe bonus da piazzare, mostra il dialogo di piazzamento
+              actionPane.attackButton.disable = true
+              actionPane.reinforceButton.disable = true
+              actionPane.endTurnButton.disable = true
+              
+              val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+              showTroopPlacementDialog(myTerritories, bonusTroops)
+            } 
+            else {
+              // Piazzamento completato, abilita tutte le azioni
+              closeTroopPlacementDialog()
+              actionPane.attackButton.disable = false
+              actionPane.reinforceButton.disable = false
+              actionPane.endTurnButton.disable = false
+            }
+          }
         }
+      } 
+      else {
+        // Non è il mio turno, disabilita tutto
+        closeTroopPlacementDialog()
+        actionPane.attackButton.disable = true
+        actionPane.reinforceButton.disable = true
+        actionPane.endTurnButton.disable = true
       }
     }
   }
@@ -359,20 +383,17 @@ class GameWindow(
         
         val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
         
-        if (myPlayerId == stateData.currentPlayer && (stateData.currentPhase == "PlacingTroops" || stateData.currentPhase == "SetupPlacing") && bonusTroops > 0) {
+        // Aggiornato per utilizzare le nuove fasi
+        if (myPlayerId == stateData.currentPlayer && 
+           (stateData.currentPhase == "MainPhase" || stateData.currentPhase == "SetupPhase") && 
+           bonusTroops > 0) {
           val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
           println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
           
-          /* Debug - stampa tutti i territori e i loro proprietari
-          territories.foreach(t => 
-            println(s"Territorio disponibile: ${t.name}, Owner: ${t.owner.value}, Match? ${t.owner.value == myPlayerId}")
-          ) */
-          
           showTroopPlacementDialog(myTerritories, bonusTroops)
-        } else if (stateData.currentPhase == "PlacingTroops" || stateData.currentPhase == "SetupPlacing") {
+        } else if (stateData.currentPhase == "MainPhase" || stateData.currentPhase == "SetupPhase") {
           // Non è il mio turno, ma siamo in fase di piazzamento
           Platform.runLater {
-  
             val currentPlayerName = initialState.players.find(p => p.contains(stateData.currentPlayer))
               .map(p => p.split(" \\(").head)
               .getOrElse("altro giocatore")

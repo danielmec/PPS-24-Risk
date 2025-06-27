@@ -14,6 +14,11 @@ class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
   alignment = Pos.Center
   style = "-fx-background-color: #d0d0d0; -fx-border-color: #aaaaaa; -fx-border-width: 1 0 0 0;"
   
+  // Rendi i pulsanti accessibili pubblicamente
+  val attackButton: Button = createActionButton("Attacca", "Attacca un territorio nemico confinante")
+  val reinforceButton: Button = createActionButton("Sposta", "Sposta armate tra territori confinanti")
+  val cardsButton: Button = createActionButton("Mostra Carte", "Visualizza e gestisci le tue carte territorio")
+  
   private val showTerritoriesButton = new Button("Mostra territori") {
     onAction = _ => onShowTerritories
   }
@@ -26,9 +31,9 @@ class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
   }
 
   children = Seq(
-    createActionButton("Attacca", "Attacca un territorio nemico confinante"),
-    createActionButton("Sposta", "Sposta armate tra territori confinanti"),
-    createActionButton("Mostra Carte", "Visualizza e gestisci le tue carte territorio"),
+    attackButton,
+    reinforceButton,
+    cardsButton,
     showTerritoriesButton,
     endTurnButton
   )

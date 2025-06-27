@@ -1,9 +1,5 @@
 package engine 
 
 enum TurnPhase: 
-    case SetupPlacing
-    case WaitingForTurn
-    case Reinforcement 
-    case PlacingTroops 
-    case Attacking
-    case Defending
+  case SetupPhase   // Solo per il piazzamento iniziale
+  case MainPhase    // Fase principale di gioco (piazzamento truppe + attacchi + rinforzi)
