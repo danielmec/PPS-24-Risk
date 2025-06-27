@@ -7,10 +7,11 @@ import exceptions._
 
 object BattleResult extends Enumeration:
   type BattleResult = Value
-  val AttackerWins, DefenderWins = Value
+  val AttackerWins, DefenderWins, BattleContinues = Value // Aggiunto BattleContinues
 
 import BattleResult._
 
+// Stato immutabile della battaglia
 case class BattleState(
   attacker: Player,
   defender: Player,
@@ -20,16 +21,31 @@ case class BattleState(
   defendingTroops: Int,
 )
 
+// Risultato di un singolo round
+case class BattleRoundResult(
+  attackerTerritory: Territory,
+  defenderTerritory: Territory,
+  attackerLosses: Int,
+  defenderLosses: Int,
+  result: BattleResult
+)
+
 object Battle:
 
-  def resolveBattleRound(
-    state: BattleState,
-    attackerDiceRoll: Int => Seq[Int] = Dice.roll,
-    defenderDiceRoll: Int => Seq[Int] = Dice.roll
-  ): BattleState =
-    val attackerDice = attackerDiceRoll(math.min(3, state.attackingTroops))
-    val defenderDice = defenderDiceRoll(math.min(3, state.defendingTroops))
+  /**
+   * Esegue un singolo round di combattimento
+   */
+  def resolveBattleRound(state: BattleState): BattleState =
+    // L'attaccante usa tante truppe quante ne ha deciso all'inizio (max 3)
+    val attackerDiceCount = math.min(3, state.attackingTroops)
+    // Il difensore usa sempre il massimo (max 3)
+    val defenderDiceCount = math.min(3, state.defendingTroops)
+    
+    // Lanciamo i dadi e ordiniamoli
+    val attackerDice = Dice.rollMany(attackerDiceCount)
+    val defenderDice = Dice.rollMany(defenderDiceCount)
 
+    // Confrontiamo i dadi accoppiati
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
       case ((aLoss, dLoss), (aDice, dDice)) =>
@@ -41,17 +57,9 @@ object Battle:
       defendingTroops = state.defendingTroops - defenderLosses
     )
 
-  @annotation.tailrec
-  private def battleLoop(
-    state: BattleState,
-    attackerDiceRoll: Int => Seq[Int],
-    defenderDiceRoll: Int => Seq[Int]
-  ): BattleState =
-    if (state.attackingTroops <= 0 || state.defendingTroops <= 0) state
-    else
-      val newState = resolveBattleRound(state, attackerDiceRoll, defenderDiceRoll)
-      battleLoop(newState, attackerDiceRoll, defenderDiceRoll)
-
+  /**
+   * Valida se un attacco può essere eseguito
+   */
   private def validateBattle(
     attacker: Player,
     defender: Player,
@@ -70,37 +78,16 @@ object Battle:
     else
       Right(())
 
-  private def createBattleResult(
-    finalState: BattleState,
-    originalAttackingTroops: Int
-  ): (BattleResult, Territory, Territory) =
-    val BattleState(attacker, defender, attackerTerritory, defenderTerritory, _, _) = finalState
-    
-    if (finalState.defendingTroops == 0) {
-      val conqueredTerritory = defenderTerritory
-        .changeOwner(attacker)
-        .copy(troops = finalState.attackingTroops)
-      val updatedAttackerTerritory = attackerTerritory
-        .copy(troops = attackerTerritory.troops - originalAttackingTroops)
-      (AttackerWins, updatedAttackerTerritory, conqueredTerritory)
-    } else {
-      val troopsLost = originalAttackingTroops - finalState.attackingTroops
-      val updatedAttackerTerritory = attackerTerritory
-        .copy(troops = attackerTerritory.troops - troopsLost)
-      val updatedDefenderTerritory = defenderTerritory
-        .copy(troops = finalState.defendingTroops)
-      (DefenderWins, updatedAttackerTerritory, updatedDefenderTerritory)
-    }
-
-  def battle(
+  /**
+   * Esegue un singolo round di combattimento e restituisce il risultato
+   */
+  def battleRound(
     attacker: Player,
     defender: Player,
     attackerTerritory: Territory,
     defenderTerritory: Territory,
-    attackingTroops: Int,
-    attackerDiceRoll: Int => Seq[Int] = Dice.roll,
-    defenderDiceRoll: Int => Seq[Int] = Dice.roll
-  ): (BattleResult, Territory, Territory) =
+    attackingTroops: Int
+  ): BattleRoundResult =
     
     validateBattle(attacker, defender, attackerTerritory, defenderTerritory, attackingTroops) match
       case Left(error) => throw new InvalidActionException()
@@ -114,6 +101,50 @@ object Battle:
           defenderTerritory.troops
         )
         
-        val finalState = battleLoop(initialState, attackerDiceRoll, defenderDiceRoll)
+        val afterRound = resolveBattleRound(initialState)
         
-        createBattleResult(finalState, attackingTroops)
+        // Calcola le perdite
+        val attackerLosses = attackingTroops - afterRound.attackingTroops
+        val defenderLosses = defenderTerritory.troops - afterRound.defendingTroops
+        
+        // Determina il risultato
+        val battleResult = 
+          if (afterRound.defendingTroops == 0)
+            BattleResult.AttackerWins
+          else if (afterRound.attackingTroops == 0)
+            BattleResult.DefenderWins
+          else
+            BattleResult.BattleContinues
+            
+        // Aggiorna i territori
+        val (updatedAttacker, updatedDefender) = battleResult match
+          case BattleResult.AttackerWins =>
+            // Difensore sconfitto, l'attaccante conquista il territorio
+            val conqueredTerritory = defenderTerritory
+              .changeOwner(attacker)
+              .copy(troops = afterRound.attackingTroops)
+            val updatedAttackerTerritory = attackerTerritory
+              .copy(troops = attackerTerritory.troops - attackingTroops)
+            (updatedAttackerTerritory, conqueredTerritory)
+            
+          case BattleResult.DefenderWins =>
+            // Attaccante sconfitto
+            val updatedAttackerTerritory = attackerTerritory
+              .copy(troops = attackerTerritory.troops - attackingTroops)
+            (updatedAttackerTerritory, defenderTerritory)
+            
+          case BattleResult.BattleContinues =>
+            // La battaglia può continuare
+            val updatedAttackerTerritory = attackerTerritory
+              .copy(troops = attackerTerritory.troops - attackerLosses)
+            val updatedDefenderTerritory = defenderTerritory
+              .copy(troops = defenderTerritory.troops - defenderLosses)
+            (updatedAttackerTerritory, updatedDefenderTerritory)
+            
+        BattleRoundResult(
+          updatedAttacker,
+          updatedDefender,
+          attackerLosses,
+          defenderLosses,
+          battleResult
+        )

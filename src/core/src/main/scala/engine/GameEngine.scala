@@ -125,28 +125,25 @@ class GameEngine(
     val attackerTerritory = gameState.getTerritoryByName(from).get
     val defenderTerritory = gameState.getTerritoryByName(to).get
     
-    // Esegui automaticamente la difesa
-    val defendTroops = Math.min(defenderTerritory.troops, 3)
-    
-    val (result, updatedAttackerTerritory, updatedDefenderTerritory) = Battle.battle(
-      attacker, defender, attackerTerritory, defenderTerritory, troops,
-      attackerDiceRoll = utils.Dice.roll,
-      defenderDiceRoll = _ => utils.Dice.roll(defendTroops)
+    // Esegue un singolo round di battaglia
+    val battleResult = Battle.battleRound(
+      attacker, defender, attackerTerritory, defenderTerritory, troops
     )
     
-    val conquered = updatedDefenderTerritory.isOwnedBy(attacker.id)
     val updatedBoard = gameState.board
-      .updatedTerritory(updatedAttackerTerritory)
-      .updatedTerritory(updatedDefenderTerritory)
+      .updatedTerritory(battleResult.attackerTerritory)
+      .updatedTerritory(battleResult.defenderTerritory)
     
-    val updatedGameState = gameState.updateBoard(updatedBoard)
+    var updatedGameState = gameState.updateBoard(updatedBoard)
     
-    val afterElimination = if !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty
-      then transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
-      else updatedGameState
+    val conquered = battleResult.result == BattleResult.AttackerWins
+    
+    if (conquered && !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty) {
+      updatedGameState = transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
+    }
     
     state.copy(
-      gameState = afterElimination,
+      gameState = updatedGameState,
       territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
     )
 
