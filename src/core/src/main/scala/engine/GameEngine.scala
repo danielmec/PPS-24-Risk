@@ -10,7 +10,6 @@ import scala.util.Random
 
 case class EngineState(
   gameState: GameState,
-  pendingAttack: Option[(PlayerImpl, PlayerImpl, Territory, Territory, Int)] = None,
   territoryConqueredThisTurn: Boolean = false,
 )
 
@@ -58,7 +57,6 @@ class GameEngine(
     )
     engineState = EngineState(
       gameState = updatedGameState,
-      pendingAttack = None,
       territoryConqueredThisTurn = false,
     ) 
     updatedGameState
@@ -80,9 +78,8 @@ class GameEngine(
       case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameState, playerId, engineState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
       case GameAction.Attack(attackerId, defenderId, from, to, troops) => attackAction(attackerId, defenderId, from, gameState, engineState, to, troops)
-      case GameAction.Defend(defenderId, territoryName, defendTroops) => defendAction(defendTroops, defenderId, gameState, engineState, territoryName)
       case GameAction.TradeCards(cards) => tradeCardsAction(cards, gameState, engineState)
-      case GameAction.EndAttack | GameAction.EndPhase | GameAction.EndTurn => endAction(engineState, action)
+      case GameAction.EndTurn => endAction(engineState, action)
 
   private def distributeInitialTerritories(): Board =
     val shuffledTerritories = Random.shuffle(board.territories)
@@ -150,32 +147,8 @@ class GameEngine(
     
     state.copy(
       gameState = afterElimination,
-      pendingAttack = None,
       territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
     )
-
-  private def defendAction(defendTroops: Int, defenderId: String, gameState: GameState, engineState: EngineState, territoryName: String): EngineState =
-    engineState.pendingAttack match
-      case Some((attacker, defender, attackerTerritory, defenderTerritory, attackingTroops)) =>
-        val (result, updatedAttackerTerritory, updatedDefenderTerritory) = Battle.battle(
-          attacker, defender, attackerTerritory, defenderTerritory, attackingTroops,
-          attackerDiceRoll = utils.Dice.roll,
-          defenderDiceRoll = _ => utils.Dice.roll(defendTroops)
-        )
-        val conquered = updatedDefenderTerritory.isOwnedBy(attacker.id)
-        val updatedBoard = gameState.board
-          .updatedTerritory(updatedAttackerTerritory)
-          .updatedTerritory(updatedDefenderTerritory)
-        val updatedGameState = gameState.updateBoard(updatedBoard)
-        val afterElimination = if !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty
-          then transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
-          else updatedGameState
-        engineState.copy(
-          gameState = afterElimination,
-          pendingAttack = None,  
-          territoryConqueredThisTurn = engineState.territoryConqueredThisTurn || conquered
-        )
-      case None => throw new InvalidActionException()
 
   private def tradeCardsAction(cards: Set[TerritoryCard], gameState: GameState, state: EngineState): EngineState =
     val currentPlayerId = gameState.turnManager.currentPlayer.id
