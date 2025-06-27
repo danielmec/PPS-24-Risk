@@ -38,4 +38,4 @@ object BonusCalculator:
         val playerId = playerState.playerId
         val territoriesOwned = board.territoriesOwnedBy(playerId).size
         val remainingTroops = baseTroops - territoriesOwned
-        playerState.copy(bonusTroops = remainingTroops, phase = TurnPhase.MainPhase)
+        playerState.copy(bonusTroops = remainingTroops, phase = TurnPhase.SetupPhase)
