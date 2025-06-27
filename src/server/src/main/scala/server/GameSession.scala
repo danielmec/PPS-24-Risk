@@ -406,12 +406,6 @@ class GameSession(
         case "end_setup" =>
           engine.GameAction.EndSetup  
           
-        case "end_phase" =>
-          engine.GameAction.EndPhase
-          
-        case "end_attack" =>
-          engine.GameAction.EndAttack
-          
         case "reinforce" =>
           engine.GameAction.Reinforce(
             playerId,
@@ -419,15 +413,7 @@ class GameSession(
             clientAction.parameters.getOrElse("to", ""),
             clientAction.parameters.getOrElse("troops", "0").toInt
           )
-          
-        case "defend" =>
-          engine.GameAction.Defend(
-            playerId,
-            clientAction.parameters.getOrElse("territory", ""),
-            clientAction.parameters.getOrElse("troops", "0").toInt
-          )
-          
-        
+
         case unknown =>
           throw new IllegalArgumentException(s"Unknown action: $unknown")
       }
