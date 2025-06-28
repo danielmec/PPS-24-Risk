@@ -28,9 +28,11 @@ case class TurnManagerImpl(
             val nextIndex = (currentPlayerIndex + 1) % players.size
             if (phase == TurnPhase.SetupPhase && nextIndex != 0)
                 // Durante il setup, rimaniamo in SetupPhase
+                println("HEY HEY SONO PROPRIO QUI")
                 copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPhase)
             else
                 // Dopo il setup o quando il turno torna al primo giocatore, passiamo alla MainPhase
+                println("HEY HEY MI SONO PROPRIO SPOSTATO")
                 copy(currentPlayerIndex = nextIndex, phase = TurnPhase.MainPhase)
 
     def currentPhase: TurnPhase = phase
@@ -46,17 +48,16 @@ case class TurnManagerImpl(
             (phase == TurnPhase.SetupPhase || playerState.bonusTroops >= troops)
             
         // Rinforzo consentito solo in MainPhase
-        case (GameAction.Reinforce(playerId, from, to, troops), TurnPhase.MainPhase) => 
-            val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
-            val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidActionException())
-            val toTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidActionException())
-            playerId == currentPlayer.id &&
-            playerState.bonusTroops == 0 && // Il giocatore deve aver piazzato tutte le truppe bonus
-            fromTerritory.isOwnedBy(playerId) && 
-            toTerritory.isOwnedBy(playerId) &&
-            fromTerritory.hasEnoughTroops(troops + 1) &&
-            gameState.board.areNeighbors(fromTerritory, toTerritory) &&
-            troops > 0
+        case (GameAction.Reinforce(playerId, from, to, numTroops), TurnPhase.MainPhase) =>
+          val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
+          val fromTerritory = gameState.getTerritoryByName(from).getOrElse(throw new InvalidActionException())
+          val toTerritory = gameState.getTerritoryByName(to).getOrElse(throw new InvalidActionException())
+          playerId == currentPlayer.id &&
+          playerState.bonusTroops == 0 &&
+          fromTerritory.isOwnedBy(playerId) &&
+          toTerritory.isOwnedBy(playerId) &&
+          fromTerritory.hasEnoughTroops(numTroops + 1) &&
+          gameState.board.areNeighbors(fromTerritory, toTerritory)
             
         // Attacco consentito solo in MainPhase
         case (GameAction.Attack(attackerId, defenderId, from, to, numTroops), TurnPhase.MainPhase) =>

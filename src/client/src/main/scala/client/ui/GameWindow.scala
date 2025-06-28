@@ -47,6 +47,7 @@ class GameWindow(
   private var placementDialogOpen: Boolean = false
   private var attackDialogOpen: Boolean = false
   private var currentPlacementDialog: Option[TroopPlacementDialog] = None
+  var reinforcementDoneThisTurn: Boolean = false
   
   // ==================== COMPONENTI UI ====================
   //Inizializzazione dei territori
@@ -176,6 +177,11 @@ class GameWindow(
     actionPane.attackButton.onAction = handle {
       showAttackDialog()
     }
+
+    actionPane.reinforceButton.onAction = handle {
+      showReinforcementDialog()
+    }
+
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
       println("[UI] Fine turno richiesto dall'utente")
@@ -369,7 +375,9 @@ class GameWindow(
               // Piazzamento completato, abilita tutte le azioni
               closeTroopPlacementDialog()
               actionPane.attackButton.disable = false
-              actionPane.reinforceButton.disable = false
+              // Abilita solo se hai territori validi per il rinforzo
+              val canReinforce = territories.exists(t => t.owner.value == myPlayerId && t.armies.value > 1)
+              actionPane.reinforceButton.disable = !canReinforce
               actionPane.endTurnButton.disable = false
             }
           }
@@ -621,5 +629,24 @@ class GameWindow(
    */
   private def createTerritories(): ObservableBuffer[UITerritory] = {
     AdapterMap.loadTerritories() //resituisce una Buffer[UITerritory]
+  }
+  
+  /**
+   * Mostra il dialogo per il rinforzo delle truppe
+   */
+  private def showReinforcementDialog(): Unit = {
+    val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+    if (myTerritories.exists(_.armies.value > 1)) {
+      val dialog = new client.ui.dialogs.ReinforcementDialog(this, myTerritories)
+      dialog.showAndWait()
+    } else {
+      val alert = new Alert(Alert.AlertType.Information) {
+        initOwner(GameWindow.this)
+        title = "Rinforzo non possibile"
+        headerText = "Nessun territorio valido"
+        contentText = "Non hai territori con abbastanza truppe per spostare rinforzi."
+      }
+      alert.showAndWait()
+    }
   }
 }

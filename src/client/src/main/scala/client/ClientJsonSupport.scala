@@ -364,6 +364,17 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           messageHandlers(msgType)(fields)
         
         case Some(JsString(unknownType)) => 
+          println(s"[DEBUG] Tipo di messaggio sconosciuto ricevuto: '$unknownType'")
+          println(s"[DEBUG] Contenuto completo del messaggio: ${jsValue.prettyPrint}")
+          println(s"[DEBUG] Campi disponibili: ${fields.keys.mkString(", ")}")
+          
+          // Se c'è un campo "message" o "error", stampalo
+          fields.get("message").foreach(msg => println(s"[DEBUG] Campo message: ${msg}"))
+          fields.get("error").foreach(err => println(s"[DEBUG] Campo error: ${err}"))
+          
+          // Stampa i tipi di messaggi che possiamo gestire
+          println(s"[DEBUG] Tipi di messaggio supportati: ${messageHandlers.keys.mkString(", ")}")
+          
           ErrorMessage(s"Tipo di messaggio sconosciuto: $unknownType")
           
         case _ => 
