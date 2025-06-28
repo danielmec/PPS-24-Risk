@@ -118,7 +118,9 @@ object ServerMessages:
         defenderTerritory: String,
         attackerLosses: Int,
         defenderLosses: Int,
-        newOwner: Option[String]
+        newOwner: Option[String],
+        attackerDice: List[Int] = List(),
+        defenderDice: List[Int] = List()
     ) extends Message
 
     case class GameOver(

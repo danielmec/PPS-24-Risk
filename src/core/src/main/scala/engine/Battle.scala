@@ -27,7 +27,9 @@ case class BattleRoundResult(
   defenderTerritory: Territory,
   attackerLosses: Int,
   defenderLosses: Int,
-  result: BattleResult
+  result: BattleResult,
+  attackerDice: Seq[Int],
+  defenderDice: Seq[Int]
 )
 
 object Battle:
@@ -35,16 +37,8 @@ object Battle:
   /**
    * Esegue un singolo round di combattimento
    */
-  def resolveBattleRound(state: BattleState): BattleState =
-    // L'attaccante usa tante truppe quante ne ha deciso all'inizio (max 3)
-    val attackerDiceCount = math.min(3, state.attackingTroops)
-    // Il difensore usa sempre il massimo (max 3)
-    val defenderDiceCount = math.min(3, state.defendingTroops)
+  def resolveBattleRound(state: BattleState, attackerDice : Seq[Int], defenderDice : Seq[Int]): BattleState =
     
-    // Lanciamo i dadi e ordiniamoli
-    val attackerDice = Dice.rollMany(attackerDiceCount)
-    val defenderDice = Dice.rollMany(defenderDiceCount)
-
     // Confrontiamo i dadi accoppiati
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
@@ -100,8 +94,17 @@ object Battle:
           attackingTroops,
           defenderTerritory.troops
         )
+
+        // L'attaccante usa tante truppe quante ne ha deciso all'inizio (max 3)
+        val attackerDiceCount = math.min(3, initialState.attackingTroops)
+        // Il difensore usa sempre il massimo (max 3)
+        val defenderDiceCount = math.min(3, initialState.defendingTroops)
         
-        val afterRound = resolveBattleRound(initialState)
+        // Lanciamo i dadi e ordiniamoli
+        val attackerDice = Dice.rollMany(attackerDiceCount)
+        val defenderDice = Dice.rollMany(defenderDiceCount)
+        
+        val afterRound = resolveBattleRound(initialState, attackerDice, defenderDice)
         
         // Calcola le perdite
         val attackerLosses = attackingTroops - afterRound.attackingTroops
@@ -146,5 +149,7 @@ object Battle:
           updatedDefender,
           attackerLosses,
           defenderLosses,
-          battleResult
+          battleResult,
+          attackerDice,
+          defenderDice 
         )

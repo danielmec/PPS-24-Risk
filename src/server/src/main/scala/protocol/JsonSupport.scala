@@ -100,7 +100,7 @@ object JsonSupport extends DefaultJsonProtocol:
 
   implicit val turnChangedFormat: RootJsonFormat[ServerMessages.TurnChanged] = jsonFormat3(ServerMessages.TurnChanged)
   implicit val territoryUpdateFormat: RootJsonFormat[ServerMessages.TerritoryUpdate] = jsonFormat4(ServerMessages.TerritoryUpdate)
-  implicit val battleResultFormat: RootJsonFormat[ServerMessages.BattleResult] = jsonFormat6(ServerMessages.BattleResult)
+  implicit val battleResultFormat: RootJsonFormat[ServerMessages.BattleResult] = jsonFormat8(ServerMessages.BattleResult)
   implicit val gameOverFormat: RootJsonFormat[ServerMessages.GameOver] = jsonFormat3(ServerMessages.GameOver)
 
   // Lettura di messaggi client generici 
@@ -264,7 +264,9 @@ object JsonSupport extends DefaultJsonProtocol:
             "newOwner" -> (msg.newOwner match {
               case Some(owner) => JsString(owner)
               case None => JsNull
-            })  
+            }),
+            "attackerDice" -> JsArray(msg.attackerDice.map(JsNumber(_)).toVector),
+            "defenderDice" -> JsArray(msg.defenderDice.map(JsNumber(_)).toVector)
           )
           
         case msg: ServerMessages.GameOver =>

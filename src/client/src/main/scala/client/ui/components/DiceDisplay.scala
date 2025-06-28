@@ -64,7 +64,49 @@ class DiceDisplay extends VBox(10) {
   /**
    * Aggiorna i valori dei dadi visualizzati
    */
-  def updateValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
-    //valori dadi 
+  def updateValues(attackerValues: Seq[Int], defenderValues: Seq[Int]): Unit = {
+    try {
+      println(s"Aggiornamento dadi: attaccante=${attackerValues.mkString(",")}, difensore=${defenderValues.mkString(",")}")
+      
+      val attackerVBox = children(0).delegate.asInstanceOf[javafx.scene.layout.VBox]
+      val defenderVBox = children(2).delegate.asInstanceOf[javafx.scene.layout.VBox]
+      
+      val attackerDiceRow = attackerVBox.getChildren.get(1).asInstanceOf[javafx.scene.layout.HBox]
+      val defenderDiceRow = defenderVBox.getChildren.get(1).asInstanceOf[javafx.scene.layout.HBox]
+
+      // Aggiorna i dadi dell'attaccante
+      for (i <- 0 until Math.min(3, attackerDiceRow.getChildren.size)) {
+        val diceView = attackerDiceRow.getChildren.get(i).asInstanceOf[javafx.scene.layout.StackPane]
+        val label = diceView.getChildren.get(1).asInstanceOf[javafx.scene.control.Label]
+        
+        if (i < attackerValues.size) {
+          label.setText(attackerValues(i).toString)
+          diceView.setVisible(true)
+        } else {
+          label.setText("?")
+          diceView.setVisible(false)
+        }
+      }
+      
+      // Aggiorna i dadi del difensore
+      for (i <- 0 until Math.min(3, defenderDiceRow.getChildren.size)) {
+        val diceView = defenderDiceRow.getChildren.get(i).asInstanceOf[javafx.scene.layout.StackPane]
+        val label = diceView.getChildren.get(1).asInstanceOf[javafx.scene.control.Label]
+        
+        if (i < defenderValues.size) {
+          label.setText(defenderValues(i).toString)
+          diceView.setVisible(true)
+        } else {
+          label.setText("?")
+          diceView.setVisible(false)
+        }
+      }
+      
+      requestLayout()
+    } catch {
+      case e: Exception => 
+        e.printStackTrace()
+        println(s"Errore nell'aggiornamento dei dadi: ${e.getMessage}")
+    }
   }
 }

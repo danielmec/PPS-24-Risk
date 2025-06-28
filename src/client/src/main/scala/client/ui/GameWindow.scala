@@ -168,6 +168,19 @@ class GameWindow(
         case _ => println("Messaggio gameJoined ricevuto con formato non valido")
       }
     })
+
+    networkManager.registerCallback("battleResult", msg => {
+      println(s"Callback battleResult ricevuto!")
+      val battleResult = msg.asInstanceOf[BattleResultMessage]
+      
+      Platform.runLater {
+        // Aggiorna i dadi
+        updateDiceValues(battleResult.attackerDice, battleResult.defenderDice)
+        
+        println(s"Dadi attaccante: ${battleResult.attackerDice.mkString(", ")}")
+        println(s"Dadi difensore: ${battleResult.defenderDice.mkString(", ")}")
+      }
+    })
   }
   
   /**
@@ -585,7 +598,7 @@ class GameWindow(
   /**
    * Aggiorna i valori dei dadi visualizzati
    */
-  def updateDiceValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
+  def updateDiceValues(attackerValues: Seq[Int], defenderValues: Seq[Int]): Unit = {
     diceDisplay.updateValues(attackerValues, defenderValues)
   }
   
