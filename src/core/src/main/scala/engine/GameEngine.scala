@@ -6,7 +6,7 @@ import model.board._
 import exceptions._
 import utils._
 import utils.GameEngineUtils._
-import scala.util.Random
+import scala.util.Random._
 
 case class EngineState(
   gameState: GameState,
@@ -37,10 +37,10 @@ class GameEngine(
 
   def setup(): GameState = 
     var currentDecksManager = decksManager.shuffleTerritoriesDeck().shuffleObjectivesDeck()
-    val updatedBoard = distributeInitialTerritories()
-    val (updatedDeckManager, playerStatesWithObjectives) = assignObjectivesToPlayers(currentDecksManager)
+    val updatedBoard = distributeInitialTerritories(board, players)
+    val (updatedDeckManager, playerStatesWithObjectives) = assignObjectivesToPlayers(currentDecksManager, players, playerStates)
     currentDecksManager = updatedDeckManager
-    val shuffledPlayers = Random.shuffle(players)
+    val shuffledPlayers = shuffle(players)
     val playerStatesWithTroops = BonusCalculator.calculateInitialTroops(shuffledPlayers, playerStatesWithObjectives, updatedBoard)
     val updatedTurnManager = TurnManagerImpl(
       players = shuffledPlayers,
@@ -79,24 +79,6 @@ class GameEngine(
       case GameAction.TradeCards(cards) => tradeCardsAction(cards, gameState, engineState)
       case GameAction.EndTurn => endAction(engineState, action)
 
-  private def distributeInitialTerritories(): Board =
-    val shuffledTerritories = Random.shuffle(board.territories)
-    val assignedTerritories = shuffledTerritories.zipWithIndex.map: 
-      case (territory, index) =>
-        val playerIndex = index % players.size
-        val player = players(playerIndex)
-        territory.copy(owner = Some(player), troops = 1)
-    assignedTerritories.foldLeft(board):
-      (updatedBoard, territory) => updatedBoard.updatedTerritory(territory)
-  
-  private def assignObjectivesToPlayers(currentDecksManager: DecksManager): (DecksManager, List[PlayerState]) = 
-    players.foldLeft((currentDecksManager, List.empty[PlayerState])) {
-      case ((dm, states), player) =>
-        val (updatedDM, objective) = dm.drawObjective()
-        val playerState = playerStates.find(_.playerId == player.id).get
-        (updatedDM, states :+ playerState.setObjectiveCard(objective))
-    }
-
   private def placeTroopsAction(gameState: GameState, playerId: String, state: EngineState, territoryName: String, troops: Int): EngineState =
     val territory = gameState.getTerritoryByName(territoryName).get
     val playerState = gameState.getPlayerState(playerId).get
@@ -118,28 +100,16 @@ class GameEngine(
     state.copy(gameState = gameState.updateBoard(updatedBoard))
 
   private def attackAction(attackerId: String, defenderId: String, from: String, gameState: GameState, state: EngineState, to: String, troops: Int): EngineState =
-    val attacker = players.find(_.id == attackerId).get
-    val defender = players.find(_.id == defenderId).get
     val attackerTerritory = gameState.getTerritoryByName(from).get
     val defenderTerritory = gameState.getTerritoryByName(to).get
-    
-    // Esegue un singolo round di battaglia
-    val battleResult = Battle.battleRound(
-      attacker, defender, attackerTerritory, defenderTerritory, troops
-    )
-    
+    val battleResult = Battle.battleRound(attackerTerritory.owner.get, defenderTerritory.owner.get, attackerTerritory, defenderTerritory, troops)
     val updatedBoard = gameState.board
       .updatedTerritory(battleResult.attackerTerritory)
       .updatedTerritory(battleResult.defenderTerritory)
-    
     var updatedGameState = gameState.updateBoard(updatedBoard)
-    
     val conquered = battleResult.result == BattleResult.AttackerWins
-    
-    if (conquered && !updatedBoard.territoriesOwnedBy(defender.id).nonEmpty) {
-      updatedGameState = transferCardsOnElimination(updatedGameState, defender.id, attacker.id)
-    }
-    
+    if (conquered && !updatedBoard.territoriesOwnedBy(defenderId).nonEmpty) then 
+      updatedGameState = transferCardsOnElimination(updatedGameState, defenderId, attackerId) 
     state.copy(
       gameState = updatedGameState,
       territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
@@ -159,70 +129,20 @@ class GameEngine(
     val gameState = state.gameState
     val currentPlayerId = gameState.turnManager.currentPlayer.id
     val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
-    
-    // Decide the next turn manager state
     val nextTurnManager = gameState.turnManager.nextPlayer()
-
-    // Update the game state with the new turn manager
     var updatedGameState = gameState.updateTurnManager(nextTurnManager)
-    
-    // If we're transitioning to normal play, calculate bonus troops for the next player
-    if (nextTurnManager.currentPhase == TurnPhase.MainPhase) // Cambiato da PlacingTroops a MainPhase
+    if (nextTurnManager.currentPhase == TurnPhase.MainPhase) 
       val nextPlayerId = nextTurnManager.currentPlayer.id
       val nextPlayerState = updatedGameState.getPlayerState(nextPlayerId).get
       val bonus = BonusCalculator.calculateStartTurnBonus(nextPlayerId, updatedGameState.board)
       val updatedPlayerState = nextPlayerState.copy(bonusTroops = bonus)
       updatedGameState = updatedGameState.updatePlayerState(nextPlayerId, updatedPlayerState)
-    
     state.copy(gameState = updatedGameState)
 
-  // Modifica endAction per gestire solo EndTurn
   private def endAction(state: EngineState, action: GameAction): EngineState = 
-    val gameState = state.gameState
-    
-    // Verifica che tutte le truppe bonus siano state piazzate
-    if (action == GameAction.EndTurn) {
-      val currentPlayerId = gameState.turnManager.currentPlayer.id
-      val currentPlayerState = gameState.getPlayerState(currentPlayerId).get
-      
-      if (currentPlayerState.bonusTroops > 0) {
-        throw new InvalidActionException()
-      }
-    }
-
-    // Gestione del territorio conquistato e carte territorio
-    val (afterCardDraw, afterConquered) =
-      if (action == GameAction.EndTurn && state.territoryConqueredThisTurn)
-        val currentPlayerId = gameState.turnManager.currentPlayer.id
-        val (updatedGameState, _) = drawTerritoryCard(gameState, gameState.decksManager, currentPlayerId)
-        (updatedGameState, false)
-      else (gameState, state.territoryConqueredThisTurn)  
-    
-    // Passa al prossimo giocatore
-    val nextTurnManager = afterCardDraw.turnManager.nextPlayer()
-    var updatedGameState = afterCardDraw.updateTurnManager(nextTurnManager)
-    
-    // Calcola i bonus per il prossimo giocatore
-    val nextPlayerId = nextTurnManager.currentPlayer.id
-    val nextPlayerState = updatedGameState.getPlayerState(nextPlayerId).get
-    val bonus = BonusCalculator.calculateStartTurnBonus(nextPlayerId, updatedGameState.board)
-    val updatedPlayerState = nextPlayerState.copy(bonusTroops = bonus)
-    updatedGameState = updatedGameState.updatePlayerState(nextPlayerId, updatedPlayerState)
-    
-    val newState = state.copy(
-      gameState = updatedGameState,
-      territoryConqueredThisTurn = afterConquered
-    )
-    
-    checkVictory(newState) match
-      case Some(winner) => throw new GameOverException(winner)
-      case None => newState
-
-  def setGameState(newState: GameState): Unit = engineState = engineState.copy(gameState = newState)
-
-  def getGameState: GameState = engineState.gameState
-
-  private def checkVictory(engineState: EngineState): Option[PlayerState] = engineState.gameState.checkWinCondition
+    val stateAfterCardDraw = handleTerritoryCardReward(state, action)
+    val stateWithNextPlayer = moveToNextPlayer(stateAfterCardDraw)
+    checkVictoryCondition(stateWithNextPlayer)
 
   //to do: collegamento con client
   def executeBotTurn(): GameState =
@@ -245,3 +165,7 @@ class GameEngine(
           isCurrentTurn = false
       }
     engineState.gameState
+
+  def setGameState(newState: GameState): Unit = engineState = engineState.copy(gameState = newState)
+
+  def getGameState: GameState = engineState.gameState
