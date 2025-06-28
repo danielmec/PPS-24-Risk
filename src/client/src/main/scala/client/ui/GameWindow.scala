@@ -15,6 +15,7 @@ import client.ClientJsonSupport._
 import client.ui.components._
 import client.ui.dialogs.TerritoriesDialog
 import client.ui.dialogs.TroopPlacementDialog
+import client.ui.dialogs.AttackDialog
 import client.GameActionHandler
 import client.AdapterMap
 import client.AdapterMap.UITerritory
@@ -44,6 +45,7 @@ class GameWindow(
   private var currentPlayerId: String = ""
   private var myObjective: Option[String] = None
   private var placementDialogOpen: Boolean = false
+  private var attackDialogOpen: Boolean = false
   private var currentPlacementDialog: Option[TroopPlacementDialog] = None
   
   // ==================== COMPONENTI UI ====================
@@ -171,6 +173,9 @@ class GameWindow(
    * Configura i gestori degli eventi per i componenti UI
    */
   private def setupUIEventHandlers(): Unit = {
+    actionPane.attackButton.onAction = handle {
+      showAttackDialog()
+    }
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
       println("[UI] Fine turno richiesto dall'utente")
@@ -200,6 +205,57 @@ class GameWindow(
             actionPane.endTurnButton.disable = false // Riabilita in caso di errore
           }
       }(networkManager.executionContext)
+    }
+  }
+
+  /**
+   * Mostra il dialogo per l'attacco
+   */
+  private def showAttackDialog(): Unit = {
+    if (!attackDialogOpen) {
+      try {
+        // Filtra i territori per l'attacco (solo i propri con più di 1 truppa)
+        val myTerritories = territories.filter(t => 
+          t.owner.value == myPlayerId && t.armies.value > 1
+        )
+        
+        // Filtra i territori nemici
+        val enemyTerritories = territories.filter(t => 
+          t.owner.value != myPlayerId
+        )
+        
+        if (myTerritories.isEmpty) {
+          val alert = new Alert(Alert.AlertType.Information) {
+            initOwner(GameWindow.this)
+            title = "Attacco non possibile"
+            headerText = "Non puoi attaccare"
+            contentText = "Non hai territori con abbastanza truppe per attaccare."
+          }
+          alert.showAndWait()
+          return
+        }
+        
+        val attackDialog = new AttackDialog(
+          this, 
+          myTerritories,
+          enemyTerritories
+        )
+        
+        attackDialogOpen = true
+        
+        attackDialog.onHidden = _ => {
+          attackDialogOpen = false
+        }
+        
+        Platform.runLater {
+          attackDialog.show()
+        }
+      } catch {
+        case e: Exception => 
+          println(s"ERRORE nella creazione del dialogo di attacco: ${e.getMessage}")
+          e.printStackTrace()
+          attackDialogOpen = false
+      }
     }
   }
   
