@@ -25,10 +25,10 @@
     {
       "name": "Europe",
       "territories": [
-        { "name": "Western Europe", "neighbors": ["Northern Europe", "Southern Europe", "North Africa"] },
+        { "name": "Western Europe", "neighbors": ["Northern Europe", "Southern Europe", "Eastern Europe", "North Africa"] },
         { "name": "Northern Europe", "neighbors": ["Western Europe", "Russia", "Greenland"] },
         { "name": "Southern Europe", "neighbors": ["Western Europe", "Eastern Europe", "North Africa", "Middle East"] },
-        { "name": "Eastern Europe", "neighbors": ["Southern Europe", "Russia", "Middle East"] }
+        { "name": "Eastern Europe", "neighbors": ["Southern Europe", "Western Europe", "Russia", "Middle East"] }
       ],
       "bonusTroops": 5
     },

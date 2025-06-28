@@ -27,12 +27,8 @@ case class TurnManagerImpl(
             // if nextIndex grows beyond the list size, it wraps around
             val nextIndex = (currentPlayerIndex + 1) % players.size
             if (phase == TurnPhase.SetupPhase && nextIndex != 0)
-                // Durante il setup, rimaniamo in SetupPhase
-                println("HEY HEY SONO PROPRIO QUI")
                 copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPhase)
             else
-                // Dopo il setup o quando il turno torna al primo giocatore, passiamo alla MainPhase
-                println("HEY HEY MI SONO PROPRIO SPOSTATO")
                 copy(currentPlayerIndex = nextIndex, phase = TurnPhase.MainPhase)
 
     def currentPhase: TurnPhase = phase

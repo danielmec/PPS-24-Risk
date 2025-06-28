@@ -40,12 +40,10 @@ class GameEngine(
     val updatedBoard = distributeInitialTerritories()
     val (updatedDeckManager, playerStatesWithObjectives) = assignObjectivesToPlayers(currentDecksManager)
     currentDecksManager = updatedDeckManager
-    val playerStatesWithTroops = BonusCalculator.calculateInitialTroops(players, playerStatesWithObjectives, updatedBoard)
-    val firstPlayer = Random.shuffle(players).head
-    val firstPlayerIndex = players.indexOf(firstPlayer)
+    val shuffledPlayers = Random.shuffle(players)
+    val playerStatesWithTroops = BonusCalculator.calculateInitialTroops(shuffledPlayers, playerStatesWithObjectives, updatedBoard)
     val updatedTurnManager = TurnManagerImpl(
-      players = players,
-      currentPlayerIndex = firstPlayerIndex,  
+      players = shuffledPlayers,
       phase = TurnPhase.SetupPhase  
     )
     val updatedGameState = GameState(
