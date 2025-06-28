@@ -20,13 +20,11 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
   title = "Crea partita"
   initModality(Modality.ApplicationModal)
   width = 350
-  height = 250
+  height = 400
   
-  // Aggiungi un campo per il nome utente
   val usernameLabel = new Label("Il tuo nome:")
   val usernameField = new TextField {
     promptText = "Inserisci il tuo nome"
-    // Prova a caricare il nome utente salvato nelle preferenze
     text = java.util.prefs.Preferences.userNodeForPackage(getClass)
       .get("username", "")
   }
@@ -40,7 +38,19 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
   val playersCombo = new ComboBox(ObservableBuffer(2, 3, 4, 5, 6))
   playersCombo.selectionModel().select(2)  
   
-  // Usa un GridPane per allineare meglio i campi
+  val botsLabel = new Label("Numero di bot:")
+  val botsCombo = new ComboBox(ObservableBuffer(0, 1)) {  
+    selectionModel().select(0)
+  }
+
+  // sets number of bots based on number of players
+  playersCombo.valueProperty().addListener: (_, _, newValue) =>
+    val maxBots = newValue.asInstanceOf[Int] - 1
+    val botOptions = ObservableBuffer((0 to maxBots).toSeq: _*)
+    botsCombo.items = botOptions
+    if (botsCombo.value.value > maxBots) then botsCombo.selectionModel().select(maxBots)
+  
+  
   val formGrid = new GridPane {
     hgap = 10
     vgap = 10
@@ -52,6 +62,8 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
     add(gameNameField, 1, 1)
     add(playersLabel, 0, 2)
     add(playersCombo, 1, 2)
+    add(botsLabel, 0, 3)
+    add(botsCombo, 1, 3)
   }
   
   val createButton = new Button("Crea")
@@ -79,7 +91,6 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
   
   cancelButton.onAction = _ => close()
   
-  // Aggiungi questi campi per tenere traccia dello stato
   private var gameCreated = false
   private var lastUsedUsername = ""
 
@@ -92,11 +103,8 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
     } else if (gameName.isEmpty) {
       showError("Il nome della partita è obbligatorio.")
     } else {
-      // Salva il nome utente nelle preferenze per usi futuri
-      java.util.prefs.Preferences.userNodeForPackage(getClass)
-        .put("username", username)
+      java.util.prefs.Preferences.userNodeForPackage(getClass).put("username", username)
       
-      // Salva l'username usato per questa creazione
       lastUsedUsername = username
       
       val maxPlayers = playersCombo.value.value
