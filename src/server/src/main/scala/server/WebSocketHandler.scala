@@ -22,7 +22,6 @@ object WebSocketHandler:
   case class OutgoingConnection(client: ActorRef)
   case object SendPing
   
-  // Crea un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
     
     val connectionId = java.util.UUID.randomUUID().toString.take(8)
@@ -89,7 +88,6 @@ object WebSocketHandler:
     }
     
     def receive = {
-      // Aggiungi questo al pattern matching
       case SendPing =>
         println(s"[DEBUG] Invio ping al client")
         sendProtocolMessage(protocol.ServerMessages.Ping())
@@ -185,7 +183,6 @@ object WebSocketHandler:
     
     
     private def parseJsonMessage(text: String): Try[ProtocolMessage] = Try {
-      
       text.parseJson.convertTo[ProtocolMessage]
     }
     

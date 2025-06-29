@@ -118,7 +118,7 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
           val botConfigs = botConfigDialog.getBotConfigurations
           
           val botNames = botConfigs.map(_.name).toList
-          val botTypes = botConfigs.map(_.botStrategy).toList
+          val botStrategies = botConfigs.map(_.botStrategy).toList
           
           // Invia il messaggio con i tipi e i nomi dei bot
           val createMsg = CreateGameMessage(
@@ -126,7 +126,7 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
             maxPlayers = maxPlayers, 
             username = username, 
             numBots = numBots, 
-            botStrategies = Some(botTypes),
+            botStrategies = Some(botStrategies),
             botNames = Some(botNames)
           )
           

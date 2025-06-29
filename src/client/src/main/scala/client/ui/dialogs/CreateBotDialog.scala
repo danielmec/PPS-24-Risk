@@ -20,12 +20,12 @@ class CreateBotDialog(parentStage: Stage, numBots: Int) extends Stage {
     width = 400
     height = 200 + numBots * 40 
     
-    val botTypes = ObservableBuffer("Offensivo", "Difensivo")
+    val botStrategies = ObservableBuffer("Offensivo", "Difensivo")
     
     case class BotConfig(strategySelector: ComboBox[String], nameField: TextField)
     
     val botConfigs = Array.tabulate(numBots) { i =>
-        val comboBox = new ComboBox(botTypes)
+        val comboBox = new ComboBox(botStrategies)
         comboBox.selectionModel().selectFirst() // Default: Offensivo
         val nameField = new TextField {
         text = s"Bot ${i+1}"

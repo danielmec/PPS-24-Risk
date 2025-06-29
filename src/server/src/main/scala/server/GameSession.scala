@@ -86,7 +86,6 @@ class GameSession(
     def receive: Receive = 
      case _ => // Dummy case to initialize the actor
         log.info(s"GameSession received message before running state")
-
         
     // funzione pura che gestisce lo stato running
     // parametri che gestiscono lo stato interno di una sessione di Game 
@@ -102,7 +101,7 @@ class GameSession(
         case JoinGame(playerId, playerRef, username) =>
             (players.size < maxPlayers, phase) match
                 case (true, _) | (_, WaitingForPlayers) =>
-                    //Creo una nuova mappa immutabile
+                    //Nuova mappa immutabile
                     val updatedPlayers = players + (playerId -> playerRef)
                     
                     val updatedPlayerData = playerData + (playerId -> Player(playerId, playerRef, username))

@@ -162,6 +162,8 @@ class GameManager extends Actor with ActorLogging:
                             
                         case None =>
                             log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
+
+                case None => log.warning(s"Player ${player.path.name} not found")
             
                 
                 val updatedPlayerToGame = playerToGame - player

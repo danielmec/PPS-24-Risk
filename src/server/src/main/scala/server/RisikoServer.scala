@@ -77,8 +77,6 @@ object RisikoServer:
       .bind(route)
     println(s"Server online at http://$host:$port/\nPress RETURN to stop...")
 
-   
-
     StdIn.readLine() 
 
     // aggiunge un hook di shutdown per fermare il server in modo pulito
@@ -90,6 +88,3 @@ object RisikoServer:
       println("Server stopped.")
     }
 end RisikoServer
-
-
-
