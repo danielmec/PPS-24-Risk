@@ -12,6 +12,7 @@ import scalafx.collections.ObservableBuffer
 import client.ClientNetworkManager
 import client.ClientJsonSupport._
 import client.ClientJsonSupport
+import client.ui.dialogs._
 
 /**
  * Finestra di dialogo per la creazione di una nuova partita
@@ -104,22 +105,52 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
       showError("Il nome della partita è obbligatorio.")
     } else {
       java.util.prefs.Preferences.userNodeForPackage(getClass).put("username", username)
-      
       lastUsedUsername = username
       
       val maxPlayers = playersCombo.value.value
-      val createMsg = CreateGameMessage(gameName, maxPlayers, username)
+      val numBots = botsCombo.value.value
       
-      networkManager.sendMessage(createMsg).onComplete {
-        case scala.util.Success(_) => Platform.runLater {
-          gameCreated = true
-          close()
-        }
-        case scala.util.Failure(e) => Platform.runLater {
-          showError(s"Errore: ${e.getMessage}")
-        }
-      }(networkManager.executionContext)
+      if (numBots >= 1) 
+        val botConfigDialog = new CreateBotDialog(this, numBots)
+        botConfigDialog.showAndWait()
+        
+        if (botConfigDialog.wasConfirmed) 
+          val botConfigs = botConfigDialog.getBotConfigurations
+          
+          val botNames = botConfigs.map(_.name).toList
+          val botTypes = botConfigs.map(_.botStrategy).toList
+          
+          // Invia il messaggio con i tipi e i nomi dei bot
+          val createMsg = CreateGameMessage(
+            gameName = gameName, 
+            maxPlayers = maxPlayers, 
+            username = username, 
+            numBots = numBots, 
+            botStrategies = Some(botTypes),
+            botNames = Some(botNames)
+          )
+          
+          sendCreateGameMessage(createMsg)
+        
+      else 
+        // Nessun bot selezionato, invia il messaggio normale
+        val createMsg = CreateGameMessage(gameName, maxPlayers, username)
+        sendCreateGameMessage(createMsg)
+      
     }
+  }
+
+  // Metodo di supporto per inviare il messaggio al server
+  private def sendCreateGameMessage(createMsg: CreateGameMessage): Unit = {
+    networkManager.sendMessage(createMsg).onComplete {
+      case scala.util.Success(_) => Platform.runLater {
+        gameCreated = true
+        close()
+      }
+      case scala.util.Failure(e) => Platform.runLater {
+        showError(s"Errore: ${e.getMessage}")
+      }
+    }(networkManager.executionContext)
   }
 
   // Aggiungi questi metodi per accedere ai valori
@@ -138,5 +169,3 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
     }.showAndWait()
   }
 }
-
-

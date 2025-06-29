@@ -8,7 +8,14 @@ import DefaultJsonProtocol._
  */
 object ClientJsonSupport extends DefaultJsonProtocol:
   // Definizione dei messaggi che il client può inviare
-  case class CreateGameMessage(gameName: String, maxPlayers: Int, username: String)
+  case class CreateGameMessage(
+    gameName: String, 
+    maxPlayers: Int, 
+    username: String, 
+    numBots: Int = 0, 
+    botStrategies: Option[List[String]] = None, 
+    botNames: Option[List[String]] = None
+  )
   case class JoinGameMessage(gameId: String, username: String)
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
@@ -103,7 +110,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     }
 
   // Formati JSON per messaggi semplici (usati da spray-json)
-  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat3(CreateGameMessage)
+  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat6(CreateGameMessage)
   implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(JoinGameMessage)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
   implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
@@ -164,12 +171,25 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
     case msg: CreateGameMessage => 
-      JsObject(
+      var fields = Map(
         "type" -> JsString("createGame"),
         "gameName" -> JsString(msg.gameName),
         "maxPlayers" -> JsNumber(msg.maxPlayers),
-        "username" -> JsString(msg.username)
+        "username" -> JsString(msg.username),
+        "numBots" -> JsNumber(msg.numBots)
       )
+      
+      if (msg.botStrategies.isDefined) 
+        fields = fields + ("botStrategies" -> JsArray(
+          msg.botStrategies.get.map(JsString(_)).toVector
+        ))
+      
+      if (msg.botNames.isDefined) 
+        fields = fields + ("botNames" -> JsArray(
+          msg.botNames.get.map(JsString(_)).toVector
+        ))
+      
+      JsObject(fields)
     case msg: JoinGameMessage => 
       JsObject(
         "type" -> JsString("joinGame"),

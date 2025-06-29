@@ -54,14 +54,19 @@ object GameSession:
     case object Setup extends GamePhase
 
     // Factory method per creare un'istanza di GameSession con 3 parametri 
-    def props(gameId: String, gameName: String, maxPlayers: Int): Props = 
-        Props(new GameSession(gameId, gameName, maxPlayers))
+    def props(gameId: String, gameName: String, maxPlayers: Int, numBots: Int = 0, 
+          botStrategies: Option[List[String]] = None, botNames: Option[List[String]] = None): Props = 
+        Props(new GameSession(gameId, gameName, maxPlayers, numBots, botStrategies, botNames))
 
 
 class GameSession(
     gameId: String, 
     gameName: String, 
-    maxPlayers: Int ) extends Actor with ActorLogging:
+    maxPlayers: Int,
+    numBots: Int = 0,
+    botStrategies: Option[List[String]] = None,
+    botNames: Option[List[String]] = None
+) extends Actor with ActorLogging:
 
     import GameSession._
 

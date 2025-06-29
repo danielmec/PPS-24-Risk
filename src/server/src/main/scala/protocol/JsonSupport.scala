@@ -12,7 +12,7 @@ object JsonSupport extends DefaultJsonProtocol:
   // Formato per i messaggi client 
   //macro di Spray JSON per generare automaticamente i formati JSON per i case class
   //per case class con parametri semplici
-  implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat3(ClientMessages.CreateGame)
+  implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat6(ClientMessages.CreateGame)
   implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat2(ClientMessages.JoinGame)
   implicit val leaveGameFormat: RootJsonFormat[ClientMessages.LeaveGame] = jsonFormat1(ClientMessages.LeaveGame)
   implicit val pongFormat: RootJsonFormat[ClientMessages.Pong] = jsonFormat0(ClientMessages.Pong)
@@ -110,11 +110,28 @@ object JsonSupport extends DefaultJsonProtocol:
       
       fields.get("type") match
         case Some(JsString("createGame")) => 
-          
           val name = fields.getOrElse("gameName", JsString("Nuova Partita")).convertTo[String]
           val maxPlayers = fields.getOrElse("maxPlayers", JsNumber(4)).convertTo[Int]
           val username = fields.getOrElse("username", JsString("player1")).convertTo[String]
-          ClientMessages.CreateGame(name, maxPlayers,username)
+          val numBots = fields.getOrElse("numBots", JsNumber(0)).convertTo[Int]
+          
+          val botTypes = fields.get("botTypes").map {
+            case JsArray(types) => types.map {
+              case JsString(t) => t
+              case _ => "Offensivo" 
+            }.toList
+            case _ => List.empty[String]
+          }
+          
+          val botNames = fields.get("botNames").map {
+            case JsArray(names) => names.map {
+              case JsString(n) => n
+              case _ => "Bot" 
+            }.toList
+            case _ => List.empty[String]
+          }
+          
+          ClientMessages.CreateGame(name, maxPlayers, username, numBots, botTypes, botNames)
           
         case Some(JsString("joinGame")) => 
           
