@@ -13,11 +13,7 @@ import protocol.JsonSupport._
 
 import scala.concurrent.duration._
 
-/**
- * Gestisce la comunicazione WebSocket tra client e server
- */
 object WebSocketHandler:
-  // Messaggi interni
   case class IncomingMessage(text: String)
   case class OutgoingConnection(client: ActorRef)
   case object SendPing
@@ -28,45 +24,36 @@ object WebSocketHandler:
     
     val handler = system.actorOf(Props(new ConnectionActor(gameManager)), s"connection-$connectionId")
     
-    // Gestisce i messaggi in ingresso dal client
     val incoming = Flow[Message]
       .collect {
         case TextMessage.Strict(text) => IncomingMessage(text)
       }
       .to(Sink.actorRef(
         ref = handler,  
-        onCompleteMessage = akka.actor.PoisonPill, // chiama postStop() dell'attore
+        onCompleteMessage = akka.actor.PoisonPill, 
         onFailureMessage = { case _ => akka.actor.PoisonPill } 
       ))
     
-    // Crea una sorgente per i messaggi in uscita verso il client
     val outgoing = Source.actorRef(
-      PartialFunction.empty,  // completionMatcher
-      PartialFunction.empty,  // failureMatcher
-      16,                     // bufferSize
+      PartialFunction.empty,  
+      PartialFunction.empty,  
+      16,                     
       OverflowStrategy.dropHead
     )
     
-    // Collega il tutto
     Flow.fromSinkAndSourceMat(incoming, outgoing) { (_, outActor) =>
       handler ! OutgoingConnection(outActor)
       NotUsed
     }
-  
-  /**
-   * Attore che gestisce una singola connessione WebSocket
-   */
+
   private class ConnectionActor(gameManager: ActorRef) extends Actor:
-    // Riferimento per inviare messaggi al client
     var clientConnection: Option[ActorRef] = None
     
-    // Aggiungi un campo per lo scheduler
     private var pingScheduler: Option[akka.actor.Cancellable] = None
     
     override def preStart(): Unit = {
       println(s"[DEBUG] ConnectionActor ${self.path.name} avviato")
       
-      // ping ogni 50 secondi 
       import context.dispatcher
       pingScheduler = Some(context.system.scheduler.scheduleWithFixedDelay(
         50.seconds, 50.seconds, self, SendPing
@@ -74,7 +61,6 @@ object WebSocketHandler:
     }
     
     override def postStop(): Unit = {
-      // Cancella lo scheduler quando l'attore viene fermato
       pingScheduler.foreach(_.cancel())
       
       println(s"[DEBUG] ConnectionActor ${self.path.name} fermato, notifica GameManager")
@@ -92,11 +78,9 @@ object WebSocketHandler:
         println(s"[DEBUG] Invio ping al client")
         sendProtocolMessage(protocol.ServerMessages.Ping())
       
-      // Registra il canale di output
       case OutgoingConnection(client) =>
         clientConnection = Some(client)
         
-      // Gestisce messaggi in arrivo dal client
       case IncomingMessage(text) =>
         parseJsonMessage(text) match {
           case Success(msg) => 
@@ -110,19 +94,16 @@ object WebSocketHandler:
             println(s"[ERROR] Errore nel parsing del messaggio: ${ex.getMessage}")
         }
         
-      // Gestisce messaggi dal server GameSession da inviare al client
       case msg: protocol.ServerMessages.Error =>
        sendProtocolMessage(msg)
         
-      //messaggi da GameManager o GameSession gia arrivati protocollati secondo Message.scala
       case msg: ProtocolMessage =>
         val jsonString = messageToJson(msg).compactPrint
         clientConnection.foreach(_ ! TextMessage(jsonString))
         
-      case _ => // ignora altri messaggi per ora
+      case _ => 
     }
     
-    // Metodo unificato per inviare messaggi di protocollo
     private def sendProtocolMessage(msg: ProtocolMessage): Unit =
       try {
         val jsonValue = messageToJson(msg)
@@ -138,12 +119,10 @@ object WebSocketHandler:
           ex.printStackTrace()
       }
     
-    // Invia un messaggio di errore al client (versione aggiornata)
     private def sendError(message: String): Unit =
       val errorMsg = protocol.ServerMessages.Error(message)
       sendProtocolMessage(errorMsg)
     
-    // Gestisce i messaggi del client
     private def handleClientMessage(msg: ProtocolMessage): Unit =
       msg match {
         case protocol.ClientMessages.CreateGame(name, maxPlayers, username, numBots, botStrategies, botNames) =>
@@ -151,13 +130,11 @@ object WebSocketHandler:
           gameManager ! GameManager.CreateGameSession(name, maxPlayers, self, username, numBots, botStrategies, botNames)
           
         case protocol.ClientMessages.JoinGame(gameId, username) if gameId.isEmpty && username.isEmpty =>
-          // Caso speciale: join alla lobby generale
           println("Inoltro richiesta join lobby")
          
           val lobbyMessage = protocol.ServerMessages.LobbyJoined("Benvenuto nella sala d'attesa!")
           sendProtocolMessage(lobbyMessage)
           
-          // Registra il client nel GameManager per ricevere notifiche
           gameManager ! GameManager.RegisterClient(self)
           
         case protocol.ClientMessages.JoinGame(gameId,username) =>
@@ -176,7 +153,6 @@ object WebSocketHandler:
     
         case _ => 
           println(s"Messaggio non gestito: $msg")
-          // Usa un oggetto di protocollo per l'errore
           val errorMessage = protocol.ServerMessages.Error("UNSUPPORTED")
           sendProtocolMessage(errorMessage)
       }

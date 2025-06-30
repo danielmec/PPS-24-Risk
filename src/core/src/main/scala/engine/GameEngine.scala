@@ -144,7 +144,6 @@ class GameEngine(
     val stateWithNextPlayer = moveToNextPlayer(stateAfterCardDraw)
     checkVictoryCondition(stateWithNextPlayer)
 
-  //to do: collegamento con client
   def executeBotTurn(): GameState =
     val currentPlayer = engineState.gameState.turnManager.currentPlayer
     if currentPlayer.playerType != PlayerType.Bot || botController.isEmpty then

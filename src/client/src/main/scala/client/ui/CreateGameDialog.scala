@@ -14,9 +14,6 @@ import client.ClientJsonSupport._
 import client.ClientJsonSupport
 import client.ui.dialogs._
 
-/**
- * Finestra di dialogo per la creazione di una nuova partita
- */
 class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
   title = "Crea partita"
   initModality(Modality.ApplicationModal)
@@ -44,7 +41,6 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
     selectionModel().select(0)
   }
 
-  // sets number of bots based on number of players
   playersCombo.valueProperty().addListener: (_, _, newValue) =>
     val maxBots = newValue.asInstanceOf[Int] - 1
     val botOptions = ObservableBuffer((0 to maxBots).toSeq: _*)
@@ -120,7 +116,6 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
           val botNames = botConfigs.map(_.name).toList
           val botStrategies = botConfigs.map(_.botStrategy).toList
           
-          // Invia il messaggio con i tipi e i nomi dei bot
           val createMsg = CreateGameMessage(
             gameName = gameName, 
             maxPlayers = maxPlayers, 
@@ -133,14 +128,12 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
           sendCreateGameMessage(createMsg)
         
       else 
-        // Nessun bot selezionato, invia il messaggio normale
         val createMsg = CreateGameMessage(gameName, maxPlayers, username)
         sendCreateGameMessage(createMsg)
       
     }
   }
 
-  // Metodo di supporto per inviare il messaggio al server
   private def sendCreateGameMessage(createMsg: CreateGameMessage): Unit = {
     networkManager.sendMessage(createMsg).onComplete {
       case scala.util.Success(_) => Platform.runLater {
@@ -153,11 +146,9 @@ class CreateGameDialog(networkManager: ClientNetworkManager) extends Stage {
     }(networkManager.executionContext)
   }
 
-  // Aggiungi questi metodi per accedere ai valori
   def wasGameCreated: Boolean = gameCreated
   def getLastUsername: String = lastUsedUsername
 
-  // Metodo di utilità per mostrare un messaggio di errore
   private def showError(message: String): Unit = {
     import scalafx.scene.control.Alert
     import scalafx.scene.control.Alert.AlertType

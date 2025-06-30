@@ -10,8 +10,8 @@ case class GameState(
     turnManager: TurnManager,
     decksManager: DecksManager,
     objectiveCards: List[ObjectiveCard] = List.empty,
-    lastBattleResult: Option[BattleRoundResult] = None, // Aggiunto campo per memorizzare l'ultimo risultato di battaglia
-    playerStartedTurn: Boolean = true  // Aggiunto per tracciare lo stato di inizio turno
+    lastBattleResult: Option[BattleRoundResult] = None,
+    playerStartedTurn: Boolean = true  
 ):
   def territories: List[Territory] = board.territories
   

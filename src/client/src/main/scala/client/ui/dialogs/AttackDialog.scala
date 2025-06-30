@@ -26,38 +26,31 @@ class AttackDialog(
   enemyTerritories: ObservableBuffer[UITerritory]
 ) extends Stage {
   
-  // Configurazione della finestra
   initOwner(owner)
   initModality(Modality.APPLICATION_MODAL)
   title = "Attacco"
   width = 400
   height = 300
   
-  // Risultato del dialogo
   private var _result: Option[AttackInfo] = None
   
   val fromLabel = new Label("Territorio di partenza:")
   val fromCombo = new ComboBox(ObservableBuffer("Seleziona territorio...") ++ 
     myTerritories.filter(_.armies.value > 1).map(_.name).sorted)
   fromCombo.selectionModel().selectFirst()
-  
   val toLabel = new Label("Territorio da attaccare:")
   val toCombo = new ComboBox[String]()
   toCombo.items = ObservableBuffer("Seleziona territorio...")
   toCombo.selectionModel().selectFirst()
   toCombo.disable = true
-  
   val troopsLabel = new Label("Truppe da usare:")
   val troopsSpinner = new Spinner[Int](1, 3, 1)
   troopsSpinner.disable = true
   
-  // Aggiorna i territori di destinazione in base alla selezione
   fromCombo.onAction = _ => {
     if (fromCombo.selectionModel().selectedIndex.value > 0) {
       val selectedTerritory = myTerritories.find(_.name == fromCombo.value.value).get
       val availableTroops = selectedTerritory.armies.value - 1
-      
-      // Trova territori confinanti nemici
       val neighborNames = selectedTerritory.neighbors
       val enemyNeighbors = enemyTerritories.filter(t => neighborNames.contains(t.name))
       
@@ -72,7 +65,6 @@ class AttackDialog(
         troopsSpinner.disable = true
       }
       
-      // Aggiorna il numero massimo di truppe disponibili per l'attacco
       troopsSpinner.valueFactory = IntegerSpinnerValueFactory(1, Math.min(3, availableTroops), 1).asInstanceOf[SpinnerValueFactory[Int]]
     } else {
       toCombo.items = ObservableBuffer("Seleziona territorio...")
@@ -81,7 +73,6 @@ class AttackDialog(
     }
   }
   
-  // Abilita il selettore di truppe quando viene scelto un territorio di destinazione
   toCombo.onAction = _ => {
     val validSelection = toCombo.selectionModel().selectedIndex.value > 0 && 
                          toCombo.value.value != "Nessun territorio nemico confinante"
@@ -100,14 +91,12 @@ class AttackDialog(
     val toTerritoryName = toCombo.value.value
     val troops = troopsSpinner.value.value
     
-    // Trova l'ID del giocatore che possiede il territorio
     val defenderId = enemyTerritories.find(_.name == toTerritoryName).get.owner.value
     
     _result = Some(AttackInfo(fromTerritoryName, toTerritoryName, troops, defenderId))
     close()
   }
   
-  // Layout
   val formGrid = new GridPane {
     hgap = 10
     vgap = 10
@@ -131,7 +120,6 @@ class AttackDialog(
   
   scene = new Scene(layout)
   
-  // Metodo per ottenere il risultato
   def showAndWaitWithResult(): Option[AttackInfo] = {
     super.showAndWait()
     _result

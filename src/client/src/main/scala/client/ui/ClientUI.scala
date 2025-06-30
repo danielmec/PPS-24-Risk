@@ -13,9 +13,6 @@ import client.ClientJsonSupport
 import client.ClientJsonSupport._  
 import scalafx.application.Platform
 
-/**
- * Interfaccia utente semplificata per l'applicazione client Risiko
- */
 object ClientUI extends JFXApp3:
 
   override def start(): Unit =
@@ -27,7 +24,6 @@ object ClientUI extends JFXApp3:
 
     
     val loginButton = new Button("Gioca")
-    //val singlePlayerButton = new Button("Entra in Modalità Singolo")
     val statusLabel = new Label("In attesa di login...")
     statusLabel.style = "-fx-text-fill: gray;"
 
@@ -45,8 +41,7 @@ object ClientUI extends JFXApp3:
         loginButton.disable = true
         statusLabel.text = s"Login in corso per '$username'..."
         statusLabel.style = "-fx-text-fill: blue;"
-        
-        //esegue il login in modo asincrono
+
         implicit val ec = networkManager.executionContext
         networkManager.login(username).onComplete {
           case Success(true) =>
@@ -54,7 +49,6 @@ object ClientUI extends JFXApp3:
             statusLabel.text = s"Login effettuato! ID: $playerId"
             statusLabel.style = "-fx-text-fill: green;"
             
-            //dopo il login, connette col WebSocket
             connectWebSocket(networkManager, statusLabel, playerId)
             
           case Success(false) =>
@@ -69,14 +63,11 @@ object ClientUI extends JFXApp3:
         }
       }
     }
-    
-    //creazione del layout principale
     val mainBox = new VBox(20)
     mainBox.children = Seq(titleLabel, loginButton, statusLabel)
     mainBox.alignment = Pos.Center
     mainBox.padding = Insets(20)
     
-    //configurazione della scena principale
     stage = new PrimaryStage {
       title = "Risk Client"
       scene = new Scene(600, 350) {
@@ -87,9 +78,6 @@ object ClientUI extends JFXApp3:
       }
     }
 
-  /**
-   * Gestione della connessione WebSocket dopo il login
-   */
   def connectWebSocket(networkManager: ClientNetworkManager, statusLabel: Label, playerId: String): Unit =
     implicit val ec = networkManager.executionContext
     
@@ -98,11 +86,9 @@ object ClientUI extends JFXApp3:
         Platform.runLater {
           statusLabel.text = statusLabel.text.value + " - Connesso al server"
           
-          // una volta connessi, si apre la finestra delle lobby
           val lobbyWindow = new LobbyWindow(networkManager)
           lobbyWindow.show()
           
-          // nasconde la finestra di login
           stage.hide()
         }
         

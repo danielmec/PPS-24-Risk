@@ -9,9 +9,7 @@ import scalafx.scene.text.{Font, FontWeight}
 import scalafx.stage.{Modality, Stage}
 import scalafx.collections.ObservableBuffer
 
-/**
- * Dialog per selezionare il tipo e il nome di ciascun bot
- */
+
 class CreateBotDialog(parentStage: Stage, numBots: Int) extends Stage {
     
     title = "Crea bots"

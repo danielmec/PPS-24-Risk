@@ -11,17 +11,12 @@ import client.AdapterMap
 import client.AdapterMap.UITerritory
 import bridge.TerritoryBridge
 
-/**
- * Pannello per visualizzare informazioni sui territori
- */
 class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) extends HBox(20) {
   
-  // ottiene i territori e i continenti dal bridge
   private val continentToTerritories = {
     val allTerritories = if (territories != null) territories else AdapterMap.loadTerritories() //chiama direttamente il bridge se non sono stati passati territori
     val result = collection.mutable.Map[String, Int]()
     
-    // conta i territori per continente
     allTerritories.foreach { territory =>
       val continent = territory.continent
       result(continent) = result.getOrElse(continent, 0) + 1
@@ -30,12 +25,10 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     result.toMap
   }
   
-  // Label per mostrare i dettagli del territorio
   private val nameLabel = new Label("--")
   private val armiesLabel = new Label("--")
   private val continentLabel = new Label("--")
   
-  //ComboBox per tutti i territori del giocatore
   private val territoriesComboBox = new ComboBox[String] {
     items = ObservableBuffer("Seleziona territorio...")
     prefWidth = 200
@@ -43,9 +36,7 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       val selectedTerritory = value.value
       if (selectedTerritory != "Seleziona territorio..." && territories != null) { 
         
-        //appena selezionato un territorio, mostra i dettagli
         territories.find(_.name == selectedTerritory).foreach { territory =>
-          // aggiorna le label con i dettagli del territorio
           updateTerritoryDetails(territory.name, territory.armies.value, territory.continent)
 
         }
@@ -64,8 +55,6 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       row += 1
     }
   }
-  
-  // Inizializza l'UI
   padding = Insets(10)
   alignment = Pos.CenterLeft
   style = "-fx-background-color: #f5f5f5; -fx-border-color: #aaaaaa; -fx-border-width: 1 0 1 0;"
@@ -82,7 +71,6 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       )
     },
     
-    //pannello centrale con statistiche del territorio selezionato
     new VBox(5) {
       alignment = Pos.CenterLeft
       minWidth = 200
@@ -103,7 +91,6 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       )
     },
     
-    // Panoramica continenti (creata dinamicamente in base ai dati effettivi)
     new VBox(5) {
       alignment = Pos.CenterLeft
       children = Seq(
@@ -115,18 +102,12 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     }
   )
   
-  /**
-   * Aggiorna i dettagli di 1 territorio selezionato
-   */
   def updateTerritoryDetails(name: String, armies: Int, continent: String): Unit = {
     nameLabel.text = name
     armiesLabel.text = armies.toString
     continentLabel.text = continent
   }
   
-  /**
-   * Aggiorna la lista(combobox) con i territori di un giocatore
-   */
   def updatePlayerTerritories(playerName: String): Unit = {
     if (territories != null) {
       val playerTerritories = territories.filter(_.owner.value == playerName).map(_.name).toSeq.sorted
@@ -135,22 +116,16 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     }
   }
   
-  /**
-   * Aggiorna il controllo dei continenti
-   * @param playerName Nome del giocatore
-   */
+
   def updateContinentControl(playerName: String): Unit = {
     if (territories != null) {
       
       val territoriesByContinent = territories.groupBy(_.continent)
       
-      // per ogni continente, conta quanti territori sono posseduti dal giocatore
       continentToTerritories.keys.foreach { continent =>
         val total = continentToTerritories(continent)
-        val owned = territoriesByContinent.getOrElse(continent, Seq.empty)
-                                         .count(_.owner.value == playerName)
+        val owned = territoriesByContinent.getOrElse(continent, Seq.empty).count(_.owner.value == playerName)
                                          
-        // la label corrispondente nel grid e aggiorna
         val rowIndex = continentToTerritories.keys.toSeq.sorted.indexOf(continent)
         if (rowIndex >= 0) {
           val node = continentsGrid.getChildren.find(node => 

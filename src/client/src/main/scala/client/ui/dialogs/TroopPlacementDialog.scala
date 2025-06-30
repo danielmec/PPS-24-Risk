@@ -13,9 +13,7 @@ import scalafx.beans.binding.Bindings
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 
-/**
- * Finestra di dialogo semplificata per il piazzamento delle truppe
- */
+
 class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
@@ -27,10 +25,8 @@ class TroopPlacementDialog(
   
   val remainingTroops = IntegerProperty(initialTroops)
   
-  //mappa usata per tenere traccia delle assegnazioni di truppe per territorio
   private val troopAssignments = collection.mutable.Map[String, Int]()
   
-  // Configurazione della finestra
   initOwner(owner)
   initModality(Modality.APPLICATION_MODAL)
   initStyle(StageStyle.UTILITY)
@@ -63,20 +59,16 @@ class TroopPlacementDialog(
       val newVal = newValue.intValue()
       
       if (newVal > oldVal) {
-        // L'utente sta aumentando le truppe
         val diff = newVal - oldVal
         if (diff > remainingTroops.value) {
-          //non ci sono abbastanza truppe disponibili
           Platform.runLater {
             troopsSpinner.getValueFactory.setValue(oldVal + remainingTroops.value)
           }
         } else {
-          //aggiorna le truppe rimanenti
           remainingTroops.value -= diff
           troopAssignments(territory.name) = newVal
         }
       } else if (newVal < oldVal) {
-        // L'utente sta diminuendo le truppe
         val diff = oldVal - newVal
         remainingTroops.value += diff
         troopAssignments(territory.name) = newVal
@@ -100,38 +92,30 @@ class TroopPlacementDialog(
     vbarPolicy = ScrollPane.ScrollBarPolicy.ALWAYS
   }
   
-  // Pulsante per confermare il piazzamento
   val confirmButton = new Button("Conferma Piazzamento")
-  confirmButton.disable <== remainingTroops =!= 0 // Disabilita se ci sono ancora truppe da piazzare
+  confirmButton.disable <== remainingTroops =!= 0
   
   confirmButton.onAction = handle {
-    // Invia tutti i piazzamenti al server
     troopAssignments.foreach { case (territoryName, troops) =>
       if (troops > 0) {
         val territory = territories.find(_.name == territoryName).get
         val currentTroops = territory.armies.value
         territory.armies.value = currentTroops + troops
-        
-        // Invia al server
+
         owner.actionHandler.placeTroops(owner.getGameId, territoryName, troops)
       }
     }
     
-    // CORREZIONE: Non terminiamo più automaticamente il turno dopo il piazzamento truppe
-    // Solo nella fase SetupPhase inviamo un end_setup, nella MainPhase lasciamo che il giocatore
-    // continui con altre azioni (attacchi, rinforzi o fine turno manuale)
     if (currentPhase == "SetupPhase") {
       println("[Dialog] Fine piazzamento in fase SetupPhase, invio end_setup")
       owner.actionHandler.endSetup(owner.getGameId)
     } else {
       println("[Dialog] Fine piazzamento in fase MainPhase, chiudo solo il dialogo senza inviare end_turn")
-      // Non facciamo nulla, il giocatore può continuare con altre azioni
     }
     
     close()
   }
   
-  // Layout principale
   val root = new BorderPane {
     padding = Insets(15)
     top = new VBox(10) {
@@ -148,9 +132,7 @@ class TroopPlacementDialog(
   
   scene = new Scene(root)
   
-  // Metodo per aggiornare il numero di truppe disponibili
   def updateTroops(newTroopsCount: Int): Unit = {
-    // calcola quante truppe sono già state assegnate ma non ancora inviate
     val assignedTroops = troopAssignments.values.sum
     
     Platform.runLater {

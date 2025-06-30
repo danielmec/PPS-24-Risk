@@ -10,9 +10,6 @@ import scalafx.stage.{Modality, Stage}
 import scalafx.collections.ObservableBuffer
 import client.AdapterMap.UITerritory
 
-/**
- * Finestra di dialogo che mostra la tabella dei territori organizzati per continente
- */
 class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]) extends Stage {
   
   initOwner(owner)
@@ -21,12 +18,10 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]
   width = 800
   height = 600
   
-  // Crea il tab pane
   val tabPane = new TabPane {
     tabClosingPolicy = TabClosingPolicy.Unavailable
   }
   
-  // Ottieni i continenti dai territori stessi (dinamicamente)
   val continents = territories.map(_.continent).distinct.sorted.toList
   
   for (continent <- continents) {
@@ -34,7 +29,6 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]
       text = continent
       closable = false
       
-      // Tabella per il continente corrente
       val territoryTable = new TableView[UITerritory] {
         columns ++= List(
           new TableColumn[UITerritory, String] {
@@ -60,11 +54,9 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]
           }
         )
         
-        // Filtra i territori per il continente corrente
         items = ObservableBuffer.from(territories.filter(t => t.continent == continent))
       }
       
-      // Layout del contenuto della tab
       content = new BorderPane {
         center = territoryTable
         padding = Insets(10)
@@ -74,7 +66,6 @@ class TerritoriesDialog(owner: Stage, territories: ObservableBuffer[UITerritory]
     tabPane.tabs += tab
   }
   
-  // Layout principale
   scene = new Scene(new BorderPane {
     center = tabPane
     bottom = new HBox {

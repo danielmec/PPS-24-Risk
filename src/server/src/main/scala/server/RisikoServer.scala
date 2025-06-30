@@ -25,9 +25,7 @@ object RisikoServer:
     val host = "localhost"
     val port = 8080
    
-    //crea un nuovo attore e lo  registra nell'ActorSystem
     val gameManager = system.actorOf(GameManager.props, "game-Manager")
-    //GameManager.props fornisce la configurazione per creare l'attore GameManager
     
     val serverSettings = ServerSettings(system)
       .withTimeouts(
@@ -41,7 +39,6 @@ object RisikoServer:
 
     log.info(s"Server WebSocket configurato con timeout infinito")
 
-    // Definisce le route per il server
     val route =
       concat(
         
@@ -53,15 +50,13 @@ object RisikoServer:
         },
         
         path("ws"){
-          //utilizza nuovo flow per ogni client 
           handleWebSocketMessages(WebSocketHandler(gameManager))
         },
-        // API REST per la gestione del gioco
-        pathPrefix("api") { //prefisso di percorso per avere sotto-percorsi
+        pathPrefix("api") { 
           concat(
             path("login"){
               post{
-                entity(as[String]){ // entity estrae il corpo della richiesta come stringa
+                entity(as[String]){ 
                   username =>
                     log.info(s"User '$username' logged in successfully.")
                     complete(HttpEntity(ContentTypes.`application/json`, 
@@ -79,12 +74,10 @@ object RisikoServer:
 
     StdIn.readLine() 
 
-    // aggiunge un hook di shutdown per fermare il server in modo pulito
-    // e fare unbind delle connessioni
     scala.sys.addShutdownHook {
       bindingFuture
         .flatMap(_.unbind())
-        .onComplete(_ => system.terminate()) // Shutdown the actor system
+        .onComplete(_ => system.terminate()) 
       println("Server stopped.")
     }
 end RisikoServer

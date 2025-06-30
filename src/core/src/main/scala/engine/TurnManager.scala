@@ -24,7 +24,6 @@ case class TurnManagerImpl(
     def nextPlayer(): TurnManager = players match
         case Nil => throw InvalidPlayerException()
         case _ => 
-            // if nextIndex grows beyond the list size, it wraps around
             val nextIndex = (currentPlayerIndex + 1) % players.size
             if (phase == TurnPhase.SetupPhase && nextIndex != 0)
                 copy(currentPlayerIndex = nextIndex, phase = TurnPhase.SetupPhase)

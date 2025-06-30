@@ -53,7 +53,6 @@ class ReinforcementDialog(
     onAction = _ => executeReinforcement()
   }
 
-  // Layout
   scene = new Scene {
     root = new VBox(15) {
       padding = Insets(20)

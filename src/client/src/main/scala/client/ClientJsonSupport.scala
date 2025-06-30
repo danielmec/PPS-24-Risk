@@ -3,11 +3,8 @@ package client
 import spray.json._
 import DefaultJsonProtocol._
 
-/**
- * Fornisce supporto per serializzazione/deserializzazione dei messaggi JSON lato client
- */
+
 object ClientJsonSupport extends DefaultJsonProtocol:
-  // Definizione dei messaggi che il client può inviare
   case class CreateGameMessage(
     gameName: String, 
     maxPlayers: Int, 
@@ -20,10 +17,9 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
   case class GetAllGamesMessage() 
-  case class PongMessage() // Risposta ai ping del server
+  case class PongMessage()
   case class GameActionMessage(gameId: String, action: String, parameters: Map[String, String])
 
-  // Definizione dei messaggi che il client può ricevere
   case class GameCreatedMessage(gameId: String, gameName: String, creatorId: String)
   case class PlayerJoinedMessage(gameId: String, playerId: String)
   case class ErrorMessage(message: String)
@@ -33,16 +29,13 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class PingMessage() 
   case class GameListMessage(games: List[String])
   
-  // Messaggi di gioco che il client può ricevere
   case class GameSetupStartedMessage(gameId: String, message: String)
   case class PlayerLeftMessage(gameId: String, player: String)
   
-  // Strutture dati di gioco
   case class Territory(name: String, owner: String, troops: Int)
   case class PlayerState(playerId: String, cards: Int, bonusTroops: Int)
   case class MissionCardDto(id: String, description: String, targetType: String, targetValue: String)
 
-  // Messaggi per visualizzare i risultati delle battaglie e movimenti
   case class BattleResultMessage(
     gameId: String,
     attackerTerritory: String,
@@ -67,7 +60,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     currentPhase: String,
     territories: List[Map[String, String]],
     playerStates: List[Map[String, String]],
-    playerStartedTurn: String = "false"  // Default a false per retrocompatibilità
+    playerStartedTurn: String = "false" 
   )
   
   case class GameState(
@@ -86,21 +79,9 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class GameActionResultMessage(success: Boolean, message: String)
   case class TurnChangedMessage(gameId: String, playerId: String, phase: String)
   case class TerritoryUpdateMessage(gameId: String, territoryName: String, owner: String, troops: Int)
-<<<<<<< HEAD
 
-=======
-  case class BattleResultMessage(
-    gameId: String,
-    attackerTerritory: String,
-    defenderTerritory: String,
-    attackerLosses: Int,
-    defenderLosses: Int,
-    newOwner: Option[String]
-  )
->>>>>>> 32c6c1f30002b225958ec445586b0cbebf61710f
   case class GameOverMessage(gameId: String, winnerId: String, winnerUsername: String)
 
-  // Helper methods per l'estrazione di valori dai campi JSON
   private def extractString(fields: Map[String, JsValue], key: String, default: String = ""): String =
     fields.getOrElse(key, JsString(default)).convertTo[String]
     
@@ -122,7 +103,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   private def handleMissionCard(json: JsObject): Map[String, String] =
     json.fields.map {
       case (k, v: JsObject) if k == "missionCard" => 
-        // Estrai direttamente la description
         val description = v.fields.getOrElse("description", JsString(""))
         k -> description.convertTo[String]
       case (k, JsString(s)) => k -> s
@@ -132,7 +112,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       case (k, v) => k -> v.toString.replace("\"", "")
     }
 
-  // Formati JSON per messaggi semplici (usati da spray-json)
   implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat6(CreateGameMessage.apply)
   implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(JoinGameMessage.apply)
   implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage.apply)
@@ -152,7 +131,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val playerLeftFormat: RootJsonFormat[PlayerLeftMessage] = jsonFormat2(PlayerLeftMessage.apply)
   implicit val missionCardDtoFormat: RootJsonFormat[MissionCardDto] = jsonFormat4(MissionCardDto.apply)
   
-  // Formato personalizzato per GameStateData (gestione speciale di missionCard)
   implicit object GameStateDataFormat extends RootJsonFormat[GameStateData] {
     def write(obj: GameStateData): JsValue = {
       JsObject(
@@ -185,7 +163,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     }
   }
   
-<<<<<<< HEAD
   implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(GameState.apply)
   implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(GameStartedMessage.apply)
   implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(GameActionResultMessage.apply)
@@ -194,17 +171,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat8(BattleResultMessage.apply)
   implicit val troopMovementFormat: RootJsonFormat[TroopMovementMessage] = jsonFormat5(TroopMovementMessage.apply)
   implicit val gameOverFormat: RootJsonFormat[GameOverMessage] = jsonFormat3(GameOverMessage.apply)
-=======
-  implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(prefix.GameState.apply)
-  implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(prefix.GameStartedMessage.apply)
-  implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(prefix.GameActionResultMessage.apply)
-  implicit val turnChangedFormat: RootJsonFormat[TurnChangedMessage] = jsonFormat3(prefix.TurnChangedMessage.apply)
-  implicit val territoryUpdateFormat: RootJsonFormat[TerritoryUpdateMessage] = jsonFormat4(prefix.TerritoryUpdateMessage.apply)
-  implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat6(prefix.BattleResultMessage.apply)
-  implicit val gameOverFormat: RootJsonFormat[GameOverMessage] = jsonFormat3(prefix.GameOverMessage.apply)
->>>>>>> 32c6c1f30002b225958ec445586b0cbebf61710f
 
-  // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
     case msg: CreateGameMessage => 
       val baseFields = Map(
@@ -258,11 +225,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       )
     case _ => JsObject("type" -> JsString("unknown"))
   
-  // è una mappa per gestire i messaggi in arrivo
-  //ogni chiave è il tipo di messaggio e il valore è una funzione che
-  //prende i campi del messaggio e restituisce l'istanza del messaggio
-  // In questo modo si evita l'uso di classi case per ogni messaggio
-  //e rende il codice più conciso e flessibile.
   private val messageHandlers: Map[String, Map[String, JsValue] => Any] = Map(
     "gameCreated" -> { fields => 
       GameCreatedMessage(
@@ -353,7 +315,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       val gameStateData = if (stateFields.contains("gameStateDto") && stateFields("gameStateDto") != JsNull) {
         stateFields("gameStateDto").convertTo[GameStateData]
       } else {
-        // Formato vecchio o fallback
         stateJson.convertTo[GameStateData]
       }
       
@@ -393,7 +354,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         fields.get("defenderDice").map(_.convertTo[List[Int]]).getOrElse(List.empty),
         extractInt(fields, "attackerLosses"),
         extractInt(fields, "defenderLosses"),
-<<<<<<< HEAD
         extractBoolean(fields, "conquered")
       )
     },
@@ -405,9 +365,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         extractString(fields, "toTerritory"),
         extractInt(fields, "troops"),
         extractString(fields, "playerId")
-=======
-        extractOption(fields, "newOwner")(_.convertTo[String])
->>>>>>> 32c6c1f30002b225958ec445586b0cbebf61710f
       )
     },
     
@@ -427,7 +384,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     }
   )
 
-  // Metodo per deserializzare i messaggi in entrata (approccio funzionale)
   def fromJson(json: String): Any = 
     try
       val jsValue = json.parseJson
