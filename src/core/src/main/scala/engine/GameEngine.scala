@@ -106,7 +106,7 @@ class GameEngine(
     val updatedBoard = gameState.board
       .updatedTerritory(battleResult.attackerTerritory)
       .updatedTerritory(battleResult.defenderTerritory)
-    var updatedGameState = gameState.updateBoard(updatedBoard)
+    var updatedGameState = gameState.updateBoard(updatedBoard).updateLastBattleResult(battleResult)
     val conquered = battleResult.result == BattleResult.AttackerWins
     if (conquered && !updatedBoard.territoriesOwnedBy(defenderId).nonEmpty) then 
       updatedGameState = transferCardsOnElimination(updatedGameState, defenderId, attackerId) 

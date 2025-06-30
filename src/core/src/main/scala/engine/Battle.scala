@@ -28,17 +28,16 @@ case class BattleRoundResult(
   attackerLosses: Int,
   defenderLosses: Int,
   result: BattleResult,
-  attackerDice: Seq[Int],
-  defenderDice: Seq[Int]
+  attackerDice: Seq[Int], // Aggiungiamo i valori dei dadi
+  defenderDice: Seq[Int]  // Aggiungiamo i valori dei dadi
 )
 
 object Battle:
 
   /**
-   * Esegue un singolo round di combattimento
+   * Esegue un singolo round di combattimento con dadi predefiniti
    */
-  def resolveBattleRound(state: BattleState, attackerDice : Seq[Int], defenderDice : Seq[Int]): BattleState =
-    
+  def resolveBattleRoundWithDice(state: BattleState, attackerDice: Seq[Int], defenderDice: Seq[Int]): BattleState =
     // Confrontiamo i dadi accoppiati
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
@@ -50,7 +49,22 @@ object Battle:
       attackingTroops = state.attackingTroops - attackerLosses,
       defendingTroops = state.defendingTroops - defenderLosses
     )
+    
+  /**
+   * Esegue un singolo round di combattimento
+   */
+  def resolveBattleRound(state: BattleState): BattleState =
+    // L'attaccante usa tante truppe quante ne ha deciso all'inizio (max 3)
+    val attackerDiceCount = math.min(3, state.attackingTroops)
+    // Il difensore usa sempre il massimo (max 3)
+    val defenderDiceCount = math.min(3, state.defendingTroops)
+    
+    // Lanciamo i dadi e ordiniamoli
+    val attackerDice = Dice.rollMany(attackerDiceCount)
+    val defenderDice = Dice.rollMany(defenderDiceCount)
 
+    // Usiamo il nuovo metodo che prende i dadi come parametri
+    resolveBattleRoundWithDice(state, attackerDice, defenderDice)
   /**
    * Valida se un attacco può essere eseguito
    */
@@ -94,7 +108,7 @@ object Battle:
           attackingTroops,
           defenderTerritory.troops
         )
-
+        
         // L'attaccante usa tante truppe quante ne ha deciso all'inizio (max 3)
         val attackerDiceCount = math.min(3, initialState.attackingTroops)
         // Il difensore usa sempre il massimo (max 3)
@@ -104,7 +118,8 @@ object Battle:
         val attackerDice = Dice.rollMany(attackerDiceCount)
         val defenderDice = Dice.rollMany(defenderDiceCount)
         
-        val afterRound = resolveBattleRound(initialState, attackerDice, defenderDice)
+        // Uso il metodo resolveBattleRound modificato che accetta anche i dadi
+        val afterRound = resolveBattleRoundWithDice(initialState, attackerDice, defenderDice)
         
         // Calcola le perdite
         val attackerLosses = attackingTroops - afterRound.attackingTroops
@@ -139,9 +154,9 @@ object Battle:
           case BattleResult.BattleContinues =>
             // La battaglia può continuare
             val updatedAttackerTerritory = attackerTerritory
-              .copy(troops = attackerTerritory.troops - attackerLosses)
+              .addTroops(-attackerLosses)
             val updatedDefenderTerritory = defenderTerritory
-              .copy(troops = defenderTerritory.troops - defenderLosses)
+              .addTroops(-defenderLosses)
             (updatedAttackerTerritory, updatedDefenderTerritory)
             
         BattleRoundResult(
@@ -151,5 +166,5 @@ object Battle:
           defenderLosses,
           battleResult,
           attackerDice,
-          defenderDice 
+          defenderDice
         )

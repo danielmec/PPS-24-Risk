@@ -72,6 +72,16 @@ object AdapterMap {
       territory.armies.value = armies
     }
   }
+  
+  /**
+   * Restituisce i nomi dei territori confinanti con il territorio specificato
+   */
+  def getNeighbors(territories: ObservableBuffer[UITerritory], territoryName: String): List[String] = {
+    territories.find(_.name == territoryName) match {
+      case Some(territory) => territory.neighbors
+      case None => List.empty
+    }
+  }
 }
 
 

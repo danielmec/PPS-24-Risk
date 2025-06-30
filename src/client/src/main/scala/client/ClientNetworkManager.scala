@@ -44,6 +44,9 @@ class ClientNetworkManager:
   // serve per i callback che richiedono un argomento specifico
   private var filteredCallbacks: Map[String, (Any, String) => Unit] = Map.empty
 
+  // Stato di gioco dell'ultima partita
+  private var lastGameState: Option[GameState] = None
+
   def login(username: String): Future[Boolean] =
     val request = HttpRequest(
       method = HttpMethods.POST,
@@ -145,6 +148,8 @@ class ClientNetworkManager:
               
             case msg: GameState =>
               println(s"Aggiornamento stato di gioco. Fase: ${msg.state.currentPhase}")
+              // Salva lo stato di gioco
+              lastGameState = Some(msg)
               messageCallbacks.get("gameState").foreach(_(msg))
               
             case msg @ GameActionResultMessage(success, message) =>
@@ -163,11 +168,11 @@ class ClientNetworkManager:
               println(s"Territorio $territoryName aggiornato: proprietario=$owner, truppe=$troops")
               messageCallbacks.get("territoryUpdate").foreach(_(msg))
               
-            case msg @ BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerLosses, defenderLosses, newOwner, attackerDice, defenderDice) =>
-              println(s"Risultato battaglia: $attackerTerritory vs $defenderTerritory (perdite: $attackerLosses/$defenderLosses)")
-              println(s"Dadi: attaccante ${attackerDice.mkString(",")} - difensore ${defenderDice.mkString(",")}")
-              if (newOwner.isDefined) {
-                println(s"Nuovo proprietario di $defenderTerritory: ${newOwner.get}")
+            case msg @ BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerDice, defenderDice, attackerLosses, defenderLosses, conquered) =>
+              println(s"Risultato battaglia: $attackerTerritory vs $defenderTerritory (dadi: ${attackerDice.mkString(",")} vs ${defenderDice.mkString(",")})")
+              println(s"Perdite: attaccante $attackerLosses, difensore $defenderLosses")
+              if (conquered) {
+                println(s"Territorio $defenderTerritory conquistato!")
               }
               messageCallbacks.get("battleResult").foreach(_(msg))
               
@@ -178,6 +183,11 @@ class ClientNetworkManager:
             case msg @ PlayerLeftMessage(gameId, player) =>
               println(s"Giocatore $player ha lasciato la partita $gameId")
               messageCallbacks.get("playerLeft").foreach(_(msg))
+
+            // Nuovo gestore per TroopMovementMessage
+            case msg @ TroopMovementMessage(gameId, fromTerritory, toTerritory, troops, playerId) =>
+              println(s"Spostamento truppe: $playerId sposta $troops truppe da $fromTerritory a $toTerritory")
+              messageCallbacks.get("troopMovement").foreach(_(msg))
 
             case _ =>
               println(s"Messaggio di tipo sconosciuto: $text")
@@ -281,6 +291,8 @@ class ClientNetworkManager:
   }
   
   def getPlayerId: Option[String] = playerId
+
+  def getLastGameState(): Option[GameState] = lastGameState
 
   def shutdown(): Unit =
     // Chiudi la connessione WebSocket se presente

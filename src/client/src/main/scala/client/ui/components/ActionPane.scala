@@ -64,5 +64,11 @@ class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
       }
     }
   }
+  
+  // Aggiungi questi metodi getter
+  def getAttackButton: Button = attackButton
+  def getReinforceButton: Button = reinforceButton
+  def getEndTurnButton: Button = endTurnButton
+  def getCardsButton: Button = cardsButton
 }
 

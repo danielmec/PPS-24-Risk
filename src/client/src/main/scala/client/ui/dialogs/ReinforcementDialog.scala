@@ -127,6 +127,8 @@ class ReinforcementDialog(
       )
       owner.reinforcementDoneThisTurn = true
       owner.actionPane.reinforceButton.disable = true
+      owner.actionHandler.endTurn(owner.getGameId)
+     
       close()
     }
   }

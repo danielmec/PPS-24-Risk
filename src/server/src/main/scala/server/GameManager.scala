@@ -36,29 +36,23 @@ object GameManager:
 
     case class ProcessGameAction(gameId: String, playerId: String, action: ClientMessages.GameAction) extends Command
 
-    //Factory method per creare un'istanza di GameManager
     def props: Props = Props(new GameManager())
-    // Props è una configurazione Akka per creare un attore
 
-    //Caso vuoto, utilizzato per inizializzare lo stato del GameManager
     private case object Empty
 
 class GameManager extends Actor with ActorLogging:
 
     import GameManager._
    
-    // metodo speciale chiamato quando l'attore viene avviato
     override def preStart(): Unit =
         log.info("GameManager started")
         context.become(running(Map.empty, Set.empty, Map.empty)) 
-        // Inizializza anche il set di client connessi vuoto
 
     def receive: Receive =
-        case Empty => // caso dummy per inizializzare lo stato
-            log.info("GameManager initialized with empty state") 
+        case Empty => log.info("GameManager initialized with empty state") 
     
     def running(
-        games: Map[String, ActorRef], //actorref si riferisce a un'istanza di GameSession
+        games: Map[String, ActorRef], 
         connectedClients: Set[ActorRef],
         playerToGame: Map[ActorRef, String]
     ): Receive = 
@@ -82,14 +76,12 @@ class GameManager extends Actor with ActorLogging:
             val updatedGames = games + (gameId -> gameSession)
             val updatedPlayerToGame = playerToGame + (creator -> gameId)
 
-            //risposta al cliente che ha creato la partita
             creator ! ServerMessages.GameCreated(
                 gameId,
                 gameName,
                 creator.path.name
             )
 
-            //notifica la sessione di gioco che il creatore si è unito
             gameSession ! GameSession.JoinGame(creator.path.name, creator, username)
             println(s"Game session $gameId created by ${creator.path.name}")
             
@@ -108,7 +100,6 @@ class GameManager extends Actor with ActorLogging:
                     log.warning(s"Game session $gameId not found for player ${player.path.name}")
                     player ! ServerMessages.Error(s"Game session $gameId not found")
             
-        // abbandono della partita
         case LeaveGameSession(gameId, player) =>
             games.get(gameId) match 
                 case Some(gameSession) =>
@@ -135,7 +126,6 @@ class GameManager extends Actor with ActorLogging:
                     sender() ! ServerMessages.Error(s"Game session $gameId not found")
             
         case PlayerDisconnected(player) =>
-            // Rimuove il client dal set di client connessi
             val updatedClients = connectedClients - player
             log.warning(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
             
@@ -150,7 +140,6 @@ class GameManager extends Actor with ActorLogging:
                             implicit val timeout: Timeout = 3.seconds
                             implicit val ec = context.dispatcher
                             
-                            // Breve attesa per dare il tempo alla sessione di aggiornare il suo stato
                             context.system.scheduler.scheduleOnce(200.milliseconds) {
                                 (gameSession ? GameSession.GetStateRequest).foreach {
                                     case state: ServerMessages.GameState if state.players.isEmpty =>

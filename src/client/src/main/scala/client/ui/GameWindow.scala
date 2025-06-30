@@ -15,12 +15,12 @@ import client.ClientJsonSupport._
 import client.ui.components._
 import client.ui.dialogs.TerritoriesDialog
 import client.ui.dialogs.TroopPlacementDialog
-import client.ui.dialogs.AttackDialog
 import client.GameActionHandler
 import client.AdapterMap
 import client.AdapterMap.UITerritory
 import model.board.Territory
 import client.AdapterMap.UITerritory
+import dialogs.{AttackDialog, ReinforcementDialog}
 
 class GameWindow(
   networkManager: ClientNetworkManager,
@@ -45,9 +45,13 @@ class GameWindow(
   private var currentPlayerId: String = ""
   private var myObjective: Option[String] = None
   private var placementDialogOpen: Boolean = false
-  private var attackDialogOpen: Boolean = false
   private var currentPlacementDialog: Option[TroopPlacementDialog] = None
   var reinforcementDoneThisTurn: Boolean = false
+  
+  // AGGIUNGI QUESTA VARIABILE DI STATO
+  private var currentPhase: String = "SetupPhase"
+  private val turnIndicator = new Label("")
+  turnIndicator.style = "-fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 5px;"
   
   // ==================== COMPONENTI UI ====================
   //Inizializzazione dei territori
@@ -66,7 +70,7 @@ class GameWindow(
   
   val topPane = new VBox(10) {
     padding = Insets(10)
-    children = Seq(titleLabel, playerInfoLabel, playersLabel)
+    children = Seq(titleLabel, playerInfoLabel, turnIndicator, playersLabel)
   }
   
   val gameMapView = new GameMapView(() => showTerritoriesDialog())
@@ -147,10 +151,29 @@ class GameWindow(
       println(s"Sono: $myUsername ($myPlayerId)")
       
       val gameState = msg.asInstanceOf[GameState]
-      println(s"Turno aggiornato: ${gameState.state.currentPlayer}")
-      println(s"È il mio turno? ${gameState.state.currentPlayer == myPlayerId}")
+      // AGGIORNA LA FASE
+      currentPhase = gameState.state.currentPhase
+      println(s"[FASE AGGIORNATA] La fase corrente è: $currentPhase")
       
       handleGameState(gameState)
+    })
+    
+    networkManager.registerCallback("battleResult", msg => {
+      println(s"Callback battleResult ricevuto!")
+      val battleResult = msg.asInstanceOf[BattleResultMessage]
+      handleBattleResult(battleResult)
+    })
+    
+    networkManager.registerCallback("troopMovement", msg => {
+      println(s"Callback troopMovement ricevuto!")
+      val movement = msg.asInstanceOf[TroopMovementMessage]
+      handleTroopMovement(movement)
+    })
+    
+    networkManager.registerCallback("gameOver", msg => {
+      println(s"Callback gameOver ricevuto!")
+      val gameOver = msg.asInstanceOf[GameOverMessage]
+      handleGameOver(gameOver)
     })
     
     networkManager.registerCallback("gameJoined", msg => {
@@ -168,46 +191,37 @@ class GameWindow(
         case _ => println("Messaggio gameJoined ricevuto con formato non valido")
       }
     })
-
-    networkManager.registerCallback("battleResult", msg => {
-      println(s"Callback battleResult ricevuto!")
-      val battleResult = msg.asInstanceOf[BattleResultMessage]
-      
-      Platform.runLater {
-        // Aggiorna i dadi
-        updateDiceValues(battleResult.attackerDice, battleResult.defenderDice)
-        
-        println(s"Dadi attaccante: ${battleResult.attackerDice.mkString(", ")}")
-        println(s"Dadi difensore: ${battleResult.defenderDice.mkString(", ")}")
-      }
-    })
   }
   
   /**
    * Configura i gestori degli eventi per i componenti UI
    */
   private def setupUIEventHandlers(): Unit = {
-    actionPane.attackButton.onAction = handle {
-      showAttackDialog()
-    }
-
-    actionPane.reinforceButton.onAction = handle {
-      showReinforcementDialog()
-    }
-
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
-      println("[UI] Fine turno richiesto dall'utente")
-      actionHandler.endTurn(gameId).onComplete {
+      
+      // USA LA VARIABILE DI STATO LOCALE
+      println(s"[UI] Fine turno richiesto dall'utente (fase corrente: $currentPhase)")
+      
+      // Scegli l'azione corretta in base alla fase
+      val actionFuture = if (currentPhase == "SetupPhase") {
+        println("[UI] Inviando end_setup al server")
+        actionHandler.endSetup(gameId)
+      } else {
+        println("[UI] Inviando end_turn al server")
+        actionHandler.endTurn(gameId)
+      }
+      
+      actionFuture.onComplete {
         case scala.util.Success(true) =>
-          println("[UI] Fine turno inviato con successo al server")
+          println("[UI] Azione inviata con successo al server")
         case scala.util.Success(false) =>
           Platform.runLater {
             val alert = new Alert(Alert.AlertType.Warning) {
               initOwner(GameWindow.this)
               title = "Azione non consentita"
               headerText = "Impossibile terminare il turno"
-              contentText = "Il server ha rifiutato la richiesta di fine turno."
+              contentText = "Il server ha rifiutato la richiesta."
             }
             alert.showAndWait()
             actionPane.endTurnButton.disable = false
@@ -218,63 +232,71 @@ class GameWindow(
               initOwner(GameWindow.this)
               title = "Errore"
               headerText = "Errore di comunicazione"
-              contentText = s"Errore durante la richiesta di fine turno: ${ex.getMessage}"
+              contentText = s"Errore durante la richiesta: ${ex.getMessage}"
             }
             alert.showAndWait()
             actionPane.endTurnButton.disable = false // Riabilita in caso di errore
           }
       }(networkManager.executionContext)
     }
-  }
-
-  /**
-   * Mostra il dialogo per l'attacco
-   */
-  private def showAttackDialog(): Unit = {
-    if (!attackDialogOpen) {
-      try {
-        // Filtra i territori per l'attacco (solo i propri con più di 1 truppa)
-        val myTerritories = territories.filter(t => 
-          t.owner.value == myPlayerId && t.armies.value > 1
-        )
-        
-        // Filtra i territori nemici
-        val enemyTerritories = territories.filter(t => 
-          t.owner.value != myPlayerId
-        )
-        
-        if (myTerritories.isEmpty) {
-          val alert = new Alert(Alert.AlertType.Information) {
-            initOwner(GameWindow.this)
-            title = "Attacco non possibile"
-            headerText = "Non puoi attaccare"
-            contentText = "Non hai territori con abbastanza truppe per attaccare."
-          }
-          alert.showAndWait()
-          return
-        }
-        
-        val attackDialog = new AttackDialog(
-          this, 
-          myTerritories,
-          enemyTerritories
-        )
-        
-        attackDialogOpen = true
-        
-        attackDialog.onHidden = _ => {
-          attackDialogOpen = false
-        }
-        
-        Platform.runLater {
-          attackDialog.show()
-        }
-      } catch {
-        case e: Exception => 
-          println(s"ERRORE nella creazione del dialogo di attacco: ${e.getMessage}")
-          e.printStackTrace()
-          attackDialogOpen = false
+    
+    // Nuovo codice per il pulsante di attacco
+    actionPane.attackButton.onAction = handle {
+      val myTerritories = territories.filter(_.owner.value == myPlayerId)
+      if (myTerritories.isEmpty) {
+        showErrorAlert("Non hai territori da cui attaccare")
+        return
       }
+      
+      val attackDialog = new AttackDialog(
+        this,
+        myTerritories,
+        territories.filter(_.owner.value != myPlayerId)
+      )
+      
+      val result = attackDialog.showAndWaitWithResult() // Usa il nuovo metodo
+      result.foreach { attackInfo =>
+        actionPane.attackButton.disable = true
+        actionHandler.attack(
+          gameId,
+          attackInfo.fromTerritory,
+          attackInfo.toTerritory,
+          attackInfo.troops,
+          attackInfo.defenderId
+        ).onComplete {
+          case scala.util.Success(true) =>
+            println("[UI] Attacco inviato con successo")
+            Platform.runLater {
+              actionPane.attackButton.disable = false
+            }
+          case _ =>
+            Platform.runLater {
+              actionPane.attackButton.disable = false
+              showErrorAlert("Errore nell'esecuzione dell'attacco")
+            }
+        }(networkManager.executionContext)
+      }
+    }
+
+
+    // Nuovo codice per il pulsante di rinforzo
+    actionPane.reinforceButton.onAction = handle {
+      showReinforcementDialog()
+    }
+
+    
+  }
+  
+  // Metodo di utilità per mostrare errori
+  private def showErrorAlert(message: String): Unit = {
+    Platform.runLater {
+      val alert = new Alert(Alert.AlertType.Error) {
+        initOwner(GameWindow.this)
+        title = "Errore"
+        headerText = None
+        contentText = message
+      }
+      alert.showAndWait()
     }
   }
   
@@ -288,7 +310,8 @@ class GameWindow(
         val placementDialog = new TroopPlacementDialog(
           this, 
           myTerritories, 
-          bonusTroops
+          bonusTroops,
+          currentPhase  // Passa la fase corrente
         )
         
         placementDialogOpen = true
@@ -358,6 +381,20 @@ class GameWindow(
       val isMyTurn = myPlayerId == gameState.state.currentPlayer
       val currentPhase = gameState.state.currentPhase
       
+      // Trova il nome completo del giocatore corrente
+      val currentPlayerName = gameState.players.find(p => p.contains(gameState.state.currentPlayer))
+        .map(p => p.split(" \\(").head)
+        .getOrElse("Sconosciuto")
+      
+      // Aggiorna l'indicatore di turno
+      if (isMyTurn) {
+        turnIndicator.text = s"È IL TUO TURNO - Fase: $currentPhase"
+        turnIndicator.style = "-fx-text-fill: green; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 5px; -fx-background-color: #e8ffe8; -fx-border-color: green; -fx-border-width: 1px; -fx-border-radius: 3px;"
+      } else {
+        turnIndicator.text = s"Turno di $currentPlayerName - Fase: $currentPhase"
+        turnIndicator.style = "-fx-text-fill: #555; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 5px; -fx-background-color: #f8f8f8; -fx-border-color: #aaa; -fx-border-width: 1px; -fx-border-radius: 3px;"
+      }
+      
       // Gestisci i controlli dell'interfaccia in base alla fase e al turno
       if (isMyTurn) {
         val myPlayerState = gameState.state.playerStates.find(_.getOrElse("playerId", "") == myPlayerId)
@@ -367,31 +404,30 @@ class GameWindow(
           
           if (currentPhase == "SetupPhase") {
             // Nella fase di setup, mostra solo il dialogo di piazzamento
-            actionPane.attackButton.disable = true
-            actionPane.reinforceButton.disable = true
-            actionPane.endTurnButton.disable = false
+            actionPane.getAttackButton.disable = true
+            actionPane.getReinforceButton.disable = true
+            actionPane.getEndTurnButton.disable = false
             
             val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
             showTroopPlacementDialog(myTerritories, bonusTroops)
           } 
           else if (currentPhase == "MainPhase") {
-            if (bonusTroops > 0) {
-              // Se ci sono truppe bonus da piazzare, mostra il dialogo di piazzamento
-              actionPane.attackButton.disable = true
-              actionPane.reinforceButton.disable = true
-              actionPane.endTurnButton.disable = true
+            if (bonusTroops > 0 && gameState.state.playerStartedTurn == "true") {
+              // Se ci sono truppe bonus da piazzare E siamo all'inizio del turno, mostra il dialogo di piazzamento
+              actionPane.getAttackButton.disable = true
+              actionPane.getReinforceButton.disable = true
+              actionPane.getEndTurnButton.disable = true
               
+              println(s"[handleGameState] Mostro dialogo piazzamento - Inizio turno: ${gameState.state.playerStartedTurn}, bonus: $bonusTroops")
               val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
               showTroopPlacementDialog(myTerritories, bonusTroops)
             } 
             else {
               // Piazzamento completato, abilita tutte le azioni
               closeTroopPlacementDialog()
-              actionPane.attackButton.disable = false
-              // Abilita solo se hai territori validi per il rinforzo
-              val canReinforce = territories.exists(t => t.owner.value == myPlayerId && t.armies.value > 1)
-              actionPane.reinforceButton.disable = !canReinforce
-              actionPane.endTurnButton.disable = false
+              actionPane.getAttackButton.disable = false
+              actionPane.getReinforceButton.disable = false
+              actionPane.getEndTurnButton.disable = false
             }
           }
         }
@@ -399,9 +435,9 @@ class GameWindow(
       else {
         // Non è il mio turno, disabilita tutto
         closeTroopPlacementDialog()
-        actionPane.attackButton.disable = true
-        actionPane.reinforceButton.disable = true
-        actionPane.endTurnButton.disable = true
+        actionPane.getAttackButton.disable = true
+        actionPane.getReinforceButton.disable = true
+        actionPane.getEndTurnButton.disable = true
       }
     }
   }
@@ -460,14 +496,22 @@ class GameWindow(
         
         val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
         
-        // Aggiornato per utilizzare le nuove fasi
+        // CORREZIONE: Mostra il dialogo di piazzamento truppe solo all'inizio del turno del giocatore
         if (myPlayerId == stateData.currentPlayer && 
            (stateData.currentPhase == "MainPhase" || stateData.currentPhase == "SetupPhase") && 
            bonusTroops > 0) {
-          val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
-          println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
+           
+          println(s"[handleGameState] CONTROLLO INIZIO TURNO - playerStartedTurn: '${stateData.playerStartedTurn}'")
           
-          showTroopPlacementDialog(myTerritories, bonusTroops)
+          if (stateData.playerStartedTurn == "true") {  // Aggiungiamo il controllo sul flag playerStartedTurn
+            val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
+            println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
+            println(s"Inizio turno: ${stateData.playerStartedTurn} - Mostrando dialogo piazzamento truppe")
+            
+            showTroopPlacementDialog(myTerritories, bonusTroops)
+          } else {
+            println(s"[handleGameState] NON mostro dialogo perché playerStartedTurn = '${stateData.playerStartedTurn}'")
+          }
         } else if (stateData.currentPhase == "MainPhase" || stateData.currentPhase == "SetupPhase") {
           // Non è il mio turno, ma siamo in fase di piazzamento
           Platform.runLater {
@@ -598,7 +642,7 @@ class GameWindow(
   /**
    * Aggiorna i valori dei dadi visualizzati
    */
-  def updateDiceValues(attackerValues: Seq[Int], defenderValues: Seq[Int]): Unit = {
+  def updateDiceValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
     diceDisplay.updateValues(attackerValues, defenderValues)
   }
   
@@ -645,6 +689,85 @@ class GameWindow(
   }
   
   /**
+   * Gestisce la visualizzazione del risultato di una battaglia
+   */
+  private def handleBattleResult(battleResult: BattleResultMessage): Unit = {
+    println(s"[UI] Ricevuto risultato battaglia: ${battleResult}")
+
+    Platform.runLater {
+      try {
+        // Verifica che il componente diceDisplay sia nella scena
+        println(s"[UI] diceDisplay: visibile=${diceDisplay.visible.value}, width=${diceDisplay.width.value}, height=${diceDisplay.height.value}")
+        
+        // Forza la visibilità del componente
+        diceDisplay.visible = true
+        diceDisplay.opacity = 1.0
+        diceDisplay.managed = true
+        
+        // Aggiorna il display dei dadi
+        println(s"[UI] Aggiorno i dadi con: Attaccante=${battleResult.attackerDice.mkString(",")}, Difensore=${battleResult.defenderDice.mkString(",")}")
+        diceDisplay.updateValues(battleResult.attackerDice, battleResult.defenderDice)
+        
+        // Crea un flash effect per attirare l'attenzione sull'area dei dadi
+        val originalStyle = diceDisplay.style.value
+        diceDisplay.style = originalStyle + "-fx-background-color: #ffcccc;"
+        
+        // Ripristina lo stile originale dopo un breve intervallo
+        val timer = new java.util.Timer()
+        timer.schedule(new java.util.TimerTask {
+          override def run(): Unit = {
+            Platform.runLater {
+              diceDisplay.style = originalStyle
+            }
+          }
+        }, 500)
+        
+        // Mostra un alert con il risultato della battaglia
+        val outcomeText = if (battleResult.conquered) 
+          s"Territorio ${battleResult.defenderTerritory} conquistato!" 
+        else 
+          s"Attacco a ${battleResult.defenderTerritory} respinto."
+        
+        // Mostra un messaggio di notifica solo se non è un'azione del giocatore corrente
+        if (currentPlayerId != myPlayerId) {
+          val attackMessage = s"Attacco da ${battleResult.attackerTerritory} a ${battleResult.defenderTerritory}"
+          val lossesMessage = s"$outcomeText\nPerdite: Attaccante ${battleResult.attackerLosses}, Difensore ${battleResult.defenderLosses}"
+          
+          val alert = new Alert(Alert.AlertType.Information) {
+            initOwner(GameWindow.this)
+            title = "Risultato Battaglia"
+            headerText = attackMessage
+            contentText = lossesMessage
+          }
+          alert.show()
+        }
+      } catch {
+        case ex: Exception =>
+          println(s"[UI] ERRORE durante la gestione del risultato battaglia: ${ex.getMessage}")
+          ex.printStackTrace()
+      }
+    }
+  }
+  
+  /**
+   * Gestisce la visualizzazione di uno spostamento di truppe
+   */
+  private def handleTroopMovement(movement: TroopMovementMessage): Unit = {
+    Platform.runLater {
+      // Se il movimento è fatto da un altro giocatore, mostra una notifica
+      if (movement.playerId != myPlayerId) {
+        val alert = new Alert(Alert.AlertType.Information) {
+          initOwner(GameWindow.this)
+          title = "Spostamento Truppe"
+          headerText = None
+          contentText = s"${movement.playerId} ha spostato ${movement.troops} truppe da ${movement.fromTerritory} a ${movement.toTerritory}"
+        }
+        alert.show()
+      }
+    }
+  }
+
+   /**
    * Mostra il dialogo per il rinforzo delle truppe
    */
   private def showReinforcementDialog(): Unit = {
@@ -662,4 +785,36 @@ class GameWindow(
       alert.showAndWait()
     }
   }
+  
+  /**
+   * Gestisce il messaggio di fine gioco mostrando un dialogo informativo
+   */
+  private def handleGameOver(gameOver: GameOverMessage): Unit = {
+    Platform.runLater {
+      // Determina se il giocatore corrente è il vincitore
+      val winnerIsCurrentPlayer = gameOver.winnerId == myPlayerId
+      
+      // Crea un dialogo personalizzato in base al risultato
+      val alert = new Alert(
+        if (winnerIsCurrentPlayer) Alert.AlertType.Confirmation else Alert.AlertType.Information
+      ) {
+        initOwner(GameWindow.this)
+        title = "Fine Partita"
+        headerText = if (winnerIsCurrentPlayer) "Hai vinto!" else "Partita Terminata"
+        contentText = if (winnerIsCurrentPlayer) 
+          s"Congratulazioni! Hai completato il tuo obiettivo e vinto la partita!" 
+        else 
+          s"Il giocatore ${gameOver.winnerUsername} ha vinto la partita completando il suo obiettivo."
+        
+        // Personalizza lo stile del dialogo
+        dialogPane().style = "-fx-background-color: #f0f8ff;"
+      }
+      
+      // Mostra il dialogo e poi chiude la finestra di gioco
+      alert.showAndWait()
+      
+      close()
+    }
+  }
+
 }

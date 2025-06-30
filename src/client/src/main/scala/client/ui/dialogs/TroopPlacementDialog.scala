@@ -19,7 +19,8 @@ import client.ui.GameWindow
 class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
-  initialTroops: Int
+  initialTroops: Int,
+  currentPhase: String // Nuovo parametro
 ) extends Stage {
   
   println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")
@@ -116,8 +117,17 @@ class TroopPlacementDialog(
       }
     }
     
-    // Termina il piazzamento
-    owner.actionHandler.endSetup(owner.getGameId)
+    // CORREZIONE: Non terminiamo più automaticamente il turno dopo il piazzamento truppe
+    // Solo nella fase SetupPhase inviamo un end_setup, nella MainPhase lasciamo che il giocatore
+    // continui con altre azioni (attacchi, rinforzi o fine turno manuale)
+    if (currentPhase == "SetupPhase") {
+      println("[Dialog] Fine piazzamento in fase SetupPhase, invio end_setup")
+      owner.actionHandler.endSetup(owner.getGameId)
+    } else {
+      println("[Dialog] Fine piazzamento in fase MainPhase, chiudo solo il dialogo senza inviare end_turn")
+      // Non facciamo nulla, il giocatore può continuare con altre azioni
+    }
+    
     close()
   }
   

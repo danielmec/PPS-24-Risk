@@ -8,175 +8,133 @@ import scalafx.scene.control._
 import scalafx.scene.layout._
 import scalafx.stage.{Modality, Stage}
 import scalafx.collections.ObservableBuffer
-import scalafx.util.StringConverter
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
-import scala.concurrent.ExecutionContext.Implicits.global
+import client.AdapterMap
+import scalafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory
 
-/**
- * Dialog per gestire un attacco tra territori
- */
+case class AttackInfo(
+  fromTerritory: String,
+  toTerritory: String,
+  troops: Int,
+  defenderId: String
+)
+
 class AttackDialog(
   owner: GameWindow,
   myTerritories: ObservableBuffer[UITerritory],
   enemyTerritories: ObservableBuffer[UITerritory]
 ) extends Stage {
-
-  // Configurazione finestra
-  title = "Attacco"
+  
+  // Configurazione della finestra
   initOwner(owner)
   initModality(Modality.APPLICATION_MODAL)
+  title = "Attacco"
   width = 400
-  height = 280
+  height = 300
   
-  // Converter per visualizzare i territori in modo leggibile
-  private val territoryConverter = new StringConverter[UITerritory] {
-    override def toString(territory: UITerritory): String = 
-      if (territory == null) "" else s"${territory.name} (${territory.armies.value} truppe)"
+  // Risultato del dialogo
+  private var _result: Option[AttackInfo] = None
+  
+  val fromLabel = new Label("Territorio di partenza:")
+  val fromCombo = new ComboBox(ObservableBuffer("Seleziona territorio...") ++ 
+    myTerritories.filter(_.armies.value > 1).map(_.name).sorted)
+  fromCombo.selectionModel().selectFirst()
+  
+  val toLabel = new Label("Territorio da attaccare:")
+  val toCombo = new ComboBox[String]()
+  toCombo.items = ObservableBuffer("Seleziona territorio...")
+  toCombo.selectionModel().selectFirst()
+  toCombo.disable = true
+  
+  val troopsLabel = new Label("Truppe da usare:")
+  val troopsSpinner = new Spinner[Int](1, 3, 1)
+  troopsSpinner.disable = true
+  
+  // Aggiorna i territori di destinazione in base alla selezione
+  fromCombo.onAction = _ => {
+    if (fromCombo.selectionModel().selectedIndex.value > 0) {
+      val selectedTerritory = myTerritories.find(_.name == fromCombo.value.value).get
+      val availableTroops = selectedTerritory.armies.value - 1
+      
+      // Trova territori confinanti nemici
+      val neighborNames = selectedTerritory.neighbors
+      val enemyNeighbors = enemyTerritories.filter(t => neighborNames.contains(t.name))
+      
+      if (enemyNeighbors.nonEmpty) {
+        toCombo.items = ObservableBuffer("Seleziona territorio...") ++ 
+          enemyNeighbors.map(_.name).sorted
+        toCombo.disable = false
+        toCombo.selectionModel().selectFirst()
+      } else {
+        toCombo.items = ObservableBuffer("Nessun territorio nemico confinante")
+        toCombo.disable = true
+        troopsSpinner.disable = true
+      }
+      
+      // Aggiorna il numero massimo di truppe disponibili per l'attacco
+      troopsSpinner.valueFactory = IntegerSpinnerValueFactory(1, Math.min(3, availableTroops), 1).asInstanceOf[SpinnerValueFactory[Int]]
+    } else {
+      toCombo.items = ObservableBuffer("Seleziona territorio...")
+      toCombo.disable = true
+      troopsSpinner.disable = true
+    }
+  }
+  
+  // Abilita il selettore di truppe quando viene scelto un territorio di destinazione
+  toCombo.onAction = _ => {
+    val validSelection = toCombo.selectionModel().selectedIndex.value > 0 && 
+                         toCombo.value.value != "Nessun territorio nemico confinante"
+    troopsSpinner.disable = !validSelection
+    attackButton.disable = !validSelection
+  }
+  
+  val attackButton = new Button("Attacca")
+  attackButton.disable = true
+  
+  val cancelButton = new Button("Annulla")
+  cancelButton.onAction = _ => close()
+  
+  attackButton.onAction = _ => {
+    val fromTerritoryName = fromCombo.value.value
+    val toTerritoryName = toCombo.value.value
+    val troops = troopsSpinner.value.value
     
-    override def fromString(string: String): UITerritory = null
-  }
-
-  // Componenti UI
-  private val attackerCombo = new ComboBox[UITerritory] {
-    items = ObservableBuffer.from(myTerritories.filter(_.armies.value > 1))
-    promptText = "Seleziona un territorio"
-    converter = territoryConverter
+    // Trova l'ID del giocatore che possiede il territorio
+    val defenderId = enemyTerritories.find(_.name == toTerritoryName).get.owner.value
     
-    onAction = _ => updateDefenderOptions()
-  }
-  
-  private val defenderCombo = new ComboBox[UITerritory] {
-    promptText = "Seleziona un territorio"
-    disable = true
-    converter = territoryConverter
-    
-    onAction = _ => updateTroopsControl()
-  }
-  
-  private val troopsSpinner = new Spinner[Int](1, 3, 1) {
-    disable = true
-    editable = true
-  }
-  
-  private val attackButton = new Button("Attacca") {
-    style = "-fx-base: #ffaaaa;"
-    disable = true
-    onAction = _ => executeAttack()
+    _result = Some(AttackInfo(fromTerritoryName, toTerritoryName, troops, defenderId))
+    close()
   }
   
   // Layout
-  scene = new Scene {
-    root = new VBox(15) {
-      padding = Insets(20)
-      alignment = Pos.Center
-      children = Seq(
-        new Label("Seleziona i territori per l'attacco") { style = "-fx-font-size: 16px; -fx-font-weight: bold;" },
-        new GridPane {
-          hgap = 10
-          vgap = 15
-          padding = Insets(10)
-          
-          add(new Label("Territorio attaccante:") { style = "-fx-font-weight: bold;" }, 0, 0)
-          add(attackerCombo, 1, 0)
-          
-          add(new Label("Territorio da attaccare:") { style = "-fx-font-weight: bold;" }, 0, 1)
-          add(defenderCombo, 1, 1)
-          
-          add(new Label("Truppe da usare:") { style = "-fx-font-weight: bold;" }, 0, 2)
-          add(troopsSpinner, 1, 2)
-        },
-        new HBox(10) {
-          alignment = Pos.CenterRight
-          children = Seq(
-            attackButton,
-            new Button("Annulla") {
-              onAction = _ => close()
-            }
-          )
-        }
-      )
-    }
+  val formGrid = new GridPane {
+    hgap = 10
+    vgap = 10
+    padding = Insets(10)
+    
+    add(fromLabel, 0, 0)
+    add(fromCombo, 1, 0)
+    add(toLabel, 0, 1)
+    add(toCombo, 1, 1)
+    add(troopsLabel, 0, 2)
+    add(troopsSpinner, 1, 2)
   }
-
-  /**
-   * Aggiorna le opzioni di difesa in base al territorio attaccante selezionato
-   */
-  private def updateDefenderOptions(): Unit = {
-    Option(attackerCombo.value.value).foreach { attacker =>
-      // Trova territori adiacenti nemici
-      val adjacentEnemies = enemyTerritories.filter(attacker.isNeighbor)
-      
-      if (adjacentEnemies.isEmpty) {
-        defenderCombo.items = ObservableBuffer.empty
-        defenderCombo.disable = true
-        defenderCombo.promptText = "Nessun territorio adiacente"
-      } else {
-        defenderCombo.items = ObservableBuffer.from(adjacentEnemies)
-        defenderCombo.disable = false
-        defenderCombo.promptText = "Seleziona un territorio"
-      }
-      
-      defenderCombo.selectionModel().clearSelection()
-      troopsSpinner.disable = true
-      attackButton.disable = true
-    }
+  
+  val buttonBar = new HBox(10, attackButton, cancelButton) {
+    alignment = Pos.Center
   }
-
-  /**
-   * Aggiorna il controllo delle truppe in base ai territori selezionati
-   */
-  private def updateTroopsControl(): Unit = {
-    for {
-      attacker <- Option(attackerCombo.value.value)
-      defender <- Option(defenderCombo.value.value)
-    } yield {
-      // Configura spinner per numero di truppe (max 3, minimo 1, non può lasciare il territorio vuoto)
-      val maxTroops = math.min(3, attacker.armies.value - 1)
-      
-      // Soluzione con cast che risolve gli errori di tipo
-      troopsSpinner.valueFactory = {
-        val factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, maxTroops, 1)
-        factory.asInstanceOf[SpinnerValueFactory[Int]]
-      }
-      
-      troopsSpinner.disable = false
-      attackButton.disable = false
-    }
+  
+  val layout = new VBox(20, formGrid, buttonBar) {
+    padding = Insets(10)
   }
-
-  /**
-   * Esegue l'attacco con i valori selezionati
-   */
-  private def executeAttack(): Unit = {
-    for {
-      attacker <- Option(attackerCombo.value.value)
-      defender <- Option(defenderCombo.value.value)
-      troops = troopsSpinner.value.value
-    } yield {
-      // Esegui attacco
-      owner.actionHandler.attack(
-        owner.getGameId, 
-        attacker.name, 
-        defender.name, 
-        troops,
-        defender.owner.value
-      ).onComplete {
-        case scala.util.Success(true) => 
-          println("[UI] Attacco inviato con successo")
-        case _ => 
-          Platform.runLater {
-            new Alert(Alert.AlertType.Error) {
-              initOwner(AttackDialog.this)
-              title = "Errore"
-              headerText = "Attacco fallito"
-              contentText = "Non è stato possibile effettuare l'attacco."
-            }.showAndWait()
-          }
-      }
-      
-      // Chiudi il dialog
-      close()
-    }
+  
+  scene = new Scene(layout)
+  
+  // Metodo per ottenere il risultato
+  def showAndWaitWithResult(): Option[AttackInfo] = {
+    super.showAndWait()
+    _result
   }
 }
+
