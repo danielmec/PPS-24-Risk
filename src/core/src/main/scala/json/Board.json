@@ -46,16 +46,16 @@
       "name": "Asia",
       "territories": [
         { "name": "Middle East", "neighbors": ["Eastern Europe", "China", "India", "Russia"] },
-        { "name": "India", "neighbors": ["Middle East", "China"] },
+        { "name": "India", "neighbors": ["Middle East", "China", "Indonesia"] },
         { "name": "China", "neighbors": ["Middle East", "Russia", "India", "Indonesia"] },
-        { "name": "Russia", "neighbors": ["Eastern Europe", "Northern Europe", "Middle East", "India", "China", "Alaska"] }
+        { "name": "Russia", "neighbors": ["Eastern Europe", "Northern Europe", "Middle East", "China", "Alaska"] }
       ],
       "bonusTroops": 7
     },
     {
       "name": "Australia",
       "territories": [
-        { "name": "Indonesia", "neighbors": ["China", "New Guinea", "Western Australia"] },
+        { "name": "Indonesia", "neighbors": ["China", "New Guinea", "Western Australia", "India"] },
         { "name": "New Guinea", "neighbors": ["Indonesia", "Western Australia", "Eastern Australia"] },
         { "name": "Western Australia", "neighbors": ["Indonesia", "New Guinea", "Eastern Australia"] },
         { "name": "Eastern Australia", "neighbors": ["Western Australia", "New Guinea"] }
