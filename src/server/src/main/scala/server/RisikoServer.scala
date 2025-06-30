@@ -2,11 +2,14 @@ package server
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.model.ContentTypes 
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Success, Failure}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
 import scala.io.StdIn
 import akka.event.Logging
 import akka.http.scaladsl.settings.ServerSettings

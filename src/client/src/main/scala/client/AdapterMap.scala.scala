@@ -1,8 +1,8 @@
 package client
 
-import scalafx.beans.property.{StringProperty, IntegerProperty}
+import scalafx.beans.property.IntegerProperty
+import scalafx.beans.property.StringProperty
 import scalafx.collections.ObservableBuffer
-
 import model.board.{Territory => CoreTerritory, Continent => CoreContinent}
 import bridge.TerritoryBridge
 

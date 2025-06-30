@@ -2,12 +2,22 @@ package client.ui
 
 import scalafx.Includes._
 import scalafx.application.Platform
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
-import scalafx.scene.control.{Button, Label, ListView, TextField, ComboBox}
-import scalafx.scene.layout.{BorderPane, HBox, VBox, GridPane}
-import scalafx.scene.text.{Font, FontWeight}
-import scalafx.stage.{Modality, Stage}
+import scalafx.scene.control.ComboBox
+import scalafx.scene.control.Button
+import scalafx.scene.control.Label
+import scalafx.scene.control.ListView
+import scalafx.scene.control.TextField
+import scalafx.scene.layout.GridPane
+import scalafx.scene.layout.VBox
+import scalafx.scene.layout.HBox
+import scalafx.scene.layout.BorderPane
+import scalafx.scene.text.Font
+import scalafx.scene.text.FontWeight
+import scalafx.stage.Stage
+import scalafx.stage.Modality
 import scalafx.collections.ObservableBuffer
 import client.ClientNetworkManager
 import client.ClientJsonSupport._

@@ -3,7 +3,11 @@ package protocol
 import spray.json._
 import DefaultJsonProtocol._
 import protocol.{Message => ProtocolMessage}
-import server.GameSession.{TerritoryDto, PlayerStateDto, GameStateDto, TerritoryCardDto, MissionCardDto}
+import server.GameSession.MissionCardDto
+import server.GameSession.TerritoryDto
+import server.GameSession.PlayerStateDto
+import server.GameSession.GameStateDto
+import server.GameSession.TerritoryCardDto
 
 object JsonSupport extends DefaultJsonProtocol:
   implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat6(ClientMessages.CreateGame)

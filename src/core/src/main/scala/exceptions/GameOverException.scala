@@ -1,4 +1,5 @@
 package exceptions
+
 import model.player._
 
 class GameOverException(winner: PlayerState) extends Exception(

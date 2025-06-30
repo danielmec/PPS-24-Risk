@@ -2,13 +2,17 @@ package client.ui.dialogs
 
 import scalafx.Includes._
 import scalafx.application.Platform
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.layout._
-import scalafx.stage.{Modality, Stage, StageStyle}
+import scalafx.stage.Stage
+import scalafx.stage.Modality
+import scalafx.stage.StageStyle
 import scalafx.collections.ObservableBuffer
-import scalafx.beans.property.{IntegerProperty, ObjectProperty}
+import scalafx.beans.property.ObjectProperty
+import scalafx.beans.property.IntegerProperty
 import scalafx.beans.binding.Bindings
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
@@ -18,7 +22,7 @@ class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
   initialTroops: Int,
-  currentPhase: String // Nuovo parametro
+  currentPhase: String 
 ) extends Stage {
   
   println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")

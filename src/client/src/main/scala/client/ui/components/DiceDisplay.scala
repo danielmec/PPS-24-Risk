@@ -2,10 +2,15 @@ package client.ui.components
 
 import scalafx.Includes._
 import scalafx.geometry.Pos
-import scalafx.scene.control.{Label, Separator}
-import scalafx.scene.layout.{HBox, StackPane, VBox}
+import scalafx.scene.control.Separator
+import scalafx.scene.control.Label
+import scalafx.scene.layout.StackPane
+import scalafx.scene.layout.HBox
+import scalafx.scene.layout.VBox
 import scalafx.scene.shape.Rectangle
-import scalafx.scene.text.{Font, FontWeight, TextAlignment}
+import scalafx.scene.text.TextAlignment
+import scalafx.scene.text.Font
+import scalafx.scene.text.FontWeight
 import javafx.scene.paint.Color
 import scalafx.application.Platform
 

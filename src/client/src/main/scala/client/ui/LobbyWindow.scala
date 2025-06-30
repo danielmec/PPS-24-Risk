@@ -2,17 +2,30 @@ package client.ui
 
 import scalafx.Includes._
 import scalafx.application.Platform
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
-import scalafx.scene.control.{Button, Label, ListView, TextField, Dialog, ButtonType}
-import scalafx.scene.layout.{BorderPane, HBox, VBox, GridPane}
-import scalafx.scene.text.{Font, FontWeight}
-import scalafx.stage.{Modality, Stage}
+import scalafx.scene.control.ButtonType
+import scalafx.scene.control.Button 
+import scalafx.scene.control.Label 
+import scalafx.scene.control.ListView 
+import scalafx.scene.control.TextField 
+import scalafx.scene.control.Dialog 
+import scalafx.scene.layout.GridPane
+import scalafx.scene.layout.BorderPane
+import scalafx.scene.layout.HBox
+import scalafx.scene.layout.VBox
+import scalafx.scene.text.FontWeight
+import scalafx.scene.text.Font 
+import scalafx.stage.Modality
+import scalafx.stage.Stage
 import scalafx.collections.ObservableBuffer
 import client.ClientNetworkManager
 import client.ClientJsonSupport._
 import client.ClientJsonSupport
 import java.util.prefs.Preferences
+import javafx.util.Callback
+import javafx.scene.control.{ListView => JFXListView, ListCell => JFXListCell}
 
 class LobbyWindow(networkManager: ClientNetworkManager) extends Stage {
   
@@ -31,9 +44,6 @@ class LobbyWindow(networkManager: ClientNetworkManager) extends Stage {
   val gameListView = new ListView[GameInfo]()
   gameListView.items = availableGames
 
-  
-  import javafx.util.Callback
-  import javafx.scene.control.{ListView => JFXListView, ListCell => JFXListCell}
 
   gameListView.delegate.setCellFactory(new Callback[JFXListView[GameInfo], JFXListCell[GameInfo]] {
     override def call(listView: JFXListView[GameInfo]): JFXListCell[GameInfo] = {

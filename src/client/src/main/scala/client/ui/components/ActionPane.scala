@@ -1,8 +1,10 @@
 package client.ui.components
 
 import scalafx.Includes._
-import scalafx.geometry.{Insets, Pos}
-import scalafx.scene.control.{Button, Tooltip}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
+import scalafx.scene.control.Tooltip
+import scalafx.scene.control.Button
 import scalafx.scene.layout.HBox
 
 class ActionPane(onShowTerritories: => Unit) extends HBox(15) {

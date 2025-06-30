@@ -1,11 +1,20 @@
 package server
 
-import akka.actor.{ Actor,  ActorRef,  Props,  ActorLogging}
-import protocol.{ Message, ServerMessages, ClientMessages }
+import akka.actor.ActorLogging
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.Props
+import protocol.ClientMessages
+import protocol.Message
+import protocol.ServerMessages
 import java.util.UUID
-import scala.collection.mutable.{  Map, ListBuffer }
-
-import engine.{GameEngine, GameState, TurnPhase, GameAction, EngineState}
+import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.Map
+import engine.EngineState
+import engine.GameEngine 
+import engine.GameState 
+import engine.TurnPhase 
+import engine.GameAction 
 import model.player.{Player => CorePlayer, PlayerImpl => CorePlayerImpl}
 import model.player.PlayerColor
 
@@ -495,7 +504,7 @@ class GameSession(
         currentPhase = gameState.turnManager.currentPhase match {
           case TurnPhase.SetupPhase => "SetupPhase"  
           case TurnPhase.MainPhase => "MainPhase"
-        },  // Modificato per usare solo le due fasi
+        },  
         territories = gameState.board.territories.map { territory =>
           TerritoryDto(
             name = territory.name,

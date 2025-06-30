@@ -1,4 +1,5 @@
 package model.board
+
 import model.player.Player
 import model.player.PlayerState
 
@@ -29,7 +30,7 @@ case class Territory(
     owner.isDefined && target.owner.isDefined &&
     owner.get.id != target.owner.get.id
 
-  // Added to avoid infinite loops 
+  
   override def toString(): String = 
     s"Territory($name, ${neighbors.size} neighbors, $owner, $troops)"
   

@@ -1,11 +1,15 @@
 package client.ui.components
 
 import scalafx.Includes._
-import scalafx.scene.control.{Label, ScrollPane, Tooltip}
-import scalafx.scene.image.{Image, ImageView}
+import scalafx.scene.control.Label
+import scalafx.scene.control.Tooltip
+import scalafx.scene.control.ScrollPane
+import scalafx.scene.image.Image
+import scalafx.scene.image.ImageView
 import scalafx.scene.layout.StackPane
 import javafx.scene.paint.Color
-import scalafx.scene.text.{Font, FontWeight}
+import scalafx.scene.text.Font
+import scalafx.scene.text.FontWeight
 
 
 class GameMapView(onMapClicked: => Unit) extends ScrollPane {

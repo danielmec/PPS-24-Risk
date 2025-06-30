@@ -2,11 +2,13 @@ package client.ui.dialogs
 
 import scalafx.Includes._
 import scalafx.application.Platform
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.layout._
-import scalafx.stage.{Modality, Stage}
+import scalafx.stage.Modality
+import scalafx.stage.Stage
 import scalafx.collections.ObservableBuffer
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow

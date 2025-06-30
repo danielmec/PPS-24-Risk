@@ -7,7 +7,7 @@ import exceptions._
 
 object BattleResult extends Enumeration:
   type BattleResult = Value
-  val AttackerWins, DefenderWins, BattleContinues = Value // Aggiunto BattleContinues
+  val AttackerWins, DefenderWins, BattleContinues = Value 
 
 import BattleResult._
 

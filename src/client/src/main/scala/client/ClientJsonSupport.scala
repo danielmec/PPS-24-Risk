@@ -287,7 +287,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
           state = stateJson.convertTo[GameStateData]  // Usa il formato personalizzato
         )
       } else {
-        // fallback
+        
         GameState(
           gameId = gameId,
           players = extractStringList(initialStateFields, "players"),

@@ -1,12 +1,20 @@
 package client.ui.dialogs
 
 import scalafx.Includes._
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
-import scalafx.scene.control.{Button, ComboBox, Label, TextField}
-import scalafx.scene.layout.{GridPane, HBox, VBox}
-import scalafx.scene.text.{Font, FontWeight}
-import scalafx.stage.{Modality, Stage}
+import scalafx.scene.control.TextField
+import scalafx.scene.control.Button 
+import scalafx.scene.control.Label 
+import scalafx.scene.control.ComboBox 
+import scalafx.scene.layout.VBox
+import scalafx.scene.layout.GridPane
+import scalafx.scene.layout.HBox
+import scalafx.scene.text.FontWeight
+import scalafx.scene.text.Font 
+import scalafx.stage.Modality
+import scalafx.stage.Stage
 import scalafx.collections.ObservableBuffer
 
 
@@ -24,7 +32,7 @@ class CreateBotDialog(parentStage: Stage, numBots: Int) extends Stage {
     
     val botConfigs = Array.tabulate(numBots) { i =>
         val comboBox = new ComboBox(botStrategies)
-        comboBox.selectionModel().selectFirst() // Default: Offensivo
+        comboBox.selectionModel().selectFirst() 
         val nameField = new TextField {
         text = s"Bot ${i+1}"
         prefWidth = 150

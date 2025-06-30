@@ -1,9 +1,12 @@
 package engine
+
 import model.board._
 import model.cards._
 import model.player._
 import scala.io.Source
-import scala.util.{Try, Success, Failure}
+import scala.util.Failure
+import scala.util.Try
+import scala.util.Success
 import scala.util.Random
 import play.api.libs.json._
 import exceptions._

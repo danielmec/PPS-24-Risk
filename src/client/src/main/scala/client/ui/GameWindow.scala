@@ -2,7 +2,9 @@ package client.ui
 
 import scalafx.Includes._
 import scalafx.application.Platform
-import scalafx.geometry.{Insets, Pos, Orientation}
+import scalafx.geometry.Insets
+import scalafx.geometry.Orientation
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.layout._
@@ -20,7 +22,8 @@ import client.AdapterMap
 import client.AdapterMap.UITerritory
 import model.board.Territory
 import client.AdapterMap.UITerritory
-import dialogs.{AttackDialog, ReinforcementDialog}
+import dialogs.AttackDialog
+import dialogs.ReinforcementDialog
 
 class GameWindow(
   networkManager: ClientNetworkManager,
@@ -85,7 +88,7 @@ class GameWindow(
   val splitPane = new SplitPane {
     orientation = Orientation.Horizontal
     items.addAll(centerPane, sidebarPane)
-    dividerPositions = 0.75 // 75% mappa, 25% barra laterale
+    dividerPositions = 0.75
     VBox.setVgrow(this, Priority.Always)
   }
   
@@ -211,7 +214,7 @@ class GameWindow(
               contentText = s"Errore durante la richiesta: ${ex.getMessage}"
             }
             alert.showAndWait()
-            actionPane.endTurnButton.disable = false // Riabilita in caso di errore
+            actionPane.endTurnButton.disable = false
           }
       }(networkManager.executionContext)
     }
@@ -228,7 +231,7 @@ class GameWindow(
         territories.filter(_.owner.value != myPlayerId)
       )
       
-      val result = attackDialog.showAndWaitWithResult() // Usa il nuovo metodo
+      val result = attackDialog.showAndWaitWithResult() 
       result.foreach { attackInfo =>
         actionPane.attackButton.disable = true
         actionHandler.attack(
@@ -451,7 +454,7 @@ class GameWindow(
            
           println(s"[handleGameState] CONTROLLO INIZIO TURNO - playerStartedTurn: '${stateData.playerStartedTurn}'")
           
-          if (stateData.playerStartedTurn == "true") {  // Aggiungiamo il controllo sul flag playerStartedTurn
+          if (stateData.playerStartedTurn == "true") { 
             val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
             println(s"Territori del giocatore ${myPlayerId}: ${myTerritories.size}")
             println(s"Inizio turno: ${stateData.playerStartedTurn} - Mostrando dialogo piazzamento truppe")
@@ -591,7 +594,7 @@ class GameWindow(
   }
   
   private def createTerritories(): ObservableBuffer[UITerritory] = {
-    AdapterMap.loadTerritories() //resituisce una Buffer[UITerritory]
+    AdapterMap.loadTerritories()
   }
   
   private def handleBattleResult(battleResult: BattleResultMessage): Unit = {

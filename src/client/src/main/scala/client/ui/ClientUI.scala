@@ -2,12 +2,18 @@ package client.ui
 
 import scalafx.application.JFXApp3
 import scalafx.application.JFXApp3.PrimaryStage
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
-import scalafx.scene.control.{Button, Label, TextField}
-import scalafx.scene.layout.{VBox, HBox}
-import scalafx.scene.text.{Font, FontWeight}
-import scala.util.{Success, Failure}
+import scalafx.scene.control.TextField
+import scalafx.scene.control.Label
+import scalafx.scene.control.Button
+import scalafx.scene.layout.HBox
+import scalafx.scene.layout.VBox
+import scalafx.scene.text.FontWeight
+import scalafx.scene.text.Font 
+import scala.util.Failure
+import scala.util.Success
 import client.ClientNetworkManager
 import client.ClientJsonSupport
 import client.ClientJsonSupport._  

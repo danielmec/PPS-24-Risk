@@ -8,7 +8,9 @@ import scala.sys.Prop
 import java.util.UUID
 import akka.actor.ActorRef
 import akka.actor.ActorLogging
-import protocol.{Message, ServerMessages, ClientMessages}
+import protocol.Message
+import protocol.ClientMessages
+import protocol.ServerMessages
 import akka.pattern.ask
 import scala.concurrent.duration._
 import akka.util.Timeout

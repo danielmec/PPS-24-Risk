@@ -1,12 +1,16 @@
 package client.ui.dialogs
 
 import scalafx.Includes._
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.control.TabPane.TabClosingPolicy
-import scalafx.scene.layout.{BorderPane, HBox}
-import scalafx.stage.{Modality, Stage}
+import scalafx.scene.layout.BorderPane
+import scalafx.scene.layout.VBox
+import scalafx.scene.layout.HBox
+import scalafx.stage.Modality
+import scalafx.stage.Stage
 import scalafx.collections.ObservableBuffer
 import client.AdapterMap.UITerritory
 

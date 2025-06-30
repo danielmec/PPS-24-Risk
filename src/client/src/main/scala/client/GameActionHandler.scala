@@ -1,6 +1,7 @@
 package client
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext 
 import client.ClientJsonSupport.GameActionMessage
 
 

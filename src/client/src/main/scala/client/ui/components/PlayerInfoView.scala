@@ -1,11 +1,14 @@
 package client.ui.components
 
 import scalafx.Includes._
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
 import scalafx.scene.control.Label
-import scalafx.scene.layout.{HBox, Priority}
+import scalafx.scene.layout.Priority
+import scalafx.scene.layout.HBox
 import scalafx.scene.shape.Rectangle
-import scalafx.scene.text.{Font, FontWeight}
+import scalafx.scene.text.FontWeight
+import scalafx.scene.text.Font
 import javafx.scene.paint.Color
 import client.ClientNetworkManager
 

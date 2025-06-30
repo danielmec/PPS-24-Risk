@@ -1,12 +1,16 @@
 package client.ui.components
 
 import scalafx.Includes._
-import scalafx.geometry.{Insets, Pos}
-import scalafx.scene.control.{ComboBox, Label}
-import scalafx.scene.layout.{GridPane, HBox, VBox}
-import scalafx.scene.text.{Font, FontWeight}
+import scalafx.geometry.Insets
+import scalafx.geometry.Pos
+import scalafx.scene.control.ComboBox
+import scalafx.scene.control.Label
+import scalafx.scene.layout.HBox
+import scalafx.scene.layout.GridPane
+import scalafx.scene.layout.VBox
+import scalafx.scene.text.FontWeight
+import scalafx.scene.text.Font 
 import scalafx.collections.ObservableBuffer
-
 import client.AdapterMap
 import client.AdapterMap.UITerritory
 import bridge.TerritoryBridge
@@ -14,7 +18,7 @@ import bridge.TerritoryBridge
 class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) extends HBox(20) {
   
   private val continentToTerritories = {
-    val allTerritories = if (territories != null) territories else AdapterMap.loadTerritories() //chiama direttamente il bridge se non sono stati passati territori
+    val allTerritories = if (territories != null) territories else AdapterMap.loadTerritories()
     val result = collection.mutable.Map[String, Int]()
     
     allTerritories.foreach { territory =>

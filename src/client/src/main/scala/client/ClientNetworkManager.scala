@@ -5,46 +5,52 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws._
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import akka.stream.{OverflowStrategy, KillSwitches}
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Sink
+import akka.stream.KillSwitches
+import akka.stream.OverflowStrategy
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.NotUsed
 import akka.actor.typed.ActorRef
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Success, Failure, Try}
+import scala.concurrent.Promise
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 import client.ClientJsonSupport._
 import spray.json._
 import akka.stream.scaladsl.SourceQueueWithComplete
 import akka.stream.QueueOfferResult
 
 
-/**
- * Gestore delle comunicazioni di rete per il client Risiko
- */
+
 class ClientNetworkManager:
-  // Inizializzazione dell'ActorSystem per Akka HTTP
+  
   implicit val system: ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "risk-client")
   implicit val executionContext: ExecutionContext = system.executionContext
   
-  // Configurazione del server
+  
   private val serverHost = "localhost"
   private val serverPort = 8080
   private val baseUrl = s"http://$serverHost:$serverPort"
   private val wsUrl = s"ws://$serverHost:$serverPort/ws"
   
-  // Stato del client (immutabile, usando Option)
+  
   private var playerId: Option[String] = None
   private var webSocketConnection: Option[(Future[WebSocketUpgradeResponse], Promise[Option[Message]])] = None
   private var outgoingMessages: Option[akka.actor.ActorRef] = None
-  //coda per i messaggi in uscita
+  
   private var messageQueue: Option[SourceQueueWithComplete[String]] = None
   
-  // serve per i callback generici che non richiedono un argomento specifico
+  
   private var messageCallbacks: Map[String, Any => Unit] = Map.empty
-  // serve per i callback che richiedono un argomento specifico
+  
   private var filteredCallbacks: Map[String, (Any, String) => Unit] = Map.empty
 
-  // Stato di gioco dell'ultima partita
+  
   private var lastGameState: Option[GameState] = None
 
   def login(username: String): Future[Boolean] =
@@ -54,13 +60,13 @@ class ClientNetworkManager:
       entity = HttpEntity(ContentTypes.`application/json`, s"""{"username": "$username"}""")
     )
     
-    // Invia la richiesta e gestisce la risposta
+    
     Http().singleRequest(request).flatMap { response =>
       response.status match
         case StatusCodes.OK =>
           Unmarshal(response.entity).to[String].map { jsonString =>
             try {
-              //parseJson metodo della libreria spray-json per convertire la stringa JSON in un oggetto 
+              
               val loginResponse = jsonString.parseJson.convertTo[LoginResponse]
               playerId = Some(loginResponse.playerId)
               println(s"Login effettuato con successo. ID: ${loginResponse.playerId}")
@@ -81,11 +87,7 @@ class ClientNetworkManager:
     }
   
 
-  /**
-   * Connette il client al server tramite WebSocket
-   * 
-   * @return Future[Boolean] che indica il successo della connessione
-   */
+
   def connectWebSocket(): Future[Boolean] = {
     
     if (playerId.isEmpty) {
@@ -102,13 +104,13 @@ class ClientNetworkManager:
     
     messageQueue = Some(queue)
     
-    // Sink per messaggi in arrivo , simile a un onMessage del WebSocket tradizionale
+    
     val incomingSink = Sink.foreach[Message] { message =>
       message match {
         case TextMessage.Strict(text) =>
           println(s"Messaggio ricevuto: $text")
           
-          // Usa ClientJsonSupport per tutti i messaggi
+          
           val parsedMessage = ClientJsonSupport.fromJson(text)
           parsedMessage match {
             // Messaggi esistenti
@@ -137,7 +139,7 @@ class ClientNetworkManager:
               println(s"Lista partite disponibili")
               messageCallbacks.get("gameList").foreach(_(msg))
 
-            // Nuovi messaggi di gioco
+            
             case msg @ GameSetupStartedMessage(gameId, message) =>
               println(s"Setup partita iniziato: $message")
               messageCallbacks.get("gameSetupStarted").foreach(_(msg))
@@ -148,7 +150,7 @@ class ClientNetworkManager:
               
             case msg: GameState =>
               println(s"Aggiornamento stato di gioco. Fase: ${msg.state.currentPhase}")
-              // Salva lo stato di gioco
+              
               lastGameState = Some(msg)
               messageCallbacks.get("gameState").foreach(_(msg))
               
@@ -184,7 +186,7 @@ class ClientNetworkManager:
               println(s"Giocatore $player ha lasciato la partita $gameId")
               messageCallbacks.get("playerLeft").foreach(_(msg))
 
-            // Nuovo gestore per TroopMovementMessage
+            
             case msg @ TroopMovementMessage(gameId, fromTerritory, toTerritory, troops, playerId) =>
               println(s"Spostamento truppe: $playerId sposta $troops truppe da $fromTerritory a $toTerritory")
               messageCallbacks.get("troopMovement").foreach(_(msg))
@@ -200,21 +202,21 @@ class ClientNetworkManager:
         case BinaryMessage.Strict(data) =>
           println(s"Messaggio binario ricevuto: ${data.length} bytes")
         case BinaryMessage.Streamed(dataStream) =>
-          //consuma lo stream per evitare perdite di memoria
+          
           dataStream.runWith(Sink.ignore)
       }
     }
     
-    // Crea il flow WebSocket
+    
     val webSocketFlow = Flow.fromSinkAndSource(incomingSink, outgoingSource)
     
-    // Effettua la connessione
+    
     val (upgradeResponse, _) = Http().singleWebSocketRequest(
       WebSocketRequest(uri = wsUrl), 
       webSocketFlow
     )
     
-    // Gestisce la risposta
+    
     upgradeResponse.map { upgrade =>
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
         println("Connessione WebSocket stabilita")
@@ -230,16 +232,11 @@ class ClientNetworkManager:
     }
   }
   
-  /**
-   * Invia un messaggio tramite WebSocket
-   * 
-   * @param message Il messaggio da inviare
-   * @return Future[Boolean] che indica il successo dell'invio
-   */
+
   def sendWebSocketMessage(message: String): Future[Boolean] = {
     messageQueue match {
       case Some(queue) => 
-        //offri il messaggio alla coda
+        
         queue.offer(message).map {
           case QueueOfferResult.Enqueued => 
             println("Messaggio accodato con successo")
@@ -260,9 +257,7 @@ class ClientNetworkManager:
     }
   }
   
-  /**
-   * Invia un messaggio di pong al server per mantenere viva la connessione
-   */
+
   def sendPong(): Unit = {
   
   val pongMessage = ClientJsonSupport.toJson(PongMessage()).compactPrint
@@ -279,12 +274,7 @@ class ClientNetworkManager:
   }
 }
   
-  /**
-   * Invia un messaggio di qualsiasi tipo al server tramite WebSocket
-   * 
-   * @param messageObject L'oggetto messaggio (verrà serializzato con ClientJsonSupport)
-   * @return Future[Boolean] che indica il successo dell'invio
-   */
+
   def sendMessage[T](messageObject: T): Future[Boolean] = {
     val jsonString = ClientJsonSupport.toJson(messageObject).compactPrint
     sendWebSocketMessage(jsonString)
@@ -295,13 +285,13 @@ class ClientNetworkManager:
   def getLastGameState(): Option[GameState] = lastGameState
 
   def shutdown(): Unit =
-    // Chiudi la connessione WebSocket se presente
+    
     webSocketConnection.foreach { case (_, promise) => 
       promise.success(None) 
     }
     system.terminate()
 
-  //metodo callback per ricevere messaggi specifici
+  
   def registerCallback(messageType: String, callback: Any => Unit): Unit = {
     messageCallbacks = messageCallbacks + (messageType -> callback)
   }
