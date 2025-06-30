@@ -64,9 +64,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     defenderTerritory: String,
     attackerLosses: Int,
     defenderLosses: Int,
-    newOwner: Option[String], 
-    attackerDice: Seq[Int],
-    defenderDice: Seq[Int]
+    newOwner: Option[String]
   )
   case class GameOverMessage(gameId: String, winnerId: String, winnerUsername: String)
 
@@ -158,7 +156,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(GameActionResultMessage)
   implicit val turnChangedFormat: RootJsonFormat[TurnChangedMessage] = jsonFormat3(TurnChangedMessage)
   implicit val territoryUpdateFormat: RootJsonFormat[TerritoryUpdateMessage] = jsonFormat4(TerritoryUpdateMessage)
-  implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat8(BattleResultMessage)
+  implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat6(BattleResultMessage)
   implicit val gameOverFormat: RootJsonFormat[GameOverMessage] = jsonFormat3(GameOverMessage)
 
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
@@ -202,12 +200,6 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       )
     case _ => JsObject("type" -> JsString("unknown"))
   
-  private def extractIntSeq(fields: Map[String, JsValue], key: String): Seq[Int] =
-  fields.get(key) match
-    case Some(JsArray(elements)) => elements.collect {
-      case JsNumber(n) => n.toInt
-    }
-    case _ => Seq.empty[Int]
   // è una mappa per gestire i messaggi in arrivo
   //ogni chiave è il tipo di messaggio e il valore è una funzione che
   //prende i campi del messaggio e restituisce l'istanza del messaggio
@@ -341,9 +333,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         extractString(fields, "defenderTerritory"),
         extractInt(fields, "attackerLosses"),
         extractInt(fields, "defenderLosses"),
-        extractOption(fields, "newOwner")(_.convertTo[String]),
-        extractIntSeq(fields, "attackerDice"),
-        extractIntSeq(fields, "defenderDice") 
+        extractOption(fields, "newOwner")(_.convertTo[String])
       )
     },
     

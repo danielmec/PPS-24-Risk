@@ -8,7 +8,6 @@ import scala.collection.mutable.{  Map, ListBuffer }
 import engine.{GameEngine, GameState, TurnPhase, GameAction, EngineState}
 import model.player.{Player => CorePlayer, PlayerImpl => CorePlayerImpl}
 import model.player.PlayerColor
-import engine.Battle
 
 //Oggetto companion per GameSession che definisce i messaggi e il factory method
 object GameSession:
@@ -250,98 +249,40 @@ class GameSession(
                     )
                 
                 case (Some(_), Playing, Some(engine)) =>
-                  log.info(s"Processing action ${action.action} from player $playerId")
-                  
                   try {
                     // Converte l'azione client in azione core
                     val coreAction = convertToGameAction(action, playerId)
-                    
-                    // Per le azioni di attacco, tratta separatamente per catturare i dadi
-                    coreAction match {
-                      case attack: GameAction.Attack =>
-                        // Ottieni lo stato del gioco prima dell'attacco
-                        val gameStateBefore = engine.getGameState
-                        
-                        // Estrai i territori e i giocatori PRIMA dell'attacco
-                        val attackerTerritory = gameStateBefore.getTerritoryByName(attack.from).get
-                        val defenderTerritory = gameStateBefore.getTerritoryByName(attack.to).get
-                        
-                        // Simula la battaglia per ottenere i dadi
-                        val attackerPlayer = gameStateBefore.playerStates.find(_.playerId == attack.attackerId).get.player
-                        val defenderPlayer = gameStateBefore.playerStates.find(_.playerId == attack.defenderId).get.player
-                        val battleResult = Battle.battleRound(
-                          attackerPlayer,
-                          defenderPlayer,
-                          attackerTerritory,
-                          defenderTerritory,
-                          attack.troops
-                        )
-                        
-                        // Esegui l'attacco
-                        val updatedGameState = engine.processAction(coreAction)
-                        
-                        // Invia il risultato della battaglia con i dadi
-                        players.values.foreach { player =>
-                          player ! ServerMessages.BattleResult(
-                            gameId = gameId,
-                            attackerTerritory = attack.from,
-                            defenderTerritory = attack.to,
-                            attackerLosses = battleResult.attackerLosses,
-                            defenderLosses = battleResult.defenderLosses,
-                            newOwner = updatedGameState.getTerritoryByName(attack.to).get.owner.map(_.id),
-                            attackerDice = battleResult.attackerDice.toList,
-                            defenderDice = battleResult.defenderDice.toList   
-                          )
-                        }
-                        
-                        val nextPlayerId = updatedGameState.turnManager.currentPlayer.id
-                        val clientState = convertGameStateToClient(updatedGameState)
-                        val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
-                        
-                        players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
-                        
-                        // Aggiorna tutti i giocatori con il nuovo stato
-                        players.values.foreach(player => 
-                          player ! ServerMessages.GameState(
-                            gameId, 
-                            playersList,
-                            nextPlayerId,
-                            scala.collection.immutable.Map("gameStateDto" -> clientState)  
-                          )
-                        )
-                        
-                        val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
-                        context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
                       
-                      case _ =>
-                        val updatedGameState = engine.processAction(coreAction)
-                        val nextPlayerId = updatedGameState.turnManager.currentPlayer.id
-                        
-                        val clientState = convertGameStateToClient(updatedGameState)
-                        val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
-    
-                        players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
-    
-                        players.values.foreach(player => 
-                          player ! ServerMessages.GameState(
-                            gameId, 
-                            playersList,
-                            nextPlayerId,
-                            scala.collection.immutable.Map("gameStateDto" -> clientState)  
-                          )
-                        )
-                        
-                        val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
-                        context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
-                    }
-                  } catch {
+                    //processa l'azione con il motore di gioco e ne prende il nuovo stato
+                    val updatedGameState = engine.processAction(coreAction)
+                    
+                    val nextPlayerId = updatedGameState.turnManager.currentPlayer.id
+                      
+                    val clientState = convertGameStateToClient(updatedGameState)
+                    val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
+
+                    players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
+
+                    // Aggiorna tutti i giocatori con il nuovo stato
+                    players.values.foreach(player => 
+                      player ! ServerMessages.GameState(
+                        gameId, 
+                        playersList,
+                        nextPlayerId,
+                        scala.collection.immutable.Map("gameStateDto" -> clientState) 
+                      )
+                    )
+                    val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
+                    context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState)) 
+                    } catch {
                       case ex: Exception =>
-                          log.error(s"Error processing action: ${ex.getMessage}")
-                          players(playerId) ! ServerMessages.GameActionResult(
-                              false,
-                              s"Error processing action: ${ex.getMessage}"
-                          )
-                  }
+                        log.error(s"Error processing action: ${ex.getMessage}")
+                        players(playerId) ! ServerMessages.GameActionResult(
+                          false,
+                          s"Error processing action: ${ex.getMessage}"
+                        )
+                    }
+                 
                 
                 case _ =>
                     log.warning(s"Unexpected state in ProcessAction: player=$playerId, phase=$phase")
@@ -445,7 +386,7 @@ class GameSession(
             defenderId,
             clientAction.parameters.getOrElse("fromTerritory", ""),
             clientAction.parameters.getOrElse("toTerritory", ""),
-            clientAction.parameters.getOrElse("troops", "0").toInt,
+            clientAction.parameters.getOrElse("troops", "0").toInt
           )
           
         case "place_troops" =>

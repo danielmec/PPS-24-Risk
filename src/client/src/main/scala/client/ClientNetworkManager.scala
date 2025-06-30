@@ -163,9 +163,8 @@ class ClientNetworkManager:
               println(s"Territorio $territoryName aggiornato: proprietario=$owner, truppe=$troops")
               messageCallbacks.get("territoryUpdate").foreach(_(msg))
               
-            case msg @ BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerLosses, defenderLosses, newOwner, attackerDice, defenderDice) =>
+            case msg @ BattleResultMessage(gameId, attackerTerritory, defenderTerritory, attackerLosses, defenderLosses, newOwner) =>
               println(s"Risultato battaglia: $attackerTerritory vs $defenderTerritory (perdite: $attackerLosses/$defenderLosses)")
-              println(s"Dadi: attaccante ${attackerDice.mkString(",")} - difensore ${defenderDice.mkString(",")}")
               if (newOwner.isDefined) {
                 println(s"Nuovo proprietario di $defenderTerritory: ${newOwner.get}")
               }
