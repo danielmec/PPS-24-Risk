@@ -168,19 +168,6 @@ class GameWindow(
         case _ => println("Messaggio gameJoined ricevuto con formato non valido")
       }
     })
-
-    networkManager.registerCallback("battleResult", msg => {
-      println(s"Callback battleResult ricevuto!")
-      val battleResult = msg.asInstanceOf[BattleResultMessage]
-      
-      Platform.runLater {
-        // Aggiorna i dadi
-        updateDiceValues(battleResult.attackerDice, battleResult.defenderDice)
-        
-        println(s"Dadi attaccante: ${battleResult.attackerDice.mkString(", ")}")
-        println(s"Dadi difensore: ${battleResult.defenderDice.mkString(", ")}")
-      }
-    })
   }
   
   /**
