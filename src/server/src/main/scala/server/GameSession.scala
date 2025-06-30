@@ -53,14 +53,19 @@ object GameSession:
     case object Setup extends GamePhase
 
     // Factory method per creare un'istanza di GameSession con 3 parametri 
-    def props(gameId: String, gameName: String, maxPlayers: Int): Props = 
-        Props(new GameSession(gameId, gameName, maxPlayers))
+    def props(gameId: String, gameName: String, maxPlayers: Int, numBots: Int = 0, 
+          botStrategies: Option[List[String]] = None, botNames: Option[List[String]] = None): Props = 
+        Props(new GameSession(gameId, gameName, maxPlayers, numBots, botStrategies, botNames))
 
 
 class GameSession(
     gameId: String, 
     gameName: String, 
-    maxPlayers: Int ) extends Actor with ActorLogging:
+    maxPlayers: Int,
+    numBots: Int = 0,
+    botStrategies: Option[List[String]] = None,
+    botNames: Option[List[String]] = None
+) extends Actor with ActorLogging:
 
     import GameSession._
 
@@ -80,7 +85,6 @@ class GameSession(
     def receive: Receive = 
      case _ => // Dummy case to initialize the actor
         log.info(s"GameSession received message before running state")
-
         
     // funzione pura che gestisce lo stato running
     // parametri che gestiscono lo stato interno di una sessione di Game 
@@ -96,7 +100,7 @@ class GameSession(
         case JoinGame(playerId, playerRef, username) =>
             (players.size < maxPlayers, phase) match
                 case (true, _) | (_, WaitingForPlayers) =>
-                    //Creo una nuova mappa immutabile
+                    //Nuova mappa immutabile
                     val updatedPlayers = players + (playerId -> playerRef)
                     
                     val updatedPlayerData = playerData + (playerId -> Player(playerId, playerRef, username))

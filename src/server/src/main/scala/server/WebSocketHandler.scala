@@ -22,7 +22,6 @@ object WebSocketHandler:
   case class OutgoingConnection(client: ActorRef)
   case object SendPing
   
-  // Crea un flow di base o generica (Template)
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
     
     val connectionId = java.util.UUID.randomUUID().toString.take(8)
@@ -89,7 +88,6 @@ object WebSocketHandler:
     }
     
     def receive = {
-      // Aggiungi questo al pattern matching
       case SendPing =>
         println(s"[DEBUG] Invio ping al client")
         sendProtocolMessage(protocol.ServerMessages.Ping())
@@ -148,9 +146,9 @@ object WebSocketHandler:
     // Gestisce i messaggi del client
     private def handleClientMessage(msg: ProtocolMessage): Unit =
       msg match {
-        case protocol.ClientMessages.CreateGame(name, maxPlayers, username) =>
-          println(s"Inoltro richiesta creazione partita: $name ($maxPlayers giocatori)")
-          gameManager ! GameManager.CreateGameSession(name, maxPlayers, self, username)
+        case protocol.ClientMessages.CreateGame(name, maxPlayers, username, numBots, botStrategies, botNames) =>
+          println(s"Inoltro richiesta creazione partita: $name ($maxPlayers giocatori, $numBots bot)")
+          gameManager ! GameManager.CreateGameSession(name, maxPlayers, self, username, numBots, botStrategies, botNames)
           
         case protocol.ClientMessages.JoinGame(gameId, username) if gameId.isEmpty && username.isEmpty =>
           // Caso speciale: join alla lobby generale
@@ -185,7 +183,6 @@ object WebSocketHandler:
     
     
     private def parseJsonMessage(text: String): Try[ProtocolMessage] = Try {
-      
       text.parseJson.convertTo[ProtocolMessage]
     }
     

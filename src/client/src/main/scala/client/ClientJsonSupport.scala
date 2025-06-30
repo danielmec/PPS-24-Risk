@@ -8,7 +8,14 @@ import DefaultJsonProtocol._
  */
 object ClientJsonSupport extends DefaultJsonProtocol:
   // Definizione dei messaggi che il client può inviare
-  case class CreateGameMessage(gameName: String, maxPlayers: Int, username: String)
+  case class CreateGameMessage(
+    gameName: String, 
+    maxPlayers: Int, 
+    username: String, 
+    numBots: Int = 0, 
+    botStrategies: Option[List[String]] = None, 
+    botNames: Option[List[String]] = None
+  )
   case class JoinGameMessage(gameId: String, username: String)
   case class JoinLobbyMessage()
   case class LeaveGameMessage(gameId: String)
@@ -101,24 +108,25 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     }
 
   // Formati JSON per messaggi semplici (usati da spray-json)
-  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat3(CreateGameMessage)
-  implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(JoinGameMessage)
-  implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(JoinLobbyMessage)
-  implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(LeaveGameMessage)
-  implicit val getAllGamesFormat: RootJsonFormat[GetAllGamesMessage] = jsonFormat0(GetAllGamesMessage) 
-  implicit val pingFormat: RootJsonFormat[PingMessage] = jsonFormat0(PingMessage)
-  implicit val gameActionFormat: RootJsonFormat[GameActionMessage] = jsonFormat3(GameActionMessage)
-  implicit val gameCreatedFormat: RootJsonFormat[GameCreatedMessage] = jsonFormat3(GameCreatedMessage)
-  implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(PlayerJoinedMessage)
-  implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(ErrorMessage)
-  implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(LobbyJoinedMessage)
-  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat3(GameJoinedMessage)
-  implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse)
-  implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(PongMessage)
-  implicit val gameListFormat: RootJsonFormat[GameListMessage] = jsonFormat1(GameListMessage)
-  implicit val gameSetupStartedFormat: RootJsonFormat[GameSetupStartedMessage] = jsonFormat2(GameSetupStartedMessage)
-  implicit val playerLeftFormat: RootJsonFormat[PlayerLeftMessage] = jsonFormat2(PlayerLeftMessage)
-  implicit val missionCardDtoFormat: RootJsonFormat[MissionCardDto] = jsonFormat4(MissionCardDto)
+  val prefix = client.ClientJsonSupport
+  implicit val createGameFormat: RootJsonFormat[CreateGameMessage] = jsonFormat6(prefix.CreateGameMessage.apply)
+  implicit val joinGameFormat: RootJsonFormat[JoinGameMessage] = jsonFormat2(prefix.JoinGameMessage.apply)
+  implicit val joinLobbyFormat: RootJsonFormat[JoinLobbyMessage] = jsonFormat0(prefix.JoinLobbyMessage.apply)
+  implicit val leaveGameFormat: RootJsonFormat[LeaveGameMessage] = jsonFormat1(prefix.LeaveGameMessage.apply)
+  implicit val getAllGamesFormat: RootJsonFormat[GetAllGamesMessage] = jsonFormat0(prefix.GetAllGamesMessage.apply) 
+  implicit val pingFormat: RootJsonFormat[PingMessage] = jsonFormat0(prefix.PingMessage.apply)
+  implicit val gameActionFormat: RootJsonFormat[GameActionMessage] = jsonFormat3(prefix.GameActionMessage.apply)
+  implicit val gameCreatedFormat: RootJsonFormat[GameCreatedMessage] = jsonFormat3(prefix.GameCreatedMessage.apply)
+  implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(prefix.PlayerJoinedMessage.apply)
+  implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(prefix.ErrorMessage.apply)
+  implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(prefix.LobbyJoinedMessage.apply)
+  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat3(prefix.GameJoinedMessage.apply)
+  implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(prefix.LoginResponse.apply)
+  implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(prefix.PongMessage.apply)
+  implicit val gameListFormat: RootJsonFormat[GameListMessage] = jsonFormat1(prefix.GameListMessage.apply)
+  implicit val gameSetupStartedFormat: RootJsonFormat[GameSetupStartedMessage] = jsonFormat2(prefix.GameSetupStartedMessage.apply)
+  implicit val playerLeftFormat: RootJsonFormat[PlayerLeftMessage] = jsonFormat2(prefix.PlayerLeftMessage.apply)
+  implicit val missionCardDtoFormat: RootJsonFormat[MissionCardDto] = jsonFormat4(prefix.MissionCardDto.apply)
   
   // Formato personalizzato per GameStateData (gestione speciale di missionCard)
   implicit object GameStateDataFormat extends RootJsonFormat[GameStateData] {
@@ -151,23 +159,36 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     }
   }
   
-  implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(GameState)
-  implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(GameStartedMessage)
-  implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(GameActionResultMessage)
-  implicit val turnChangedFormat: RootJsonFormat[TurnChangedMessage] = jsonFormat3(TurnChangedMessage)
-  implicit val territoryUpdateFormat: RootJsonFormat[TerritoryUpdateMessage] = jsonFormat4(TerritoryUpdateMessage)
-  implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat6(BattleResultMessage)
-  implicit val gameOverFormat: RootJsonFormat[GameOverMessage] = jsonFormat3(GameOverMessage)
+  implicit val gameStateFormat: RootJsonFormat[GameState] = jsonFormat4(prefix.GameState.apply)
+  implicit val gameStartedFormat: RootJsonFormat[GameStartedMessage] = jsonFormat3(prefix.GameStartedMessage.apply)
+  implicit val gameActionResultFormat: RootJsonFormat[GameActionResultMessage] = jsonFormat2(prefix.GameActionResultMessage.apply)
+  implicit val turnChangedFormat: RootJsonFormat[TurnChangedMessage] = jsonFormat3(prefix.TurnChangedMessage.apply)
+  implicit val territoryUpdateFormat: RootJsonFormat[TerritoryUpdateMessage] = jsonFormat4(prefix.TerritoryUpdateMessage.apply)
+  implicit val battleResultFormat: RootJsonFormat[BattleResultMessage] = jsonFormat6(prefix.BattleResultMessage.apply)
+  implicit val gameOverFormat: RootJsonFormat[GameOverMessage] = jsonFormat3(prefix.GameOverMessage.apply)
 
   // Metodo per serializzare i messaggi in uscita con il campo 'type'
   def toJson(message: Any): JsValue = message match
     case msg: CreateGameMessage => 
-      JsObject(
+      var fields = Map(
         "type" -> JsString("createGame"),
         "gameName" -> JsString(msg.gameName),
         "maxPlayers" -> JsNumber(msg.maxPlayers),
-        "username" -> JsString(msg.username)
+        "username" -> JsString(msg.username),
+        "numBots" -> JsNumber(msg.numBots)
       )
+      
+      if (msg.botStrategies.isDefined) 
+        fields = fields + ("botStrategies" -> JsArray(
+          msg.botStrategies.get.map(JsString(_)).toVector
+        ))
+      
+      if (msg.botNames.isDefined) 
+        fields = fields + ("botNames" -> JsArray(
+          msg.botNames.get.map(JsString(_)).toVector
+        ))
+      
+      JsObject(fields)
     case msg: JoinGameMessage => 
       JsObject(
         "type" -> JsString("joinGame"),

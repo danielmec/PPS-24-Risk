@@ -15,7 +15,10 @@ object ClientMessages:
   case class CreateGame(
     gameName: String, 
     maxPlayers: Int,
-    username: String 
+    username: String,
+    numBots: Int = 0,
+    botStrategies: Option[List[String]] = None,
+    botNames: Option[List[String]] = None
   ) extends Message
 
   case class GameAction(

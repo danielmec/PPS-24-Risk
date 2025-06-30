@@ -17,7 +17,15 @@ object GameManager:
 
     sealed trait Command
 
-    case class CreateGameSession(gameName: String, maxPlayers: Int, creator: ActorRef, username: String) extends Command
+    case class CreateGameSession(
+      gameName: String, 
+      maxPlayers: Int, 
+      creator: ActorRef, 
+      username: String,
+      numBots: Int = 0,
+      botStrategies: Option[List[String]] = None,
+      botNames: Option[List[String]] = None
+    ) extends Command
     case class JoinGameSession(gameId: String, player: ActorRef, username :String) extends Command
     case class LeaveGameSession(gameId: String, player: ActorRef) extends Command
     case class GetAllGames(replyTo: ActorRef) extends Command
@@ -63,12 +71,12 @@ class GameManager extends Actor with ActorLogging:
             log.warning(s"Client ${client.path} connected. Total connected clients: ${updatedClients.size}")
             context.become(running(games, updatedClients, playerToGame))
             
-        case CreateGameSession(gameName, maxPlayers, creator, username) =>
+        case CreateGameSession(gameName, maxPlayers, creator, username, numBots, botStrategies, botNames) =>
             val gameId = UUID.randomUUID().toString().take(6) 
-            log.warning(s"Creating game session: $gameName with ID: $gameId for user ${username}")
+            log.warning(s"Creating game session: $gameName with ID: $gameId for user ${username} with $numBots bots")
 
             val gameSession = context.actorOf(
-                GameSession.props(gameId, gameName, maxPlayers),
+                GameSession.props(gameId, gameName, maxPlayers, numBots, botStrategies, botNames),
                 s"GameSession-$gameId"
             )
             val updatedGames = games + (gameId -> gameSession)
@@ -154,6 +162,8 @@ class GameManager extends Actor with ActorLogging:
                             
                         case None =>
                             log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
+
+                case None => log.warning(s"Player ${player.path.name} not found")
             
                 
                 val updatedPlayerToGame = playerToGame - player
