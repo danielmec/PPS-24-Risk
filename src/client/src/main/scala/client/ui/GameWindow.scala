@@ -259,7 +259,30 @@ class GameWindow(
       showReinforcementDialog()
     }
 
-    
+    actionPane.cardsButton.onAction = handle {
+      val cards: Seq[client.ui.dialogs.CardInfo] = {
+        val stateOpt = networkManager.getLastGameState()
+        stateOpt.flatMap { gs =>
+          gs.state.playerStates.find(_("playerId") == myPlayerId)
+            .flatMap { playerState =>
+              playerState.get("territoryCards").map { raw =>
+                val regex = """\{([^}]+)\}""".r
+                regex.findAllIn(raw.toString).toList.map { cardStr =>
+                  val fields = cardStr.stripPrefix("{").stripSuffix("}").split(",").map(_.split(":", 2)).collect {
+                    case Array(k, v) => k.trim -> v.trim
+                  }.toMap
+                  client.ui.dialogs.CardInfo(
+                    fields.getOrElse("territoryName", "???"),
+                    fields.getOrElse("cardType", "???")
+                  )
+                }
+              }
+            }
+        }.getOrElse(Seq.empty)
+      }
+      val dialog = new client.ui.dialogs.ShowCardsDialog(this, cards)
+      dialog.showAndWait()
+    }
   }
   
   private def showErrorAlert(message: String): Unit = {
@@ -360,7 +383,8 @@ class GameWindow(
         
         myPlayerState.foreach { playerState =>
           val bonusTroops = playerState.getOrElse("bonusTroops", "0").toInt
-          
+          actionPane.cardsButton.disable = false
+
           if (currentPhase == "SetupPhase") {
             actionPane.getAttackButton.disable = true
             actionPane.getReinforceButton.disable = true
@@ -393,6 +417,7 @@ class GameWindow(
         actionPane.getAttackButton.disable = true
         actionPane.getReinforceButton.disable = true
         actionPane.getEndTurnButton.disable = true
+        actionPane.cardsButton.disable = true
       }
     }
   }
