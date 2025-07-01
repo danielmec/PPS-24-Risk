@@ -98,8 +98,7 @@ object CardsBuilder:
         val continentObjectives = createContinentObjectives(json, continentsMap)
         val nContinentsObjectives = createNContinentsObjectives(json)
         val territoryObjectives = createTerritoryObjectives(json)
-        val defeatObjectives = createDefeatObjectives(json)  
-        continentObjectives ++ nContinentsObjectives ++ territoryObjectives ++ defeatObjectives
+        continentObjectives ++ nContinentsObjectives ++ territoryObjectives
 
     private def createContinentObjectives(json: JsValue, continentsMap: Map[String, Continent]): List[ObjectiveCard] =
         (json \\ "continents").headOption.map { continentsJson =>
@@ -127,11 +126,3 @@ object CardsBuilder:
             }.toList
         }.getOrElse(List.empty)
     
-    private def createDefeatObjectives(json: JsValue): List[ObjectiveCard] =
-        (json \\ "defeat").headOption.map { defeatJson =>
-            defeatJson.as[JsArray].value.map { objJson =>
-                val colorStr = (objJson \ "playerColor").as[String]
-                val color = PlayerColor.valueOf(colorStr)
-                ObjectiveCard.DefeatPlayer(color)
-            }.toList
-        }.getOrElse(List.empty)

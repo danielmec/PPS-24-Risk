@@ -3,7 +3,7 @@ package model.cards
 import model.player.PlayerColor
 import model.board.Continent
 
-sealed trait ObjectiveCard extends Card:
+sealed trait ObjectiveCard:
   def description: String
 
 object ObjectiveCard:
@@ -16,10 +16,6 @@ object ObjectiveCard:
     override def description: String = 
       val continentNames = continents.map(_.name).mkString(", ")
       s"Conquer the following continents: $continentNames."
-
-  case class DefeatPlayer(targetColor: PlayerColor) extends ObjectiveCard:
-    override def description: String = 
-      s"Defeat the player with ${targetColor.toString.toLowerCase} armies."
 
   case class ConquerNContinents(n: Int) extends ObjectiveCard:
     override def description: String = 
