@@ -549,9 +549,6 @@ class GameSession(
         case cc: model.cards.ObjectiveCard.ConquerContinents => 
           ("CONTINENTS", cc.continents.map(_.name).mkString(","))
           
-        case dp: model.cards.ObjectiveCard.DefeatPlayer => 
-          ("ELIMINATE_PLAYER", dp.targetColor.toString)
-          
         case _ => ("UNKNOWN", "")
       }
     }
