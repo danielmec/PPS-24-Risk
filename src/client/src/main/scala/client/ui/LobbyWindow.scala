@@ -254,7 +254,8 @@ class LobbyWindow(networkManager: ClientNetworkManager) extends Stage {
                 msg.gameName, 
                 msg.players,
                 myUsername,
-                connectionId
+                connectionId,
+                msg.playerColors.getOrElse(Map.empty)  // Passa la mappa dei colori
               )
 
               pendingGameStartedMsg.foreach { startedMsg =>

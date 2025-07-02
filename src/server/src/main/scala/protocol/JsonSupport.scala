@@ -157,12 +157,18 @@ object JsonSupport extends DefaultJsonProtocol:
         case _: ServerMessages.Ping =>
           JsObject("type" -> JsString("ping"))
         case msg: ServerMessages.GameJoined =>
-          JsObject(
+          // Prepara tutti i campi in un'unica mappa
+          val fields = Map(
             "type" -> JsString("gameJoined"),
             "gameId" -> JsString(msg.gameId),
             "players" -> JsArray(msg.players.map(JsString(_)).toVector),
             "gameName" -> JsString(msg.gameName)
-          )
+          ) ++ msg.playerColors.map(colors => 
+              "playerColors" -> JsObject(colors.map { case (k, v) => k -> JsString(v) })
+            ).toMap
+          
+          // Crea l'oggetto JSON
+          JsObject(fields)
         case msg: ServerMessages.GameList =>
           JsObject(
             "type" -> JsString("gameList"),

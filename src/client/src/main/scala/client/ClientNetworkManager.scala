@@ -130,9 +130,12 @@ class ClientNetworkManager:
               println(s" Partita creata: '$gameName' (ID: $gameId)")
               messageCallbacks.get("gameCreated").foreach(_(msg))
 
-            case msg @ GameJoinedMessage(gameId, players, gameName) =>
+            case msg @ GameJoinedMessage(gameId, players, gameName, playerColors) =>
               println(s" Sei entrato nella partita $gameId -- $gameName con ${players.size} giocatori")
               println(s"   Giocatori: ${players.mkString(", ")}")
+              if (playerColors.isDefined) {
+                println(s"   Colori assegnati: ${playerColors.get.size}")
+              }
               messageCallbacks.get("gameJoined").foreach(_(msg))
 
             case msg @ GameListMessage(games) =>

@@ -31,7 +31,8 @@ class GameWindow(
   gameName: String, 
   initPlayers: List[String],
   myUsername: String,  
-  val myPlayerId: String 
+  val myPlayerId: String,
+  playerColors: Map[String, String] = Map.empty  // Nuovo parametro
 ) extends Stage {
   
   println("IDENTITÀ GIOCATORE")
@@ -80,7 +81,8 @@ class GameWindow(
     VBox.setVgrow(gameMapView, Priority.Always)
   }
   
-  val playersList = ObservableBuffer(initPlayers.map(name => new PlayerInfoView(name, initPlayers, networkManager)): _*)
+  val playersList = ObservableBuffer(initPlayers.map(name => 
+    new PlayerInfoView(name, initPlayers, networkManager, playerColors)): _*)
   val diceDisplay = new DiceDisplay()
   
   val sidebarPane = createSidebarPane()
@@ -162,11 +164,12 @@ class GameWindow(
     
     networkManager.registerCallback("gameJoined", msg => {
       msg match {
-        case GameJoinedMessage(gameId, players, gameName) =>
+        case GameJoinedMessage(gameId, players, gameName, playerColors) =>
           if (gameId == this.gameId) {
             Platform.runLater {
               println(s"Aggiornamento lista giocatori tramite gameJoined: ${players.mkString(", ")}")
-              updatePlayers(players)
+              // Passa anche i colori aggiornati alla funzione updatePlayers
+              updatePlayers(players, playerColors.getOrElse(Map.empty))
             }
           } else {
             println(s"Ignorato messaggio gameJoined per partita $gameId (sono nella ${this.gameId})")
@@ -558,12 +561,12 @@ def showObjectiveDialog(): Unit = {
 
   def getGameId: String = gameId
   
-  def updatePlayers(newPlayers: List[String]): Unit = {
+  def updatePlayers(newPlayers: List[String], newColors: Map[String, String] = playerColors): Unit = {
     Platform.runLater {
       playersLabel.text = s"Giocatori: ${newPlayers.size}"
       
       val updatedPlayersList = ObservableBuffer(newPlayers.map(name => 
-        new PlayerInfoView(name, newPlayers, networkManager)): _*)
+        new PlayerInfoView(name, newPlayers, networkManager, newColors)): _*)
       
       val newSidebarPane = createSidebarPane(updatedPlayersList)
       splitPane.items.set(1, newSidebarPane)

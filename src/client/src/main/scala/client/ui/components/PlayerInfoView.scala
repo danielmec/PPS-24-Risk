@@ -13,12 +13,41 @@ import javafx.scene.paint.Color
 import client.ClientNetworkManager
 
 
-class PlayerInfoView(playerName: String, currentPlayers: List[String], networkManager: ClientNetworkManager) extends HBox(10) {
-  val colors = List(
-    Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
+class PlayerInfoView(
+  playerName: String, 
+  currentPlayers: List[String], 
+  networkManager: ClientNetworkManager,
+  playerColors: Map[String, String] = Map.empty
+) extends HBox(10) {
+
+  // Estrai l'ID del giocatore dalla stringa "username (id)"
+  val playerId = {
+    val idPattern = ".*\\((.+?)\\)$".r
+    playerName match {
+      case idPattern(id) => id
+      case _ => playerName
+    }
+  }
+  
+  // Mappa semplice di nomi colori a oggetti Color
+  val colorMap = Map(
+    "RED" -> Color.RED,
+    "BLUE" -> Color.BLUE,
+    "GREEN" -> Color.GREEN,
+    "YELLOW" -> Color.YELLOW,
+    "ORANGE" -> Color.ORANGE,
+    "PURPLE" -> Color.PURPLE,
+    "BROWN" -> Color.BROWN
   )
-  val playerIndex = currentPlayers.indexOf(playerName) 
-  val playerColor = if (playerIndex >= 0) colors(playerIndex % colors.size) else Color.GRAY
+  
+  // Usa il colore dal server se disponibile, altrimenti usa la logica di fallback
+  val playerColor = playerColors.get(playerId)
+    .flatMap(colorName => colorMap.get(colorName))
+    .getOrElse {
+      val colors = List(Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN)
+      val playerIndex = currentPlayers.indexOf(playerName) 
+      if (playerIndex >= 0) colors(playerIndex % colors.size) else Color.GRAY
+    }
   
   val colorIndicator = new Rectangle {
     width = 15

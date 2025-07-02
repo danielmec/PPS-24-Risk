@@ -24,7 +24,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class PlayerJoinedMessage(gameId: String, playerId: String)
   case class ErrorMessage(message: String)
   case class LobbyJoinedMessage(message: String)
-  case class GameJoinedMessage(gameId: String, players: List[String], gameName: String)
+  case class GameJoinedMessage(gameId: String, players: List[String], gameName: String, playerColors: Option[Map[String, String]] = None)
   case class LoginResponse(playerId: String, message: Option[String] = None)
   case class PingMessage() 
   case class GameListMessage(games: List[String])
@@ -123,7 +123,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   implicit val playerJoinedFormat: RootJsonFormat[PlayerJoinedMessage] = jsonFormat2(PlayerJoinedMessage.apply)
   implicit val errorFormat: RootJsonFormat[ErrorMessage] = jsonFormat1(ErrorMessage.apply)
   implicit val lobbyJoinedFormat: RootJsonFormat[LobbyJoinedMessage] = jsonFormat1(LobbyJoinedMessage.apply)
-  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat3(GameJoinedMessage.apply)
+  implicit val gameJoinedFormat: RootJsonFormat[GameJoinedMessage] = jsonFormat4(GameJoinedMessage.apply)
   implicit val loginResponseFormat: RootJsonFormat[LoginResponse] = jsonFormat2(LoginResponse.apply)
   implicit val pongFormat: RootJsonFormat[PongMessage] = jsonFormat0(PongMessage.apply)
   implicit val gameListFormat: RootJsonFormat[GameListMessage] = jsonFormat1(GameListMessage.apply)
@@ -253,7 +253,8 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       GameJoinedMessage(
         extractString(fields, "gameId"),
         extractStringList(fields, "players"),
-        extractString(fields, "gameName")
+        extractString(fields, "gameName"),
+        extractOption(fields, "playerColors")(_.convertTo[Map[String, String]])
       )
     },
     

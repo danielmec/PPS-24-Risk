@@ -61,7 +61,8 @@ object ServerMessages:
     case class GameJoined(
         gameId: String, 
         players: List[String],
-        gameName: String
+        gameName: String,
+        playerColors: Option[Map[String, String]] = None
     ) extends Message
 
     case class LobbyJoined(
