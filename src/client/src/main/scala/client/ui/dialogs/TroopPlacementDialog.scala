@@ -96,6 +96,30 @@ class TroopPlacementDialog(
     vbarPolicy = ScrollPane.ScrollBarPolicy.ALWAYS
   }
   
+  val showObjectiveButton = new Button("Mostra Obiettivo")
+  showObjectiveButton.onAction = handle {
+    //chiude temporaneamente questo dialogo per mostrare l'obiettivo
+    val wasShowing = showing.value
+    hide()
+    owner.showObjectiveDialog()
+    if (wasShowing) {
+      show()
+      toFront()
+    }
+  }
+  
+  val showTerritoriesButton = new Button("Mostra Territori")
+  showTerritoriesButton.onAction = handle {
+    //chiude temporaneamente questo dialogo per mostrare i territori
+    val wasShowing = showing.value
+    hide()
+    owner.showTerritoriesDialog()
+    if (wasShowing) {
+      show()
+      toFront()
+    }
+  }
+  
   val confirmButton = new Button("Conferma Piazzamento")
   confirmButton.disable <== remainingTroops =!= 0
   
@@ -120,6 +144,12 @@ class TroopPlacementDialog(
     close()
   }
   
+  val buttonsBox = new HBox(10) {
+    children = Seq(showObjectiveButton, showTerritoriesButton, confirmButton)
+    alignment = Pos.CenterRight
+    padding = Insets(10, 0, 0, 0)
+  }
+  
   val root = new BorderPane {
     padding = Insets(15)
     top = new VBox(10) {
@@ -127,11 +157,7 @@ class TroopPlacementDialog(
       alignment = Pos.Center
     }
     center = scrollPane
-    bottom = new HBox(10) {
-      children = Seq(confirmButton)
-      alignment = Pos.CenterRight
-      padding = Insets(10, 0, 0, 0)
-    }
+    bottom = buttonsBox
   }
   
   scene = new Scene(root)

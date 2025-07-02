@@ -513,22 +513,37 @@ class GameWindow(
     }
   }
   
-  private def showObjectiveDialog(): Unit = {
-    myObjective.foreach { objective =>
-      val dialog = new Alert(Alert.AlertType.Information) {
-        initOwner(GameWindow.this)
-        title = "Il Tuo Obiettivo"
-        headerText = "Obiettivo Segreto"
-        contentText = objective
-      }
-      dialog.showAndWait()
+  
+def showTerritoriesDialog(): Unit = {
+  //mappa id -> username dai giocatori
+  val playerIdToUsername = playersList.map { playerInfoView =>
+    val playerInfo = playerInfoView.nameLabel.text.value
+    //estrae l'ID tra parentesi alla fine del testo "username (id)"
+    val idPattern = ".*\\((.+?)\\)$".r
+    val playerId = playerInfo match {
+      case idPattern(id) => id
+      case _ => playerInfo
     }
-  }
+    val username = playerInfo.split(" \\(").headOption.getOrElse(playerInfo)
+    playerId -> username
+  }.toMap
+  
+  //passa la mappa al dialog
+  val dialog = new TerritoriesDialog(this, territories, playerIdToUsername)
+  dialog.showAndWait()
+}
 
-  def showTerritoriesDialog(): Unit = {
-    val dialog = new TerritoriesDialog(this, territories)
+def showObjectiveDialog(): Unit = {
+  myObjective.foreach { objective =>
+    val dialog = new Alert(Alert.AlertType.Information) {
+      initOwner(GameWindow.this)
+      title = "Il Tuo Obiettivo"
+      headerText = "Obiettivo Segreto"
+      contentText = objective
+    }
     dialog.showAndWait()
   }
+}
 
   private def createEmptyTerritory(name: String): UITerritory = {
     val emptyTerritory = Territory(
