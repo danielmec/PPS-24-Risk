@@ -32,7 +32,7 @@ class GameWindow(
   initPlayers: List[String],
   myUsername: String,  
   val myPlayerId: String,
-  playerColors: Map[String, String] = Map.empty  // Nuovo parametro
+  playerColors: Map[String, String] = Map.empty  
 ) extends Stage {
   
   println("IDENTITÀ GIOCATORE")
@@ -168,7 +168,7 @@ class GameWindow(
           if (gameId == this.gameId) {
             Platform.runLater {
               println(s"Aggiornamento lista giocatori tramite gameJoined: ${players.mkString(", ")}")
-              // Passa anche i colori aggiornati alla funzione updatePlayers
+              
               updatePlayers(players, playerColors.getOrElse(Map.empty))
             }
           } else {
@@ -180,6 +180,20 @@ class GameWindow(
     })
   }
   
+
+/*
+ * Setup event handlers for UI interaction buttons.
+ * 
+ * This method configures actions for all interactive buttons in the game interface:
+ * - End Turn Button: Sends end_setup or end_turn requests to the server depending on the current phase
+ *   and handles success/failure responses appropriately.
+ * - Attack Button: Opens the attack dialog when clicked, allowing the player to select source
+ *   and target territories, then sends the attack request to the server.
+ * - Reinforce Button: Opens the reinforcement dialog to move troops between territories.
+ * - Cards Button: Retrieves and displays the player's territory cards from the current game state.
+ * 
+ * Each action includes error handling and appropriate UI feedback for the player.
+ */
   private def setupUIEventHandlers(): Unit = {
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
@@ -287,7 +301,11 @@ class GameWindow(
       dialog.showAndWait()
     }
   }
-  
+
+
+  /*
+   * Show Error Alert
+   */
   private def showErrorAlert(message: String): Unit = {
     Platform.runLater {
       val alert = new Alert(Alert.AlertType.Error) {
@@ -300,6 +318,10 @@ class GameWindow(
     }
   }
   
+
+  /*
+    * Create a Dialog to show the reinforcement options.
+   */
   private def showTroopPlacementDialog(myTerritories: ObservableBuffer[UITerritory], bonusTroops: Int): Unit = {
     if (!placementDialogOpen && myTerritories.nonEmpty) {
       try {
@@ -341,6 +363,10 @@ class GameWindow(
     }
   }
   
+  /*
+    * Close the troop placement dialog if it is open.
+    * This is called when the turn ends or when the dialog is no longer needed.
+  */
   private def closeTroopPlacementDialog(): Unit = {
     if (placementDialogOpen) {
       currentPlacementDialog.foreach { dialog =>
@@ -351,6 +377,10 @@ class GameWindow(
     }
   }
   
+
+  /*
+    * Handle the game state update received from the server.
+   */
   private def handleGameState(gameState: GameState): Unit = {
     Platform.runLater {
       println(s"Aggiornamento stato di gioco. Fase: ${gameState.state.currentPhase}")
@@ -425,7 +455,10 @@ class GameWindow(
     }
   }
   
-
+  /*
+    * Handle the game started message from the server.
+    * This will initialize the game state and update the UI accordingly. 
+  */
   def handleGameStarted(gameStartedMsg: GameStartedMessage): Unit = {
     Platform.runLater {
       println("GESTIONE GAME STARTED")
@@ -516,6 +549,10 @@ class GameWindow(
     }
   }
   
+/*
+ * Handle the battle result received from the server.
+ * This will update the UI accordingly.
+ */
   
 def showTerritoriesDialog(): Unit = {
   //mappa id -> username dai giocatori
@@ -536,6 +573,9 @@ def showTerritoriesDialog(): Unit = {
   dialog.showAndWait()
 }
 
+/*
+ * Show the objective dialog with the player's secret objective.
+ */
 def showObjectiveDialog(): Unit = {
   myObjective.foreach { objective =>
     val dialog = new Alert(Alert.AlertType.Information) {
@@ -548,6 +588,10 @@ def showObjectiveDialog(): Unit = {
   }
 }
 
+  /*
+   * Create an empty UITerritory with the given name.
+   * This is used when a territory is not found in the initial state.
+   */
   private def createEmptyTerritory(name: String): UITerritory = {
     val emptyTerritory = Territory(
       name = name,
@@ -559,11 +603,38 @@ def showObjectiveDialog(): Unit = {
     new UITerritory(emptyTerritory, "Sconosciuto")
   }
 
+  /*
+    * Get the game ID of the current game.
+    * This is used to identify the game in network messages.
+   */
   def getGameId: String = gameId
   
+
+  /*
+    * Update the players list and their colors.
+    * This will recreate the players list and update the sidebar pane. 
+   */
   def updatePlayers(newPlayers: List[String], newColors: Map[String, String] = playerColors): Unit = {
     Platform.runLater {
       playersLabel.text = s"Giocatori: ${newPlayers.size}"
+      
+      // Debug: stampiamo la lista dei colori ricevuti dal server
+      println("\n=== DEBUG COLORI GIOCATORI ===")
+      println(s"Colori ricevuti dal server: ${newColors}")
+      
+      newPlayers.foreach { playerInfo =>
+        // Estrai l'ID del giocatore
+        val idPattern = ".*\\((.+?)\\)$".r
+        val playerId = playerInfo match {
+          case idPattern(id) => id
+          case _ => playerInfo
+        }
+        
+        // Stampa l'ID del giocatore e il suo colore
+        val colorName = newColors.getOrElse(playerId, "NON TROVATO")
+        println(s"Giocatore: $playerInfo (ID: $playerId) -> Colore: $colorName")
+      }
+      println("============================\n")
       
       val updatedPlayersList = ObservableBuffer(newPlayers.map(name => 
         new PlayerInfoView(name, newPlayers, networkManager, newColors)): _*)
@@ -579,10 +650,13 @@ def showObjectiveDialog(): Unit = {
   }
   
 
+  /* 
+    *  Update the territory with the given name, owner, and troops.
+   */
   def updateTerritory(name: String, owner: String, troops: Int): Unit = {
+
     val territory = territories.find(_.name == name)
 
-    
     territory match {
       case Some(t) => 
         val wasMyTerritory = t.owner.value == myPlayerId
@@ -600,10 +674,12 @@ def showObjectiveDialog(): Unit = {
     }
   }
 
-  def updateDiceValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
-    diceDisplay.updateValues(attackerValues, defenderValues)
-  }
-  
+
+
+  /*  
+   *  Create the sidebar pane with player list and dice display.
+   *  Players can be passed as an ObservableBuffer, or it will use the default playersList
+   */
   private def createSidebarPane(players: ObservableBuffer[PlayerInfoView] = playersList): VBox = {
     new VBox(15) {
       padding = Insets(10)
@@ -636,10 +712,19 @@ def showObjectiveDialog(): Unit = {
     }
   }
   
+
+  /*  
+   *  Create the territories list from the AdapterMap.
+   *  This will load the territories and their initial state.
+   */
   private def createTerritories(): ObservableBuffer[UITerritory] = {
     AdapterMap.loadTerritories()
   }
   
+  /*  
+   *  Handle the result of a battle.
+   *  This will update the dice display and show an alert with the battle outcome.
+   */
   private def handleBattleResult(battleResult: BattleResultMessage): Unit = {
     println(s"[UI] Ricevuto risultato battaglia: ${battleResult}")
 
@@ -692,6 +777,10 @@ def showObjectiveDialog(): Unit = {
     }
   }
   
+  /*  
+   *  Handle troop movement messages.
+   *  This will show an alert with the movement details if the player is not the one who moved the troops.
+   */
   private def handleTroopMovement(movement: TroopMovementMessage): Unit = {
     Platform.runLater {
       if (movement.playerId != myPlayerId) {
@@ -706,6 +795,10 @@ def showObjectiveDialog(): Unit = {
     }
   }
 
+  /*  
+   *  Show the reinforcement dialog if the player has territories with more than 1 army.
+   *  Otherwise, show an alert indicating that no valid territories are available for reinforcement.
+   */
   private def showReinforcementDialog(): Unit = {
     val myTerritories = territories.filter(t => t.owner.value == myPlayerId)
     if (myTerritories.exists(_.armies.value > 1)) {
@@ -722,6 +815,10 @@ def showObjectiveDialog(): Unit = {
     }
   }
 
+  /*  
+   *  Handle the game over message.
+   *  This will show an alert indicating the winner and close the game window.
+   */
   private def handleGameOver(gameOver: GameOverMessage): Unit = {
     Platform.runLater {
       val winnerIsCurrentPlayer = gameOver.winnerId == myPlayerId

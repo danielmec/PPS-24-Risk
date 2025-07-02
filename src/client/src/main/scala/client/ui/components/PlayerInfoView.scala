@@ -20,7 +20,6 @@ class PlayerInfoView(
   playerColors: Map[String, String] = Map.empty
 ) extends HBox(10) {
 
-  // Estrai l'ID del giocatore dalla stringa "username (id)"
   val playerId = {
     val idPattern = ".*\\((.+?)\\)$".r
     playerName match {
@@ -29,7 +28,6 @@ class PlayerInfoView(
     }
   }
   
-  // Mappa semplice di nomi colori a oggetti Color
   val colorMap = Map(
     "RED" -> Color.RED,
     "BLUE" -> Color.BLUE,
@@ -40,14 +38,27 @@ class PlayerInfoView(
     "BROWN" -> Color.BROWN
   )
   
+  val serverColor = playerColors.get(playerId)
+  println(s"[PlayerInfoView] Colore dal server per $playerId: $serverColor")
+  
+  //  convertire il nome del colore
+  val convertedColor = serverColor.flatMap { colorName => 
+    val color = colorMap.get(colorName.toUpperCase)
+    println(s"[PlayerInfoView] Tentativo conversione '$colorName' -> $color")
+    color
+  }
+
   // Usa il colore dal server se disponibile, altrimenti usa la logica di fallback
-  val playerColor = playerColors.get(playerId)
-    .flatMap(colorName => colorMap.get(colorName))
-    .getOrElse {
-      val colors = List(Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN)
-      val playerIndex = currentPlayers.indexOf(playerName) 
-      if (playerIndex >= 0) colors(playerIndex % colors.size) else Color.GRAY
-    }
+  val playerColor = convertedColor.getOrElse {
+    println(s"[PlayerInfoView] Usando colore di fallback per $playerId")
+    val colors = List(Color.BROWN)
+    val playerIndex = currentPlayers.indexOf(playerName) 
+    val fallbackColor = if (playerIndex >= 0) colors(playerIndex % colors.size) else Color.GRAY
+    println(s"[PlayerInfoView] Colore di fallback scelto: $fallbackColor")
+    fallbackColor
+  }
+  
+  println(s"[PlayerInfoView] Colore finale per $playerName: $playerColor")
   
   val colorIndicator = new Rectangle {
     width = 15

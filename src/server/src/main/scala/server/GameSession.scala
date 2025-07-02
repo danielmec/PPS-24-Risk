@@ -83,7 +83,6 @@ class GameSession(
     private var gameEngine: Option[GameEngine] = None
     private var corePlayers: List[model.player.PlayerImpl] = List.empty
 
-    // variabile di istanza all'inizio della classe GameSession
     private val playerColors = scala.collection.mutable.Map[String, PlayerColor]()
 
     override def preStart(): Unit =
@@ -119,23 +118,22 @@ class GameSession(
                     val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
                     val playerIds = updatedPlayers.keys.toList
 
-                    // Crea la mappa di colori playerID -> colorName
+                    // mappa di colori playerID -> colorName
                     val playerColorMap = updatedPlayerData.keys.map { id =>
                       val color = generatePlayerColor(id)
                       id -> color.toString
                     }.toMap
                     
-                    // Debug: mostra la mappatura utenti-colori
+                    
                     println("\n=== MAPPATURA UTENTI-COLORI ===")
                     updatedPlayerData.foreach { case (id, player) =>
                       val color = playerColorMap.getOrElse(id, "NON ASSEGNATO")
                       println(s"${player.username} (ID: $id) -> Colore: $color")
                     }
-                    println("=============================\n")
                     
                     val updatedState = gameState + 
                         ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap) +
-                        ("playerColors" -> playerColorMap) // Aggiungi la mappa dei colori
+                        ("playerColors" -> playerColorMap) 
             
                     updatedPlayers.values.foreach(player =>
                         player ! ServerMessages.GameJoined(gameId, playersList, gameName, Some(playerColorMap))   
@@ -572,28 +570,28 @@ class GameSession(
     }
 
     private def generatePlayerColor(playerId: String): PlayerColor = {
-      // Se il giocatore ha già un colore assegnato, restituiscilo
-      playerColors.get(playerId) match {
+      
+      playerColors.get(playerId) match 
         case Some(color) => color
         case None =>
-          // Altrimenti, assegna un nuovo colore
+          
           val usedColors = playerColors.values.toSet
           val availableColors = PlayerColor.values.filterNot(usedColors.contains)
           
           val newColor = if (availableColors.nonEmpty) {
-            // Usa il primo colore disponibile
+            // primo colore disponibile
             availableColors.head
           } else {
-            // Se tutti i colori sono già assegnati, usa una logica di fallback
+            
             val colors = PlayerColor.values
             val index = Math.abs(playerId.hashCode % colors.length)
             colors(index)
           }
           
-          // Salva l'associazione per uso futuro
+          
           playerColors(playerId) = newColor
           newColor
-      }
+      
     }
   
     private def getLastBattleAttackerDice(gameState: engine.GameState): List[Int] = {
