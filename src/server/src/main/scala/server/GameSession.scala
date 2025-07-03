@@ -333,20 +333,28 @@ class GameSession(
                         case e: exceptions.GameOverException =>
                             log.info(s"Game $gameId is over! Winner: ${e.getMessage}")
                             
-                            val winnerRegex = "Player (.*) \\((.*)\\) has won the game!.*".r
+                            //ricerca il nome e il colore del vincitore dal messaggio dell'eccezione che arriva dal GameEngine
+                            val winnerRegex = ".*Player (.*?) \\((.*?)\\) has won the game!.*".r
                             val winnerInfo = e.getMessage match {
-                                case winnerRegex(name, color) => (name, color)
-                                case _ => ("Unknown", "Unknown")
+                                case winnerRegex(name, color) => 
+                                    println(s"Estratto dal messaggio - Nome: $name, Colore: $color")
+                                    (name, color)
+                                case _ => 
+                                    println(s"Pattern non corrispondente. Messaggio: ${e.getMessage}")
+                                    ("Unknown", "Unknown")
                             }
                             
-                            val winnerId = playerData.find(_._2.username == winnerInfo._1).map(_._1).getOrElse("")
-                            val winnerUsername = playerData.get(winnerId).map(_.username).getOrElse("Unknown")
+                            val winnerId = playerData.find(_._2.username.toLowerCase == winnerInfo._1.toLowerCase).map(_._1).getOrElse("")
+                            val winnerUsername = playerData.get(winnerId).map(_.username).getOrElse(winnerInfo._1)
+                            
+                            println(s"WinnerID trovato: $winnerId")
+                            println(s"WinnerUsername trovato: $winnerUsername")
                             
                             players.values.foreach { player =>
                                 player ! ServerMessages.GameOver(
                                     gameId,
                                     winnerId,
-                                    s"$winnerUsername ($winnerId)"
+                                    winnerUsername
                                 )
                             }
                             
