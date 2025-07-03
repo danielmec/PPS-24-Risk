@@ -22,7 +22,14 @@ object GameSession:
 
     sealed trait Command
 
-    case class JoinGame(playerId: String, playerRef: ActorRef, username: String) extends Command
+    case class JoinGame(
+      playerId: String, 
+      playerRef: ActorRef, 
+      username: String, 
+      numBots: Int, 
+      botStrategies: Option[List[String]], 
+      botNames: Option[List[String]]
+      ) extends Command
     case class LeaveGame(playerId: String) extends Command
     case class ProcessAction(
         playerId: String, 
@@ -106,46 +113,84 @@ class GameSession(
         currentPlayer: Option[String],
         gameState: Map[String, Any]
     ): Receive = 
-        case JoinGame(playerId, playerRef, username) =>
+        case JoinGame(playerId, playerRef, username, _, _, _) => // ignora i parametri dei bot del messaggio
             (players.size < maxPlayers, phase) match
                 case (true, _) | (_, WaitingForPlayers) =>
-                    val updatedPlayers = players + (playerId -> playerRef)
+                    // Prima estrai i giocatori umani e i bot separatamente
+                    val existingHumanPlayers = players.filter(!_._1.startsWith("bot-"))
+                    val existingHumanPlayerData = playerData.filter(!_._1.startsWith("bot-"))
                     
-                    val updatedPlayerData = playerData + (playerId -> Player(playerId, playerRef, username))
+                    // Aggiungi il nuovo giocatore umano
+                    val updatedHumanPlayers = existingHumanPlayers + (playerId -> playerRef)
+                    val updatedHumanPlayerData = existingHumanPlayerData + (playerId -> Player(playerId, playerRef, username))
                     
-                    println(s"Player $playerId ($username) joined game $gameId, current players: ${updatedPlayers.keys.mkString(", ")}")
+                    // Estrai i bot esistenti
+                    val existingBotPlayers = players.filter(_._1.startsWith("bot-"))
+                    val existingBotPlayerData = playerData.filter(_._1.startsWith("bot-"))
                     
-                    val playersList = updatedPlayerData.values.map(p => s"${p.username} (${p.id})").toList
-                    val playerIds = updatedPlayers.keys.toList
+                    // Crea i bot solo se necessario
+                    val (botPlayersMap, botPlayersData) = if (this.numBots > 0 && existingBotPlayers.isEmpty) {
+                      // Usa gli attributi della classe invece dei parametri del messaggio
+                      val botNamesResolved = this.botNames.getOrElse(List.fill(this.numBots)(s"Bot ${UUID.randomUUID().toString.take(4)}"))
+                      val botStrategiesResolved = this.botStrategies.getOrElse(List.fill(this.numBots)("Random"))
+                      
+                      val botMaps = (0 until numBots).map { i =>
+                        val botId = s"bot-${UUID.randomUUID().toString.take(6)}"
+                        val botName = if (i < botNamesResolved.length) botNamesResolved(i) else s"Bot $i"
+                        val botStrategy = if (i < botStrategiesResolved.length) botStrategiesResolved(i) else "Random"
+                        
+                        // Creare un attore "dummy" per rappresentare il bot nelle mappe
+                        // Non serve un vero ActorRef perché i bot non riceveranno messaggi diretti
+                        val botDummyRef = context.system.deadLetters
+                        
+                        // Restituire sia la entry per la mappa players che per playerData
+                        (botId -> botDummyRef, botId -> Player(botId, botDummyRef, botName))
+                      }.unzip
+                      
+                      // Convertire le liste di tuple in mappe
+                      (botMaps._1.toMap, botMaps._2.toMap)
+                    } else {
+                      // Mantieni i bot esistenti
+                      (existingBotPlayers, existingBotPlayerData)
+                    }
+            
+                    // Combina umani e bot nelle mappe finali
+                    val finalPlayers = updatedHumanPlayers ++ botPlayersMap
+                    val finalPlayerData = updatedHumanPlayerData ++ botPlayersData
+                    
+                    val playersList = finalPlayerData.values.map(p => s"${p.username} (${p.id})").toList
+                    val playerIds = finalPlayers.keys.toList
 
-                    // mappa di colori playerID -> colorName
-                    val playerColorMap = updatedPlayerData.keys.map { id =>
+                    // mappa di colori playerID -> colorName (inclusi i bot)
+                    val playerColorMap = finalPlayerData.keys.map { id =>
                       val color = generatePlayerColor(id)
                       id -> color.toString
                     }.toMap
                     
-                    
-                    println("\n=== MAPPATURA UTENTI-COLORI ===")
-                    updatedPlayerData.foreach { case (id, player) =>
+                    println("\n=== MAPPATURA UTENTI-COLORI (inclusi bot) ===")
+                    finalPlayerData.foreach { case (id, player) =>
                       val color = playerColorMap.getOrElse(id, "NON ASSEGNATO")
-                      println(s"${player.username} (ID: $id) -> Colore: $color")
+                      val botFlag = if (id.startsWith("bot-")) "[BOT] " else ""
+                      println(s"${botFlag}${player.username} (ID: $id) -> Colore: $color")
                     }
                     
                     val updatedState = gameState + 
-                        ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap) +
-                        ("playerColors" -> playerColorMap) 
+                        ("playerUsernames" -> finalPlayerData.map { case (id, player) => (id, player.username) }.toMap) +
+                        ("playerColors" -> playerColorMap)
             
-                    updatedPlayers.values.foreach(player =>
+                    // Invia la notifica di ingresso a tutti i giocatori umani, con la lista completa (umani + bot)
+                    updatedHumanPlayers.values.foreach(player =>
                         player ! ServerMessages.GameJoined(gameId, playersList, gameName, Some(playerColorMap))   
                     )
-   
-                    val newPhase = (updatedPlayers.size >= maxPlayers, phase) match
+        
+                    val newPhase = (finalPlayers.size >= maxPlayers, phase) match
                         case(true, WaitingForPlayers) =>
                             log.info(s"Game $gameId has reached max players, starting setup")
                           
-                            initializeGameEngine(updatedPlayerData.values.toList)
+                            initializeGameEngine(finalPlayerData.values.toList)
                             
-                            updatedPlayers.values.foreach(player =>
+                            // Invia solo ai giocatori umani
+                            updatedHumanPlayers.values.foreach(player =>
                                 player ! ServerMessages.GameSetupStarted(gameId, "Game setup in progress...")
                             )
                             
@@ -155,7 +200,7 @@ class GameSession(
                             
                         case _ => phase
                         
-                    context.become(running(updatedPlayers, updatedPlayerData, newPhase, currentPlayer, updatedState))
+                    context.become(running(finalPlayers, finalPlayerData, newPhase, currentPlayer, updatedState))
 
                 case _ =>
                     val errorMsg = phase match
@@ -325,7 +370,7 @@ class GameSession(
                         )
                       )
                       
-    
+
                        val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
                        context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
                       
