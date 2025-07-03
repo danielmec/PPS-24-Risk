@@ -116,47 +116,20 @@ class GameSession(
         case JoinGame(playerId, playerRef, username, _, _, _) => // ignora i parametri dei bot del messaggio
             (players.size < maxPlayers, phase) match
                 case (true, _) | (_, WaitingForPlayers) =>
-                    // Prima estrai i giocatori umani e i bot separatamente
-                    val existingHumanPlayers = players.filter(!_._1.startsWith("bot-"))
-                    val existingHumanPlayerData = playerData.filter(!_._1.startsWith("bot-"))
+                    // separazione dei giocatori umani dai bot che iniziano con "bot-"
+                    val (humanPlayers, botPlayers) = players.partition(!_._1.startsWith("bot-"))
+                    val (humanPlayerData, botPlayerData) = playerData.partition(!_._1.startsWith("bot-"))
                     
-                    // Aggiungi il nuovo giocatore umano
-                    val updatedHumanPlayers = existingHumanPlayers + (playerId -> playerRef)
-                    val updatedHumanPlayerData = existingHumanPlayerData + (playerId -> Player(playerId, playerRef, username))
+                    // aggiunge il nuovo giocatore umano
+                    val updatedHumanPlayers = humanPlayers + (playerId -> playerRef)
+                    val updatedHumanPlayerData = humanPlayerData + (playerId -> Player(playerId, playerRef, username))
                     
-                    // Estrai i bot esistenti
-                    val existingBotPlayers = players.filter(_._1.startsWith("bot-"))
-                    val existingBotPlayerData = playerData.filter(_._1.startsWith("bot-"))
+                    //gestisce i bot (crea o mantiene)
+                    val (finalBotPlayers, finalBotPlayerData) = manageBots(botPlayers, botPlayerData)
                     
-                    // Crea i bot solo se necessario
-                    val (botPlayersMap, botPlayersData) = if (this.numBots > 0 && existingBotPlayers.isEmpty) {
-                      // Usa gli attributi della classe invece dei parametri del messaggio
-                      val botNamesResolved = this.botNames.getOrElse(List.fill(this.numBots)(s"Bot ${UUID.randomUUID().toString.take(4)}"))
-                      val botStrategiesResolved = this.botStrategies.getOrElse(List.fill(this.numBots)("Random"))
-                      
-                      val botMaps = (0 until numBots).map { i =>
-                        val botId = s"bot-${UUID.randomUUID().toString.take(6)}"
-                        val botName = if (i < botNamesResolved.length) botNamesResolved(i) else s"Bot $i"
-                        val botStrategy = if (i < botStrategiesResolved.length) botStrategiesResolved(i) else "Random"
-                        
-                        // Creare un attore "dummy" per rappresentare il bot nelle mappe
-                        // Non serve un vero ActorRef perché i bot non riceveranno messaggi diretti
-                        val botDummyRef = context.system.deadLetters
-                        
-                        // Restituire sia la entry per la mappa players che per playerData
-                        (botId -> botDummyRef, botId -> Player(botId, botDummyRef, botName))
-                      }.unzip
-                      
-                      // Convertire le liste di tuple in mappe
-                      (botMaps._1.toMap, botMaps._2.toMap)
-                    } else {
-                      // Mantieni i bot esistenti
-                      (existingBotPlayers, existingBotPlayerData)
-                    }
-            
-                    // Combina umani e bot nelle mappe finali
-                    val finalPlayers = updatedHumanPlayers ++ botPlayersMap
-                    val finalPlayerData = updatedHumanPlayerData ++ botPlayersData
+                    //combina umani e bot nelle mappe finali
+                    val finalPlayers = updatedHumanPlayers ++ finalBotPlayers
+                    val finalPlayerData = updatedHumanPlayerData ++ finalBotPlayerData
                     
                     val playersList = finalPlayerData.values.map(p => s"${p.username} (${p.id})").toList
                     val playerIds = finalPlayers.keys.toList
@@ -177,19 +150,19 @@ class GameSession(
                     val updatedState = gameState + 
                         ("playerUsernames" -> finalPlayerData.map { case (id, player) => (id, player.username) }.toMap) +
                         ("playerColors" -> playerColorMap)
-            
-                    // Invia la notifica di ingresso a tutti i giocatori umani, con la lista completa (umani + bot)
+        
+                    //invia la notifica con la lista completa (umani + bot)
                     updatedHumanPlayers.values.foreach(player =>
                         player ! ServerMessages.GameJoined(gameId, playersList, gameName, Some(playerColorMap))   
                     )
-        
+    
                     val newPhase = (finalPlayers.size >= maxPlayers, phase) match
                         case(true, WaitingForPlayers) =>
                             log.info(s"Game $gameId has reached max players, starting setup")
                           
                             initializeGameEngine(finalPlayerData.values.toList)
                             
-                            // Invia solo ai giocatori umani
+                            // invia solo ai giocatori umani
                             updatedHumanPlayers.values.foreach(player =>
                                 player ! ServerMessages.GameSetupStarted(gameId, "Game setup in progress...")
                             )
@@ -471,6 +444,52 @@ class GameSession(
           gameEngine = None
       }
     }
+
+    /*
+      * Handle the creation or maintenance of bot players.
+      * If there are existing bot players, they are kept as is.
+     */
+    private def manageBots(
+        existingBotPlayers: Map[String, ActorRef], 
+        existingBotPlayerData: Map[String, Player]
+    ): (Map[String, ActorRef], Map[String, Player]) = {
+      
+      if (existingBotPlayers.nonEmpty) {
+        println(s"Mantengo ${existingBotPlayers.size} bot esistenti")
+        
+        return (existingBotPlayers, existingBotPlayerData)
+      }
+      
+      
+      if (this.numBots > 0) {
+        println(s"Creazione di ${this.numBots} nuovi bot")
+        val botNamesResolved = this.botNames.getOrElse(List.fill(this.numBots)(s"Bot ${UUID.randomUUID().toString.take(4)}"))
+        val botStrategiesResolved = this.botStrategies.getOrElse(List.fill(this.numBots)("Random"))
+        
+    
+        var botPlayers = Map.empty[String, ActorRef]
+        var botPlayerData = Map.empty[String, Player]
+        
+        for (i <- 0 until numBots) {
+          val botId = s"bot-${UUID.randomUUID().toString.take(6)}"
+          val botName = if (i < botNamesResolved.length) botNamesResolved(i) else s"Bot $i"
+          val botStrategy = if (i < botStrategiesResolved.length) botStrategiesResolved(i) else "Random"
+          
+          
+          val botDummyRef = context.system.deadLetters
+          
+          //mappe immutabili per i bot
+          botPlayers = botPlayers + (botId -> botDummyRef)
+          botPlayerData = botPlayerData + (botId -> Player(botId, botDummyRef, botName))
+        }
+        
+        (botPlayers, botPlayerData)
+      } else {
+        // Nessun bot richiesto
+        (Map.empty[String, ActorRef], Map.empty[String, Player])
+      }
+    }
+    
     
     private def startGame(): Unit = {
       gameEngine.foreach { engine =>

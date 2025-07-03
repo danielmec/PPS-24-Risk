@@ -93,7 +93,17 @@ class GameManager extends Actor with ActorLogging:
             games.get(gameId) match 
                 case Some(gameSession) =>
                     log.warning(s"Player ${player.path.name} joining game session: $gameId")
-                    gameSession ! GameSession.JoinGame(player.path.name, player, username, 0, None, None)
+                    
+                    //messaggio con 0 bot per evitare la creazione di nuovi bot,
+                    // ma il manageBots manterrà quelli esistenti
+                    gameSession ! GameSession.JoinGame(
+                        player.path.name, 
+                        player, 
+                        username, 
+                        0,  
+                        Some(List.empty),  
+                        Some(List.empty)   
+                    )
 
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
                     context.become(running(games, connectedClients, updatedPlayerToGame))
