@@ -95,7 +95,22 @@ object JsonSupport extends DefaultJsonProtocol:
           val name = fields.getOrElse("gameName", JsString("Nuova Partita")).convertTo[String]
           val maxPlayers = fields.getOrElse("maxPlayers", JsNumber(4)).convertTo[Int]
           val username = fields.getOrElse("username", JsString("player1")).convertTo[String]
-          ClientMessages.CreateGame(name, maxPlayers,username)
+          val numBots = fields.getOrElse("numBots", JsNumber(0)).convertTo[Int]
+          val botStrategies = fields.get("botStrategies").map {
+            case JsArray(types) => types.map {
+              case JsString(t) => t
+              case _ => "Offensivo" 
+            }.toList
+            case _ => List.empty[String]
+          }
+          val botNames = fields.get("botNames").map {
+            case JsArray(names) => names.map {
+              case JsString(n) => n
+              case _ => "Bot" 
+            }.toList
+            case _ => List.empty[String]
+          }
+          ClientMessages.CreateGame(name, maxPlayers, username, numBots, botStrategies, botNames)
         case Some(JsString("joinGame")) => 
           val gameId = fields.getOrElse("gameId", JsString("")).convertTo[String]
           val username = fields.getOrElse("username", JsString("")).convertTo[String]

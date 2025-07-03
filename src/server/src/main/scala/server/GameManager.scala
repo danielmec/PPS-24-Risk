@@ -70,7 +70,7 @@ class GameManager extends Actor with ActorLogging:
         case CreateGameSession(gameName, maxPlayers, creator, username, numBots, botStrategies, botNames) =>
             val gameId = UUID.randomUUID().toString().take(6) 
             log.warning(s"Creating game session: $gameName with ID: $gameId for user ${username} with $numBots bots")
-
+            log.info(s"Bot strategies: ${botStrategies.getOrElse(List.empty).mkString(", ")}")
             val gameSession = context.actorOf(
                 GameSession.props(gameId, gameName, maxPlayers, numBots, botStrategies, botNames),
                 s"GameSession-$gameId"
@@ -84,7 +84,7 @@ class GameManager extends Actor with ActorLogging:
                 creator.path.name
             )
 
-            gameSession ! GameSession.JoinGame(creator.path.name, creator, username)
+            gameSession ! GameSession.JoinGame(creator.path.name, creator, username, numBots, botStrategies, botNames)
             println(s"Game session $gameId created by ${creator.path.name}")
             
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
@@ -93,7 +93,17 @@ class GameManager extends Actor with ActorLogging:
             games.get(gameId) match 
                 case Some(gameSession) =>
                     log.warning(s"Player ${player.path.name} joining game session: $gameId")
-                    gameSession ! GameSession.JoinGame(player.path.name, player,username)
+                    
+                    //messaggio con 0 bot per evitare la creazione di nuovi bot,
+                    // ma il manageBots manterrà quelli esistenti
+                    gameSession ! GameSession.JoinGame(
+                        player.path.name, 
+                        player, 
+                        username, 
+                        0,  
+                        Some(List.empty),  
+                        Some(List.empty)   
+                    )
 
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
                     context.become(running(games, connectedClients, updatedPlayerToGame))

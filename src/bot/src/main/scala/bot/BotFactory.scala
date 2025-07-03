@@ -27,3 +27,5 @@ object BotFactory:
     val botPlayer = new BotPlayer(playerId, name, color, defensiveRules)
     controller.registerStrategy(playerId, botPlayer)
     botPlayer
+
+  def getController(): RiskBotController = controller

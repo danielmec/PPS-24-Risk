@@ -174,7 +174,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
 
   def toJson(message: Any): JsValue = message match
     case msg: CreateGameMessage => 
-      val baseFields = Map(
+      var fields = Map(
         "type" -> JsString("createGame"),
         "gameName" -> JsString(msg.gameName),
         "maxPlayers" -> JsNumber(msg.maxPlayers),
@@ -182,17 +182,17 @@ object ClientJsonSupport extends DefaultJsonProtocol:
         "numBots" -> JsNumber(msg.numBots)
       )
       
-      val botStrategiesField = msg.botStrategies match {
-        case Some(strategies) => Map("botStrategies" -> JsArray(strategies.map(JsString(_)).toVector))
-        case None => Map.empty[String, JsValue]
-      }
+      if (msg.botStrategies.isDefined) 
+        fields = fields + ("botStrategies" -> JsArray(
+          msg.botStrategies.get.map(JsString(_)).toVector
+        ))
       
-      val botNamesField = msg.botNames match {
-        case Some(names) => Map("botNames" -> JsArray(names.map(JsString(_)).toVector))
-        case None => Map.empty[String, JsValue]
-      }
+      if (msg.botNames.isDefined) 
+        fields = fields + ("botNames" -> JsArray(
+          msg.botNames.get.map(JsString(_)).toVector
+        ))
       
-      JsObject(baseFields ++ botStrategiesField ++ botNamesField)
+      JsObject(fields)
     case msg: JoinGameMessage => 
       JsObject(
         "type" -> JsString("joinGame"),
