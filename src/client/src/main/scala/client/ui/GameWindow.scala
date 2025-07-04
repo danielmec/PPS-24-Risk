@@ -24,6 +24,7 @@ import model.board.Territory
 import client.AdapterMap.UITerritory
 import dialogs.AttackDialog
 import dialogs.ReinforcementDialog
+import model.cards.{TerritoryCard, CardImg}
 
 class GameWindow(
   networkManager: ClientNetworkManager,
@@ -101,7 +102,7 @@ class GameWindow(
     showObjectiveDialog()
   }
 
-  val leaveButton = new Button("Abbandona partita")
+  val leaveButton = new Button("Abbandona Partita")
   leaveButton.onAction = handle {
     networkManager.sendMessage(LeaveGameMessage(gameId)).onComplete {
       case _ => Platform.runLater {
@@ -179,21 +180,23 @@ class GameWindow(
       }
     })
   }
+    
+    networkManager.registerCallback("trisPlayed", msg => {
+      val trisMsg = msg.asInstanceOf[TrisPlayedMessage]
+      if (trisMsg.playerId == myPlayerId) {
+        Platform.runLater {
+          val alert = new Alert(Alert.AlertType.Information) {
+            initOwner(GameWindow.this)
+            title = "Tris giocato"
+            headerText = None
+            contentText = s"Hai giocato un tris! Bonus ricevuto: ${trisMsg.bonus} truppe."
+          }
+          alert.showAndWait()
+        }
+      }
+    })
   
-
-/*
- * Setup event handlers for UI interaction buttons.
- * 
- * This method configures actions for all interactive buttons in the game interface:
- * - End Turn Button: Sends end_setup or end_turn requests to the server depending on the current phase
- *   and handles success/failure responses appropriately.
- * - Attack Button: Opens the attack dialog when clicked, allowing the player to select source
- *   and target territories, then sends the attack request to the server.
- * - Reinforce Button: Opens the reinforcement dialog to move troops between territories.
- * - Cards Button: Retrieves and displays the player's territory cards from the current game state.
- * 
- * Each action includes error handling and appropriate UI feedback for the player.
- */
+  
   private def setupUIEventHandlers(): Unit = {
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
@@ -288,6 +291,14 @@ class GameWindow(
                   val fields = cardStr.stripPrefix("{").stripSuffix("}").split(",").map(_.split(":", 2)).collect {
                     case Array(k, v) => k.trim -> v.trim
                   }.toMap
+                  val cardTypeRaw = fields.getOrElse("cardType", "Infantry").capitalize
+                  val cardImg = cardTypeRaw match {
+                    case "Infantry"  => CardImg.Infantry
+                    case "Cavalry"   => CardImg.Cavalry
+                    case "Artillery" => CardImg.Artillery
+                    case "Jolly"     => CardImg.Jolly
+                    case _           => CardImg.Infantry // fallback di sicurezza
+                  }
                   client.ui.dialogs.CardInfo(
                     fields.getOrElse("territoryName", "???"),
                     fields.getOrElse("cardType", "???")
@@ -326,28 +337,68 @@ class GameWindow(
     if (!placementDialogOpen && myTerritories.nonEmpty) {
       try {
         println("Tentativo di creare e mostrare il dialogo di piazzamento...")
+
+        // Estrai le carte territorio dal playerState
+        val territoryCards: Seq[TerritoryCard] = {
+          val stateOpt = networkManager.getLastGameState()
+          stateOpt.flatMap { gs =>
+            gs.state.playerStates.find(_("playerId") == myPlayerId)
+              .flatMap { playerState =>
+                playerState.get("territoryCards").map { raw =>
+                  // Adatta questo parsing al formato reale delle tue carte!
+                  val regex = """\{([^}]+)\}""".r
+                  regex.findAllIn(raw.toString).toList.map { cardStr =>
+                    val fields = cardStr.stripPrefix("{").stripSuffix("}").split(",").map(_.split(":", 2)).collect {
+                      case Array(k, v) => k.trim -> v.trim
+                    }.toMap
+                    val cardTypeRaw = fields.getOrElse("cardType", "Infantry").capitalize
+                    val cardImg = cardTypeRaw match {
+                      case "Infantry"  => CardImg.Infantry
+                      case "Cavalry"   => CardImg.Cavalry
+                      case "Artillery" => CardImg.Artillery
+                      case "Jolly"     => CardImg.Jolly
+                      case _           => CardImg.Infantry // fallback di sicurezza
+                    }
+                    println(s"[DEBUG] Card parsed: name=${fields.getOrElse("territoryName", "???")}, type=$cardTypeRaw, cardImg=$cardImg")
+                    // Adatta qui se hai un costruttore diverso!
+                    TerritoryCard(
+                      territory = model.board.Territory(
+                        name = fields.getOrElse("territoryName", "???"),
+                        owner = None,           // Non hai info sull'owner per la carta
+                        troops = 0,             // Non ti serve il numero di truppe per la carta
+                        neighbors = Set.empty   // Non ti servono i vicini per la carta
+                      ),
+                      cardImg = cardImg
+                    )
+                  }
+                }
+              }
+          }.getOrElse(Seq.empty)
+        }
+
         val placementDialog = new TroopPlacementDialog(
-          this, 
-          myTerritories, 
+          this,
+          myTerritories,
           bonusTroops,
-          currentPhase
+          currentPhase,
+          territoryCards // <-- passa le carte territorio qui!
         )
-        
+
         placementDialogOpen = true
         currentPlacementDialog = Some(placementDialog)
-        
+
         placementDialog.onHidden = _ => {
           placementDialogOpen = false
           currentPlacementDialog = None
         }
-        
+
         Platform.runLater {
           placementDialog.show()
           placementDialog.toFront()
           println("Dialog visualizzato e portato in primo piano")
         }
       } catch {
-        case e: Exception => 
+        case e: Exception =>
           println(s"ERRORE nella creazione del dialogo: ${e.getMessage}")
           e.printStackTrace()
           placementDialogOpen = false
@@ -453,6 +504,7 @@ class GameWindow(
         actionPane.cardsButton.disable = true
       }
     }
+
   }
   
   /*
@@ -549,57 +601,53 @@ class GameWindow(
     }
   }
   
-/*
- * Handle the battle result received from the server.
- * This will update the UI accordingly.
- */
-  
-def showTerritoriesDialog(): Unit = {
-  //mappa id -> username dai giocatori
-  val playerIdToUsername = playersList.map { playerInfoView =>
-    val playerInfo = playerInfoView.nameLabel.text.value
-    //estrae l'ID tra parentesi alla fine del testo "username (id)"
-    val idPattern = ".*\\((.+?)\\)$".r
-    val playerId = playerInfo match {
-      case idPattern(id) => id
-      case _ => playerInfo
-    }
-    val username = playerInfo.split(" \\(").headOption.getOrElse(playerInfo)
-    playerId -> username
-  }.toMap
-  
-  //passa la mappa al dialog
-  val dialog = new TerritoriesDialog(this, territories, playerIdToUsername)
-  dialog.showAndWait()
-}
-
-/*
- * Show the objective dialog with the player's secret objective.
- */
-def showObjectiveDialog(): Unit = {
-  myObjective.foreach { objective =>
-    val dialog = new Alert(Alert.AlertType.Information) {
-      initOwner(GameWindow.this)
-      title = "Il Tuo Obiettivo"
-      headerText = "Obiettivo Segreto"
-      contentText = objective
-    }
+  /*
+  * Handle the battle result received from the server.
+  * This will update the UI accordingly.
+  */
+    
+  def showTerritoriesDialog(): Unit = {
+    //mappa id -> username dai giocatori
+    val playerIdToUsername = playersList.map { playerInfoView =>
+      val playerInfo = playerInfoView.nameLabel.text.value
+      //estrae l'ID tra parentesi alla fine del testo "username (id)"
+      val idPattern = ".*\\((.+?)\\)$".r
+      val playerId = playerInfo match {
+        case idPattern(id) => id
+        case _ => playerInfo
+      }
+      val username = playerInfo.split(" \\(").headOption.getOrElse(playerInfo)
+      playerId -> username
+    }.toMap
+    
+    //passa la mappa al dialog
+    val dialog = new TerritoriesDialog(this, territories, playerIdToUsername)
     dialog.showAndWait()
   }
-}
 
   /*
-   * Create an empty UITerritory with the given name.
-   * This is used when a territory is not found in the initial state.
-   */
+  * Show the objective dialog with the player's secret objective.
+  */
+  def showObjectiveDialog(): Unit = {
+    myObjective.foreach { objective =>
+      val dialog = new Alert(Alert.AlertType.Information) {
+        initOwner(GameWindow.this)
+        title = "Il Tuo Obiettivo"
+        headerText = "Obiettivo Segreto"
+        contentText = objective
+      }
+      dialog.showAndWait()
+    }
+  }
+
   private def createEmptyTerritory(name: String): UITerritory = {
     val emptyTerritory = Territory(
       name = name,
       neighbors = Set.empty,
       owner = None,
       troops = 0
-    )
-    
+     )
+      
     new UITerritory(emptyTerritory, "Sconosciuto")
   }
 
@@ -654,9 +702,9 @@ def showObjectiveDialog(): Unit = {
     *  Update the territory with the given name, owner, and troops.
    */
   def updateTerritory(name: String, owner: String, troops: Int): Unit = {
-
     val territory = territories.find(_.name == name)
 
+    
     territory match {
       case Some(t) => 
         val wasMyTerritory = t.owner.value == myPlayerId
@@ -674,12 +722,10 @@ def showObjectiveDialog(): Unit = {
     }
   }
 
-
-
-  /*  
-   *  Create the sidebar pane with player list and dice display.
-   *  Players can be passed as an ObservableBuffer, or it will use the default playersList
-   */
+  def updateDiceValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
+    diceDisplay.updateValues(attackerValues, defenderValues)
+  }
+  
   private def createSidebarPane(players: ObservableBuffer[PlayerInfoView] = playersList): VBox = {
     new VBox(15) {
       padding = Insets(10)

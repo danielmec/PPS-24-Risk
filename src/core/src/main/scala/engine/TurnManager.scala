@@ -74,12 +74,18 @@ case class TurnManagerImpl(
             fromTerritory.hasEnoughTroops(numTroops + 1) &&  
             gameState.board.areNeighbors(fromTerritory, toTerritory)
             
-        case (GameAction.TradeCards(territoryCards), TurnPhase.MainPhase) => 
-            val playerState = gameState.getPlayerState(currentPlayer.id).getOrElse(throw new InvalidActionException())  
-            
-            territoryCards.size == 3 && 
-            territoryCards.subsetOf(playerState.territoryCards) &&
-            BonusCalculator.calculateTradeBonus(territoryCards) > 0
+        case (GameAction.TradeCards(playerId, cardNames), TurnPhase.MainPhase) =>
+            val playerState = gameState.getPlayerState(playerId).getOrElse(throw new InvalidActionException())
+            val cardNameCounts = cardNames.groupBy(identity).view.mapValues(_.size).toMap
+            val selectedCards: Seq[TerritoryCard] = playerState.territoryCards
+              .groupBy(_.territory.name)
+              .flatMap { case (name, cards) =>
+                val count = cardNameCounts.getOrElse(name, 0)
+                cards.take(count)
+              }.toSeq
+            selectedCards.size == 3 &&
+            selectedCards.forall(playerState.territoryCards.contains) &&
+            BonusCalculator.calculateTradeBonus(selectedCards) > 0
         
         case (GameAction.EndTurn, TurnPhase.MainPhase) => 
             val playerState = gameState.getPlayerState(currentPlayer.id).getOrElse(throw new InvalidActionException())

@@ -16,13 +16,16 @@ import scalafx.beans.property.IntegerProperty
 import scalafx.beans.binding.Bindings
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
+import model.cards.TerritoryCard
+import utils.BonusCalculator // Assicurati di avere accesso a questa logica
 
 
 class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
   initialTroops: Int,
-  currentPhase: String 
+  currentPhase: String,
+  territoryCards: Seq[TerritoryCard] // <-- aggiungi questo parametro
 ) extends Stage {
   
   println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")
@@ -147,17 +150,66 @@ class TroopPlacementDialog(
   val buttonsBox = new HBox(10) {
     children = Seq(showObjectiveButton, showTerritoriesButton, confirmButton)
     alignment = Pos.CenterRight
-    padding = Insets(10, 0, 0, 0)
   }
+
   
+  // --- SEZIONE CARTE TERRITORIO E TRIS ---
+  val cardsListView = new ListView[TerritoryCard](ObservableBuffer(territoryCards: _*)) {
+    selectionModel().setSelectionMode(SelectionMode.Multiple)
+    cellFactory = (_: ListView[TerritoryCard]) => new ListCell[TerritoryCard] {
+      item.onChange { (_, _, newItem) =>
+        text = Option(newItem).map(card => s"${card.territory.name} (${card.cardImg})").getOrElse("")
+      }
+    }
+    maxHeight = 100
+  }
+
+  val tradeButton = new Button("Scambia tris per bonus") {
+    disable = true
+    onAction = handle {
+      val selected = cardsListView.selectionModel().getSelectedItems.toSet
+      val cardNames = selected.map(_.territory.name).toList // oppure usa un altro identificativo se necessario
+      owner.actionHandler.tradeCards(owner.getGameId, cardNames)
+      // Dopo la risposta dal server aggiorna le armate bonus e le carte (gestito in GameWindow)
+    }
+  }
+
+  // Abilita solo se tris valido
+  cardsListView.selectionModel().selectedItems.onChange { (_, _) =>
+    refreshTradeButtonState()
+  }
+
+  def refreshTradeButtonState(): Unit = {
+    val selected = cardsListView.selectionModel().getSelectedItems.toList
+    val bonus = BonusCalculator.calculateTradeBonus(selected)
+    println(s"[DEBUG] refreshTradeButtonState: selected=$selected, bonus=$bonus, disable=${tradeButton.disable.value}")
+    tradeButton.disable = selected.size != 3 || bonus == 0
+  }
+
+  val cardsSection = new VBox(8) {
+    children = Seq(
+      new Label("Le tue carte territorio:"),
+      cardsListView,
+      tradeButton
+    )
+    padding = Insets(10, 0, 10, 0)
+  }
+
   val root = new BorderPane {
     padding = Insets(15)
     top = new VBox(10) {
-      children = Seq(headerLabel, troopsLabel)
+      children = Seq(headerLabel, troopsLabel) // <-- rimosso cardsSection
       alignment = Pos.Center
     }
     center = scrollPane
-    bottom = buttonsBox
+    bottom = new VBox(10) {
+      children = Seq(cardsSection, new HBox(10) {
+        children = Seq(showObjectiveButton, showTerritoriesButton, confirmButton)
+        alignment = Pos.CenterRight
+        padding = Insets(10, 0, 0, 0)
+      })
+      alignment = Pos.BottomCenter
+    }
   }
   
   scene = new Scene(root)
@@ -167,6 +219,14 @@ class TroopPlacementDialog(
     
     Platform.runLater {
       remainingTroops.value = newTroopsCount - assignedTroops
+    }
+  }
+  
+  def updateCards(newCards: Seq[TerritoryCard]): Unit = {
+    Platform.runLater {
+      println(s"[DEBUG] updateCards: ${newCards.map(_.cardImg)}")
+      cardsListView.items.value.setAll(newCards: _*)
+      refreshTradeButtonState()
     }
   }
 }

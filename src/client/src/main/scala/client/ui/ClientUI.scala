@@ -33,9 +33,6 @@ object ClientUI extends JFXApp3:
     val statusLabel = new Label("In attesa di login...")
     statusLabel.style = "-fx-text-fill: gray;"
 
-
-
-
     loginButton.onAction = _ => {
       val username = "player"
       

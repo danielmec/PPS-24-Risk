@@ -79,7 +79,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class GameActionResultMessage(success: Boolean, message: String)
   case class TurnChangedMessage(gameId: String, playerId: String, phase: String)
   case class TerritoryUpdateMessage(gameId: String, territoryName: String, owner: String, troops: Int)
-
+  case class TrisPlayedMessage(gameId: String, playerId: String, bonus: Int)
   case class GameOverMessage(gameId: String, winnerId: String, winnerUsername: String)
 
   private def extractString(fields: Map[String, JsValue], key: String, default: String = ""): String =
@@ -381,6 +381,14 @@ object ClientJsonSupport extends DefaultJsonProtocol:
       PlayerLeftMessage(
         extractString(fields, "gameId"),
         extractString(fields, "player")
+      )
+    },
+    
+    "trisPlayed" -> { fields =>
+      TrisPlayedMessage(
+        extractString(fields, "gameId"),
+        extractString(fields, "playerId"),
+        extractInt(fields, "bonus")
       )
     }
   )
