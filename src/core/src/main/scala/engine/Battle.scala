@@ -3,11 +3,12 @@ package engine
 import model.board.Territory
 import model.player.Player
 import utils.Dice
-import exceptions._
 
-object BattleResult extends Enumeration:
-  type BattleResult = Value
-  val AttackerWins, DefenderWins, BattleContinues = Value 
+sealed trait BattleResult
+object BattleResult:
+  case object AttackerWins extends BattleResult
+  case object DefenderWins extends BattleResult
+  case object BattleContinues extends BattleResult
 
 import BattleResult._
 
@@ -17,7 +18,7 @@ case class BattleState(
   attackerTerritory: Territory,
   defenderTerritory: Territory,
   attackingTroops: Int,
-  defendingTroops: Int,
+  defendingTroops: Int
 )
 
 case class BattleRoundResult(
@@ -35,25 +36,16 @@ object Battle:
   def resolveBattleRoundWithDice(state: BattleState, attackerDice: Seq[Int], defenderDice: Seq[Int]): BattleState =
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
-      case ((aLoss, dLoss), (aDice, dDice)) =>
-        if (aDice > dDice) (aLoss, dLoss + 1)
+      case ((aLoss, dLoss), (a, d)) =>
+        if (a > d) (aLoss, dLoss + 1)
         else (aLoss + 1, dLoss)
 
     state.copy(
       attackingTroops = state.attackingTroops - attackerLosses,
       defendingTroops = state.defendingTroops - defenderLosses
     )
-    
-  def resolveBattleRound(state: BattleState): BattleState =
-    val attackerDiceCount = math.min(3, state.attackingTroops)
-    val defenderDiceCount = math.min(3, state.defendingTroops)
-    
-    val attackerDice = Dice.rollMany(attackerDiceCount)
-    val defenderDice = Dice.rollMany(defenderDiceCount)
 
-    resolveBattleRoundWithDice(state, attackerDice, defenderDice)
-
-  private def validateBattle(
+  def validateBattle(
     attacker: Player,
     defender: Player,
     attackerTerritory: Territory,
@@ -71,73 +63,55 @@ object Battle:
     else
       Right(())
 
-
   def battleRound(
     attacker: Player,
     defender: Player,
     attackerTerritory: Territory,
     defenderTerritory: Territory,
     attackingTroops: Int
-  ): BattleRoundResult =
-    
-    validateBattle(attacker, defender, attackerTerritory, defenderTerritory, attackingTroops) match
-      case Left(error) => throw new InvalidActionException()
-      case Right(_) =>
-        val initialState = BattleState(
-          attacker,
-          defender,
-          attackerTerritory,
-          defenderTerritory,
-          attackingTroops,
-          defenderTerritory.troops
-        )
-        
-        val attackerDiceCount = math.min(3, initialState.attackingTroops)
-        val defenderDiceCount = math.min(3, initialState.defendingTroops)
-        
-        val attackerDice = Dice.rollMany(attackerDiceCount)
-        val defenderDice = Dice.rollMany(defenderDiceCount)
-        
-        val afterRound = resolveBattleRoundWithDice(initialState, attackerDice, defenderDice)
-        
-        val attackerLosses = attackingTroops - afterRound.attackingTroops
-        val defenderLosses = defenderTerritory.troops - afterRound.defendingTroops
-        
-        val battleResult = 
-          if (afterRound.defendingTroops == 0)
-            BattleResult.AttackerWins
-          else if (afterRound.attackingTroops == 0)
-            BattleResult.DefenderWins
-          else
-            BattleResult.BattleContinues
-            
-        val (updatedAttacker, updatedDefender) = battleResult match
-          case BattleResult.AttackerWins =>
-            val conqueredTerritory = defenderTerritory
-              .changeOwner(attacker)
-              .copy(troops = afterRound.attackingTroops)
-            val updatedAttackerTerritory = attackerTerritory
-              .copy(troops = attackerTerritory.troops - attackingTroops)
-            (updatedAttackerTerritory, conqueredTerritory)
-            
-          case BattleResult.DefenderWins =>
-            val updatedAttackerTerritory = attackerTerritory
-              .copy(troops = attackerTerritory.troops - attackingTroops)
-            (updatedAttackerTerritory, defenderTerritory)
-            
-          case BattleResult.BattleContinues =>
-            val updatedAttackerTerritory = attackerTerritory
-              .addTroops(-attackerLosses)
-            val updatedDefenderTerritory = defenderTerritory
-              .addTroops(-defenderLosses)
-            (updatedAttackerTerritory, updatedDefenderTerritory)
-            
-        BattleRoundResult(
-          updatedAttacker,
-          updatedDefender,
-          attackerLosses,
-          defenderLosses,
-          battleResult,
-          attackerDice,
-          defenderDice
-        )
+  )(using rollDice: Int => Seq[Int]): Either[String, BattleRoundResult] =
+
+    for
+      _ <- validateBattle(attacker, defender, attackerTerritory, defenderTerritory, attackingTroops)
+      initialState = BattleState(attacker, defender, attackerTerritory, defenderTerritory, attackingTroops, defenderTerritory.troops)
+
+      attackerDice = rollDice(math.min(3, initialState.attackingTroops)).sorted(Ordering.Int.reverse)
+      defenderDice = rollDice(math.min(3, initialState.defendingTroops)).sorted(Ordering.Int.reverse)
+
+      afterRound = resolveBattleRoundWithDice(initialState, attackerDice, defenderDice)
+
+      attackerLosses = attackingTroops - afterRound.attackingTroops
+      defenderLosses = defenderTerritory.troops - afterRound.defendingTroops
+
+      result =
+        if afterRound.defendingTroops == 0 then AttackerWins
+        else if afterRound.attackingTroops == 0 then DefenderWins
+        else BattleContinues
+
+      (updatedAttacker, updatedDefender) = result match
+        case AttackerWins =>
+          val conquered = defenderTerritory.changeOwner(attacker).copy(troops = afterRound.attackingTroops)
+          val updatedAttacker = attackerTerritory.copy(troops = attackerTerritory.troops - attackingTroops)
+          (updatedAttacker, conquered)
+
+        case DefenderWins =>
+          val updatedAttacker = attackerTerritory.copy(troops = attackerTerritory.troops - attackingTroops)
+          (updatedAttacker, defenderTerritory)
+
+        case BattleContinues =>
+          val updatedAttacker = attackerTerritory.addTroops(-attackerLosses)
+          val updatedDefender = defenderTerritory.addTroops(-defenderLosses)
+          (updatedAttacker, updatedDefender)
+
+    yield BattleRoundResult(
+      updatedAttacker,
+      updatedDefender,
+      attackerLosses,
+      defenderLosses,
+      result,
+      attackerDice,
+      defenderDice
+    )
+
+given defaultRollDice: (Int => Seq[Int]) = Dice.rollMany
+
