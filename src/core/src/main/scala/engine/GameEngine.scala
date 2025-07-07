@@ -216,7 +216,7 @@ class GameEngine(
             case GameAction.PlaceTroops(_, troops, territory) => s"PlaceTroops($troops su $territory)"
             case GameAction.Attack(_, _, from, to, troops) => s"Attack($from -> $to con $troops)"
             case GameAction.Reinforce(_, from, to, troops) => s"Reinforce($from -> $to con $troops)"
-            case GameAction.TradeCards(cards) => s"TradeCards(${cards.size} carte)"
+            case GameAction.TradeCards(cards, _) => s"TradeCards(${cards.size} carte)"
             case _ => action.getClass.getSimpleName
 
           println(s"Bot ha scelto: $actionName")
