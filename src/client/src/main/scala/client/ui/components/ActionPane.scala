@@ -11,13 +11,13 @@ class ActionPane(onShowTerritories: => Unit) extends HBox(15) {
   
   padding = Insets(10)
   alignment = Pos.Center
-  style = "-fx-background-color: #d0d0d0; -fx-border-color: #aaaaaa; -fx-border-width: 1 0 0 0;"
+  style = "-fx-font-weight: bold; -fx-font-size: 13px;"
   
   val attackButton: Button = createActionButton("Attacca", "Attacca un territorio nemico confinante")
   val reinforceButton: Button = createActionButton("Sposta", "Sposta armate tra territori confinanti")
   val cardsButton: Button = createActionButton("Mostra Carte", "Visualizza e gestisci le tue carte territorio")
   
-  private val showTerritoriesButton = new Button("Mostra territori") {
+  private val showTerritoriesButton = new Button("Mostra Territori") {
     onAction = _ => onShowTerritories
   }
   

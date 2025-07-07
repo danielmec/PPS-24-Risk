@@ -320,7 +320,16 @@ class GameSession(
                       println(s"Tipo azione: ${coreAction.getClass.getSimpleName}")
                       println(s"Giocatore: $playerId")
                       println(s"Phase: ${engine.getGameState.turnManager.currentPhase}")
-                      val updatedGameState = engine.processAction(coreAction)                  
+                      val updatedGameState = engine.processAction(coreAction)
+
+                      // --- AGGIUNTA: invio messaggio TrisPlayed ---
+                      if (action.action == "trade_cards") {
+                        val playerStateOpt = updatedGameState.playerStates.find(_.playerId == playerId)
+                        val bonus = playerStateOpt.map(_.bonusTroops).getOrElse(0)
+                        players(playerId) ! ServerMessages.TrisPlayed(gameId, playerId, bonus)
+                      }
+                      // --- FINE AGGIUNTA ---
+
                       val nextPlayerId = updatedGameState.turnManager.currentPlayer.id                     
                       println(s"[processAction] playerStartedTurn prima della conversione: ${updatedGameState.playerStartedTurn}")          
                       val clientState = convertGameStateToClient(updatedGameState)
@@ -639,6 +648,10 @@ class GameSession(
             clientAction.parameters.getOrElse("troops", "0").toInt,
             clientAction.parameters.getOrElse("territory", "")
           )
+
+        case "trade_cards" =>
+          val cardNames = clientAction.parameters.getOrElse("cards", "").split(",").map(_.trim).toSet
+          engine.GameAction.TradeCards(playerId, cardNames)
           
         case "end_turn" =>
           engine.GameAction.EndTurn

@@ -140,3 +140,9 @@ object ServerMessages:
         troops: Int,
         playerId: String
     ) extends Message
+
+    case class TrisPlayed(
+        gameId: String,
+        playerId: String,
+        bonus: Int
+    ) extends Message

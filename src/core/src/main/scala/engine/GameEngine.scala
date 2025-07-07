@@ -76,7 +76,7 @@ class GameEngine(
       case GameAction.PlaceTroops(playerId, troops, territoryName) => placeTroopsAction(gameState, playerId, engineState, territoryName, troops)
       case GameAction.Reinforce(playerId, from, to, troops) => reinforceAction(from, gameState, playerId, engineState, to, troops)
       case GameAction.Attack(attackerId, defenderId, from, to, troops) => attackAction(attackerId, defenderId, from, gameState, engineState, to, troops)
-      case GameAction.TradeCards(cards) => tradeCardsAction(cards, gameState, engineState)
+      case GameAction.TradeCards(playerId, cardNames) => tradeCardsAction(playerId, cardNames, gameState, engineState)
       case GameAction.EndTurn => endAction(engineState, action)
 
   private def placeTroopsAction(gameState: GameState, playerId: String, state: EngineState, territoryName: String, troops: Int): EngineState =
@@ -99,30 +99,49 @@ class GameEngine(
       .updatedTerritory(updatedTo)
     state.copy(gameState = gameState.updateBoard(updatedBoard))
 
-  private def attackAction(attackerId: String, defenderId: String, from: String, gameState: GameState, state: EngineState, to: String, troops: Int): EngineState =
+  private def attackAction(
+    attackerId: String,
+    defenderId: String,
+    from: String,
+    gameState: GameState,
+    state: EngineState,
+    to: String,
+    troops: Int
+  ): EngineState =
     val attackerTerritory = gameState.getTerritoryByName(from).get
     val defenderTerritory = gameState.getTerritoryByName(to).get
-    val battleResult = Battle.battleRound(attackerTerritory.owner.get, defenderTerritory.owner.get, attackerTerritory, defenderTerritory, troops)
-    val updatedBoard = gameState.board
-      .updatedTerritory(battleResult.attackerTerritory)
-      .updatedTerritory(battleResult.defenderTerritory)
-    var updatedGameState = gameState.updateBoard(updatedBoard).updateLastBattleResult(battleResult)
-    val conquered = battleResult.result == BattleResult.AttackerWins
-    if (conquered && !updatedBoard.territoriesOwnedBy(defenderId).nonEmpty) then 
-      updatedGameState = transferCardsOnElimination(updatedGameState, defenderId, attackerId) 
-    state.copy(
-      gameState = updatedGameState,
-      territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
-    )
+    Battle.battleRound(attackerTerritory.owner.get, defenderTerritory.owner.get, attackerTerritory, defenderTerritory, troops) match
+      case Left(error) =>
+        throw new IllegalStateException(s"Battle failed: $error")
+      case Right(battleResult) =>
+        val updatedBoard = gameState.board
+          .updatedTerritory(battleResult.attackerTerritory)
+          .updatedTerritory(battleResult.defenderTerritory)
+        var updatedGameState = gameState
+          .updateBoard(updatedBoard)
+          .updateLastBattleResult(battleResult)
+        val conquered = battleResult.result == BattleResult.AttackerWins
+        if conquered && !updatedBoard.territoriesOwnedBy(defenderId).nonEmpty then
+          updatedGameState = transferCardsOnElimination(updatedGameState, defenderId, attackerId)
+        state.copy(
+          gameState = updatedGameState,
+          territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
+        )
 
-  private def tradeCardsAction(cards: Set[TerritoryCard], gameState: GameState, state: EngineState): EngineState =
-    val currentPlayerId = gameState.turnManager.currentPlayer.id
-    val playerState = gameState.getPlayerState(currentPlayerId).get
+  private def tradeCardsAction(playerId: String, cardNames: Set[String], gameState: GameState, state: EngineState): EngineState =
+    val playerState = gameState.getPlayerState(playerId).get
+    val cardNameCounts = cardNames.groupBy(identity).view.mapValues(_.size).toMap
+    val cards: Seq[TerritoryCard] = playerState.territoryCards
+      .groupBy(_.territory.name)
+      .flatMap { case (name, cards) =>
+        val count = cardNameCounts.getOrElse(name, 0)
+        cards.take(count)
+      }.toSeq
     val bonus = BonusCalculator.calculateTradeBonus(cards)
     val updatedPlayerState = playerState
-      .removeTerritoryCards(cards)
-      .copy(bonusTroops = playerState.bonusTroops + bonus)  
-    val updatedGameState = gameState.updatePlayerState(currentPlayerId, updatedPlayerState)
+      .removeTerritoryCards(cards.toSet)
+      .copy(bonusTroops = playerState.bonusTroops + bonus)
+    val updatedGameState = gameState.updatePlayerState(playerId, updatedPlayerState)
     state.copy(gameState = updatedGameState)
 
   private def endSetup(state: EngineState): EngineState =
