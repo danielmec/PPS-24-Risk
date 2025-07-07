@@ -56,7 +56,7 @@ class TroopPlacementDialog(
     val currentTroopsLabel = new Label(s"Truppe attuali: ${territory.armies.value}")
     currentTroopsLabel.prefWidth = 100
     
-    val troopsSpinner = new Spinner[Int](0, 40, 0)
+    val troopsSpinner = new Spinner[Int](0, remainingTroops.value, 0)
     troopsSpinner.editable = true
     
     troopAssignments(territory.name) = 0
@@ -68,8 +68,10 @@ class TroopPlacementDialog(
       if (newVal > oldVal) {
         val diff = newVal - oldVal
         if (diff > remainingTroops.value) {
+          // Limitiamo il valore al massimo consentito
+          val maxAllowed = oldVal + remainingTroops.value
           Platform.runLater {
-            troopsSpinner.getValueFactory.setValue(oldVal + remainingTroops.value)
+            troopsSpinner.getValueFactory.setValue(maxAllowed)
           }
         } else {
           remainingTroops.value -= diff
@@ -79,6 +81,18 @@ class TroopPlacementDialog(
         val diff = oldVal - newVal
         remainingTroops.value += diff
         troopAssignments(territory.name) = newVal
+      }
+    }
+    
+    // Aggiorna il massimo dello spinner quando cambiano le truppe rimanenti
+    remainingTroops.onChange { (_, _, newValue) =>
+      Platform.runLater {
+        val currentTroopCount = troopAssignments(territory.name)
+        val maxAllowed = currentTroopCount + newValue.intValue
+        
+        
+        val factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, maxAllowed, currentTroopCount)
+        troopsSpinner.valueFactory = factory.asInstanceOf[SpinnerValueFactory[Int]]
       }
     }
     
