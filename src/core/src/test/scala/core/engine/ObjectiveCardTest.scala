@@ -1,7 +1,6 @@
-package core.engine
+package engine
 
 import org.scalatest.funsuite.AnyFunSuite
-import model.player.PlayerColor
 import model.board.Continent
 import model.cards.ObjectiveCard
 import engine.CardsBuilder
@@ -19,10 +18,6 @@ class ObjectiveCardTest extends AnyFunSuite:
     val obj = ObjectiveCard.ConquerContinents(someContinents)
     someContinents.foreach: c =>
       assert(obj.description.contains(c.name))
-
-  test("DefeatPlayer description is correct"):
-    val obj = ObjectiveCard.DefeatPlayer(PlayerColor.Red)
-    assert(obj.description.contains("red armies"))
 
   test("ConquerNContinents description is correct"):
     val obj = ObjectiveCard.ConquerNContinents(3)

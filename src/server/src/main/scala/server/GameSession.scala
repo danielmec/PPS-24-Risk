@@ -17,6 +17,7 @@ import engine.TurnPhase
 import engine.GameAction 
 import model.player.{Player => CorePlayer, PlayerImpl => CorePlayerImpl}
 import model.player.PlayerColor
+import scalafx.scene.input.KeyCode.O
 
 object GameSession:
 
@@ -192,7 +193,8 @@ class GameSession(
             val clientState = convertGameStateToClient(engineState)
             val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
 
-            players.values.foreach(player =>
+            val humanPlayerActors = players.filter(entry => !entry._1.startsWith("bot-"))
+            humanPlayerActors.values.foreach(player =>
                 player ! ServerMessages.GameStarted(
                     gameId, 
                     currentPlayerId, 
@@ -205,8 +207,37 @@ class GameSession(
                 )
             )
             
-            val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
-            context.become(running(players, playerData, Playing, Some(currentPlayerId), mutableState))
+            val isFirstPlayerBot = engineState.turnManager.currentPlayer.playerType == model.player.PlayerType.Bot
+            if (isFirstPlayerBot) {
+                log.info(s"Il primo giocatore $currentPlayerId è un bot, eseguo il suo turno automaticamente")
+                try {
+                    val botGameState = gameEngine.get.executeBotTurn()
+                    val nextPlayerAfterBot = botGameState.turnManager.currentPlayer.id
+                    val botClientState = convertGameStateToClient(botGameState)
+
+                    humanPlayerActors.values.foreach(player => 
+                        player ! ServerMessages.GameState(
+                            gameId, 
+                            playersList,
+                            nextPlayerAfterBot,
+                            scala.collection.immutable.Map("gameStateDto" -> botClientState)  
+                        )
+                    )
+                    
+                    val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> botClientState)
+                    context.become(running(players, playerData, Playing, Some(nextPlayerAfterBot), mutableState))
+                } catch {
+                    case e: exceptions.GameOverException => 
+                        // gestisci fine gioco
+                        log.info(s"Game $gameId is over during bot turn! Winner: ${e.getMessage}")
+                    case ex: Exception =>
+                        log.error(s"Errore durante l'esecuzione del primo turno del bot: ${ex.getMessage}")
+                        ex.printStackTrace()
+                }
+            } else {
+                val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
+                context.become(running(players, playerData, Playing, Some(currentPlayerId), mutableState))
+            }
 
         case LeaveGame(playerId) =>
             players.get(playerId) match
@@ -234,18 +265,20 @@ class GameSession(
                                 ("playerUsernames" -> updatedPlayerData.map { case (id, player) => (id, player.username) }.toMap)
 
                             val username = playerData.get(playerId).map(_.username).getOrElse(playerId)
-                            updatedPlayers.values.foreach(player => 
+                            
+                            val humanPlayers = updatedPlayers.filter(entry => !entry._1.startsWith("bot-"))
+                            humanPlayers.values.foreach(player => 
                                 player ! ServerMessages.PlayerLeft(gameId, s"$username ($playerId)")
-                                )
+                            )
 
-                            updatedPlayers.values.foreach(player =>
+                            humanPlayers.values.foreach(player =>
                                 player ! ServerMessages.GameState(
                                     gameId,
                                     playersList,
                                     currentPlayer.getOrElse(""),
                                     updatedState.toMap
-                                 )
                                 )
+                            )
 
                             val newPhase = updatedPlayers.size match
                                 case n if n < 2 => WaitingForPlayers
@@ -280,7 +313,7 @@ class GameSession(
                 
                 case (Some(_), Playing, Some(engine)) =>
                     log.info(s"Processing action ${action.action} from player $playerId")
-                    
+    
                     try {
                       val coreAction = convertToGameAction(action, playerId)
                       println(s"=== ESECUZIONE AZIONE ===")
@@ -293,6 +326,7 @@ class GameSession(
                       val clientState = convertGameStateToClient(updatedGameState)
                       val playersList = playerData.values.map(p => s"${p.username} (${p.id})").toList
                       players(playerId) ! ServerMessages.GameActionResult(true, "Action processed")
+                      
                       if (action.action == "attack") {
                         val from = action.parameters.getOrElse("fromTerritory", "")
                         val to = action.parameters.getOrElse("toTerritory", "")
@@ -302,7 +336,8 @@ class GameSession(
                         val defenderLosses = getLastBattleDefenderLosses(updatedGameState)
                         val conquered = isLastBattleConquered(updatedGameState, to, playerId)
 
-                        players.values.foreach(player => 
+                        val humanPlayers = players.filter(entry => !entry._1.startsWith("bot-"))
+                        humanPlayers.values.foreach(player => 
                           player ! ServerMessages.BattleResult(
                             gameId,
                             from,
@@ -321,7 +356,8 @@ class GameSession(
                         val to = action.parameters.getOrElse("to", "")
                         val troops = action.parameters.getOrElse("troops", "0").toInt
                         
-                        players.values.foreach(player => 
+                        val humanPlayers = players.filter(entry => !entry._1.startsWith("bot-"))
+                        humanPlayers.values.foreach(player => 
                           player ! ServerMessages.TroopMovement(
                             gameId,
                             from,
@@ -334,7 +370,8 @@ class GameSession(
 
                       println(s"[sendGameState] playerStartedTurn nel clientState: ${clientState.playerStartedTurn}")
                       
-                      players.values.foreach(player => 
+                      val humanPlayers = players.filter(entry => !entry._1.startsWith("bot-"))
+                      humanPlayers.values.foreach(player => 
                         player ! ServerMessages.GameState(
                           gameId, 
                           playersList,
@@ -343,10 +380,38 @@ class GameSession(
                         )
                       )
                       
-
-                       val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
-                       context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
-                      
+                      val isNextPlayerBot = updatedGameState.turnManager.currentPlayer.playerType == model.player.PlayerType.Bot
+                      if (isNextPlayerBot) {
+                        log.info(s"Il prossimo giocatore $nextPlayerId è un bot, eseguo il suo turno automaticamente")
+                        println(s"[DEBUG] Chiamando engine.executeBotTurn() per bot $nextPlayerId")
+                        try {
+                            val botGameState = engine.executeBotTurn()
+                            println(s"[DEBUG] Bot turn completato, nuovo giocatore: ${botGameState.turnManager.currentPlayer.id}")
+                            val nextPlayerAfterBot = botGameState.turnManager.currentPlayer.id
+                            val botClientState = convertGameStateToClient(botGameState)
+              
+                            val humanPlayers = players.filter(entry => !entry._1.startsWith("bot-"))
+                            humanPlayers.values.foreach(player => 
+                              player ! ServerMessages.GameState(
+                                gameId, 
+                                playersList,
+                                nextPlayerAfterBot,
+                                scala.collection.immutable.Map("gameStateDto" -> botClientState)  
+                              )
+                            )
+                            
+                            val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> botClientState)
+                            context.become(running(players, playerData, phase, Some(nextPlayerAfterBot), mutableState))
+                        } catch {
+                          case e: exceptions.GameOverException => ???
+                          case ex: Exception =>
+                            log.error(s"Errore durante l'esecuzione del turno del bot: ${ex.getMessage}")
+                            ex.printStackTrace()
+                        }
+                      } else {
+                        val mutableState = scala.collection.mutable.Map[String, Any]("gameStateDto" -> clientState)
+                        context.become(running(players, playerData, phase, Some(nextPlayerId), mutableState))
+                      }
                     } catch 
                         case e: exceptions.GameOverException =>
                             log.info(s"Game $gameId is over! Winner: ${e.getMessage}")
@@ -368,7 +433,8 @@ class GameSession(
                             println(s"WinnerID trovato: $winnerId")
                             println(s"WinnerUsername trovato: $winnerUsername")
                             
-                            players.values.foreach { player =>
+                            val humanPlayers = players.filter(entry => !entry._1.startsWith("bot-"))
+                            humanPlayers.values.foreach { player =>
                                 player ! ServerMessages.GameOver(
                                     gameId,
                                     winnerId,
@@ -411,7 +477,7 @@ class GameSession(
             log.warning(s"GameSession received unhandled message: $msg")    
 
     private def initializeGameEngine(players: List[Player]): Unit = {
-      val humanPlayers = players.map { player =>
+      val humanPlayers = players.filter(!_.id.startsWith("bot-")).map { player =>
         CorePlayerImpl(
           player.id, 
           player.username, 
@@ -419,21 +485,29 @@ class GameSession(
           model.player.PlayerType.Human  
         )
       }
+
+      var botController: Option[bot.RiskBotController] = None
       
       val botPlayers = 
         if (numBots > 0) {
-          val botNames = this.botNames.getOrElse(List.fill(numBots)(s"Bot ${UUID.randomUUID().toString.take(4)}"))
-          val botStrategies = this.botStrategies.getOrElse(List.fill(numBots)("Random"))
+          val existingBots = players.filter(_.id.startsWith("bot-"))
           
-          (0 until numBots).map { i =>
-            val botId = s"bot-${UUID.randomUUID().toString.take(6)}"
-            val botName = if (i < botNames.length) botNames(i) else s"Bot $i"
-            val botStrategy = if (i < botStrategies.length) botStrategies(i) else "Random"
+          existingBots.map { existingBot =>
+            val botColor = generatePlayerColor(existingBot.id)
+            val botStrategy = this.botStrategies.getOrElse(List("Offensivo")).head
+            
+            val (botPlayer, controller) = botStrategy match {
+              case "Offensivo" => bot.BotFactory.createAggressiveBot(existingBot.id, existingBot.username, botColor)
+              case "Difensivo" => bot.BotFactory.createDefensiveBot(existingBot.id, existingBot.username, botColor)
+              case _ => bot.BotFactory.createAggressiveBot(existingBot.id, existingBot.username, botColor)
+            }
+            
+            botController = Some(controller)
             
             CorePlayerImpl(
-              botId,
-              botName,
-              generatePlayerColor(botId),
+              existingBot.id,
+              existingBot.username,
+              botColor,
               model.player.PlayerType.Bot
             )
           }.toList
@@ -445,7 +519,7 @@ class GameSession(
       
       try {
         log.info(s"Initializing game engine for game $gameId with ${allPlayers.size} players (${humanPlayers.size} humans, ${botPlayers.size} bots)")
-        gameEngine = Some(new GameEngine(allPlayers, gameId))
+        gameEngine = Some(new GameEngine(allPlayers, gameId, botController))
       } catch {
         case ex: Exception => 
           log.error(s"Error initializing game engine: ${ex.getMessage}")

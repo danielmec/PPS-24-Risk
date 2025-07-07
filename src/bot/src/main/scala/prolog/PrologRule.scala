@@ -23,38 +23,59 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
    * @return insieme di azioni valutate generate dalla regola Prolog
    */
   override def evaluateAction(gameState: GameState, playerId: String): Set[RatedAction] =
-    val encodedState = encodeGameState(gameState)
+    val (territoriesStr, neighborStr) = encodeGameState(gameState)
     val phase = gameState.turnManager.currentPhase.toString
     val actionString = "Action"
     val scoreString = "Score" 
     val descString = "Description"
-    val goal = s"$theoryName($encodedState, '$phase', '$playerId', $actionString, $scoreString, $descString)"
+    val goal = s"${theoryName.toLowerCase}($territoriesStr, $neighborStr, '$phase', '$playerId', $actionString, $scoreString, $descString)"
     
-    engine.solveAll(goal, actionString, scoreString, descString)
-      .map(terms => {
-        val actionTerm = terms(actionString)
-        val score = terms(scoreString).toString.toDouble
-        val description = terms(descString).toString.replaceAll("'", "")
-        
-        RatedAction(parseAction(gameState, actionTerm, playerId), score, description)
-      }).toSet
+    println(s"=== PROLOG RULE DEBUG ===")
+    println(s"Theory: $theoryName")
+    println(s"Goal: $goal")
+    println(s"Phase: $phase")
+    println(s"Player: $playerId")
+    
+    val solutions = engine.solveAll(goal, actionString, scoreString, descString)
+    println(s"Soluzioni trovate: ${solutions.size}")
+    
+    val actions = solutions.map(terms => {
+      val actionTerm = terms(actionString)
+      val score = terms(scoreString).toString.toDouble
+      val description = terms(descString).toString.replaceAll("'", "")
       
+      println(s"  Azione: $actionTerm, Score: $score, Desc: $description")
+      
+      try {
+        val parsedAction = parseAction(gameState, actionTerm, playerId)
+        println(s"  Parsed: ${parsedAction.getClass.getSimpleName}")
+        RatedAction(parsedAction, score, description)
+      } catch {
+        case ex: Exception =>
+          println(s"  ERRORE nel parsing: ${ex.getMessage}")
+          throw ex
+      }
+    }).toSet
+    
+    println(s"Azioni valide generate: ${actions.size}")
+    println(s"========================")
+    
+    actions
+  
   /**
    * Converte lo stato di gioco in un formato adatto per Prolog
    */
-  protected def encodeGameState(gameState: GameState): String = 
-    // Codifica di territori, giocatori e altre informazioni
+  protected def encodeGameState(gameState: GameState): (String, String) = 
     val territoriesStr = gameState.board.territories.map { t =>
       val owner = t.owner.map(_.id).getOrElse("none")
       s"territory('${t.name}', '$owner', ${t.troops})"
     }.mkString("[", ",", "]")
 
-    // Codifica neighbor
     val neighborStr = gameState.board.territories.flatMap { t =>
       t.neighbors.map(n => s"neighbor('${t.name}', '${n.name}')")
     }.mkString("[", ",", "]")
     
-    s"$territoriesStr, $neighborStr"
+    (territoriesStr, neighborStr)
   
   
   /**
@@ -69,6 +90,13 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
       val troops = args(1).toInt
       GameAction.PlaceTroops(playerId, troops, territoryName)
     } 
+    else if (functor.startsWith("reinforce")) {
+      val args = extractArgs(actionTerm)
+      val from = args(0)
+      val to = args(1)
+      val troops = args(2).toInt
+      GameAction.Reinforce(playerId, from, to, troops)
+    }
     else if (functor.startsWith("attack")) {
       val args = extractArgs(actionTerm)
       val from = args(0)
@@ -92,4 +120,3 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
     val content = term.toString
     val argsStr = content.substring(content.indexOf("(") + 1, content.lastIndexOf(")"))
     argsStr.split(",").map(_.trim.replaceAll("'", ""))
-  

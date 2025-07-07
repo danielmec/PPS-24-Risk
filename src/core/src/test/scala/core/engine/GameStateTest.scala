@@ -1,4 +1,4 @@
-package core.engine
+package engine
 
 import org.scalatest.funsuite.AnyFunSuite
 import model.cards.*
@@ -9,9 +9,9 @@ import engine.*
 class GameStateTest extends AnyFunSuite:
 
   val player = PlayerImpl("1", "Alice", PlayerColor.Red, PlayerType.Human)
-  val playerState = PlayerState(player, Set.empty, None, TurnPhase.WaitingForTurn, 0)
+  val playerState = PlayerState(player, Set.empty, None, TurnPhase.SetupPhase, 0)
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
-  val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.WaitingForTurn, 0)
+  val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.SetupPhase, 0)
 
   val territory1 = Territory("T1", Some(player), 3, Set.empty)
   val territory2 = Territory("T2", Some(player), 2, Set.empty)
@@ -28,16 +28,13 @@ class GameStateTest extends AnyFunSuite:
     objectiveCards = List.empty
   )
 
-  def createEngineState(
-    gs: GameState,
-    pendingAttack: Option[(PlayerImpl, PlayerImpl, Territory, Territory, Int)] = None
-  ): EngineState =
-    EngineState(gs, pendingAttack, false)
+  def createEngineState(gs: GameState): EngineState =
+    EngineState(gs, false)
 
   val turnManager = new TurnManager:
     def currentPlayer: Player = player
     def nextPlayer(): TurnManager = this
-    def currentPhase: TurnPhase = TurnPhase.WaitingForTurn
+    def currentPhase: TurnPhase = TurnPhase.SetupPhase
     def nextPhase(): TurnManager = this
     def isValidAction(action: GameAction, gs: GameState, es: EngineState): Boolean = true
 
@@ -56,9 +53,9 @@ class GameStateTest extends AnyFunSuite:
     assert(gameState.getPlayerState("1").exists(_.playerId == "1"))
 
   test("updatePlayerState updates the player state"):
-    val updated = playerState.copy(phase = TurnPhase.Attacking)
+    val updated = playerState.copy(phase = TurnPhase.MainPhase)
     val newGameState = gameState.updatePlayerState("1", updated)
-    assert(newGameState.playerStates.exists(_.phase == TurnPhase.Attacking))
+    assert(newGameState.playerStates.exists(_.phase == TurnPhase.MainPhase))
 
   test("updateBoard updates the board"):
     val newBoard = board.copy(gameId = "newGame")
@@ -69,7 +66,7 @@ class GameStateTest extends AnyFunSuite:
     val newTurnManager = new TurnManager:
       def currentPlayer: Player = otherPlayer
       def nextPlayer(): TurnManager = this
-      def currentPhase: TurnPhase = TurnPhase.Attacking
+      def currentPhase: TurnPhase = TurnPhase.MainPhase
       def nextPhase(): TurnManager = this
       def isValidAction(action: GameAction, gs: GameState, es: EngineState): Boolean = true
     val newGameState = gameState.updateTurnManager(newTurnManager)

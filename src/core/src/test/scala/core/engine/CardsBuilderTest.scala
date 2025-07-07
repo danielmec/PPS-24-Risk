@@ -64,10 +64,6 @@ class CardsBuilderTest extends AnyFunSuite with Matchers:
         val conquerTerritories = objectivesDeck.collect:
             case obj: ObjectiveCard.ConquerTerritories => obj
         conquerTerritories should not be empty
-
-        //val defeatPlayers = objectivesDeck.collect:
-            //case obj: ObjectiveCard.DefeatPlayer => obj
-        //defeatPlayers should not be empty
         
     test("CardsBuilder should correctly set up key strategic connections"):
         val alaska = territories.find(_.name == "Alaska").get

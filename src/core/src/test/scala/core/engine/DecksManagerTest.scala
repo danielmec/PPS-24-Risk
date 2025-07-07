@@ -1,4 +1,4 @@
-package core.engine
+package engine
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers 
@@ -22,7 +22,7 @@ class DecksManagerTest extends AnyFunSuite with Matchers:
     val oCard1 = ObjectiveCard.ConquerContinents(Set(c1))
     val oCard2 = ObjectiveCard.ConquerNContinents(1)
     val oCard3 = ObjectiveCard.ConquerTerritories(3, 2)
-    val oCard4 = ObjectiveCard.DefeatPlayer(PlayerColor.Green)
+    val oCard4 = ObjectiveCard.ConquerTerritories(12, 1)
     
     val emptyDecksManager = DecksManagerImpl(List(), List())
 

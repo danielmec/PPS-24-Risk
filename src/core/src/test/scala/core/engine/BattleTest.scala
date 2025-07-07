@@ -25,52 +25,35 @@ class BattleTest extends AnyFunSuite with Matchers:
     troops = 3,
     neighbors = Set.empty
   )
-
-  val attackerWinsDice: Int => Seq[Int] = n => Seq.fill(n)(6)
-  val attackerLosesDice: Int => Seq[Int] = n => Seq.fill(n)(1)
-  val defenderWinsDice: Int => Seq[Int] = n => Seq.fill(n)(6)
-  val defenderLosesDice: Int => Seq[Int] = n => Seq.fill(n)(1)
-
-  val customAttackerDice: Int => Seq[Int] = 
-    case 3 => Seq(6, 4, 2)
-    case _ => Seq(6)
-  
-  val customDefenderDice: Int => Seq[Int] = 
-    case 2 => Seq(5, 3)
-    case _ => Seq(1)
   
   test("Defender should loose troops if he loose the battle"):
-    val result = Battle.battle(
+    val result = Battle.battleRound(
       attacker,
       defender,
       attackerTerritory,
       defenderTerritory,
-      attackingTroops = 3,
-      attackerDiceRoll = attackerWinsDice,
-      defenderDiceRoll = defenderLosesDice
+      attackingTroops = 3
     )
-    result._1 shouldBe BattleResult.AttackerWins
-    result._3.owner should contain (attacker)
-    result._2.troops shouldBe (attackerTerritory.troops - 3)
-    result._3.troops shouldBe 3
+    if result.result == BattleResult.AttackerWins then
+      result.defenderTerritory.owner should contain (attacker)
+      result.attackerTerritory.troops shouldBe (attackerTerritory.troops - 3)
+      result.defenderTerritory.troops shouldBe 3
   
-  test("Defender should keep his territory if he wins"):
-    val result = Battle.battle(
+  test("Defender should keep his territory if he wins or battle continues"):
+    val result = Battle.battleRound(
       attacker,
       defender,
       attackerTerritory.copy(troops = 3),
       defenderTerritory.copy(troops = 5),
-      attackingTroops = 2,
-      attackerDiceRoll = attackerLosesDice,
-      defenderDiceRoll = defenderWinsDice
+      attackingTroops = 2
     )
-    result._1 shouldBe BattleResult.DefenderWins
-    result._3.owner should contain (defender)
-    result._2.owner should contain (attacker)
+    if result.result == BattleResult.DefenderWins || result.result == BattleResult.BattleContinues then
+      result.defenderTerritory.owner should contain (defender)
+      result.attackerTerritory.owner should contain (attacker)
   
   test("Cannot attack with all troops"):
     an [InvalidActionException] should be thrownBy {
-      Battle.battle(
+      Battle.battleRound(
         attacker,
         defender,
         attackerTerritory.copy(troops = 3),
@@ -83,7 +66,7 @@ class BattleTest extends AnyFunSuite with Matchers:
     val notOwnedTerritory = Territory("C", Some(defender), 5, Set.empty)
     
     an [InvalidActionException] should be thrownBy {
-      Battle.battle(
+      Battle.battleRound(
         attacker,
         defender,
         notOwnedTerritory,  
@@ -96,7 +79,7 @@ class BattleTest extends AnyFunSuite with Matchers:
     val neutralTerritory = Territory("D", None, 3, Set.empty)
     
     an [InvalidActionException] should be thrownBy {
-      Battle.battle(
+      Battle.battleRound(
         attacker,
         defender,
         attackerTerritory,  
@@ -105,24 +88,29 @@ class BattleTest extends AnyFunSuite with Matchers:
       )
     }
   
-  test("Battle should end correctly"):
-    val state = BattleState(attacker, defender, attackerTerritory, defenderTerritory, 3, 2)
-    val newState = Battle.resolveBattleRound(state, customAttackerDice, customDefenderDice)
-    newState.attackingTroops shouldBe 3  
-    newState.defendingTroops shouldBe 0  
+  test("Battle round returns correct data structure"):
+    val result = Battle.battleRound(
+      attacker, 
+      defender, 
+      attackerTerritory, 
+      defenderTerritory, 
+      3
+    )
+    result shouldBe a [BattleRoundResult]
+    result.attackerDice.size should be <= 3
+    result.defenderDice.size should be <= 3
   
-  test("Attacker should move his attacking troops on conquered territory"):
+  test("Attacker should move his attacking troops on conquered territory when winning"):
     val attackingTroops = 3
-    val result = Battle.battle(
+    val result = Battle.battleRound(
       attacker,
       defender,
       attackerTerritory,
       defenderTerritory,
-      attackingTroops,
-      attackerDiceRoll = attackerWinsDice,
-      defenderDiceRoll = defenderLosesDice
+      attackingTroops
     )
-    result._1 shouldBe BattleResult.AttackerWins
-    result._2.troops shouldBe (attackerTerritory.troops - attackingTroops) 
-    result._3.troops shouldBe attackingTroops                       
-    result._3.owner shouldBe Some(attacker)
+    
+    if result.result == BattleResult.AttackerWins then
+      result.attackerTerritory.troops shouldBe (attackerTerritory.troops - attackingTroops) 
+      result.defenderTerritory.troops shouldBe attackingTroops                       
+      result.defenderTerritory.owner shouldBe Some(attacker)

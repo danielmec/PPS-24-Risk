@@ -34,9 +34,17 @@ object PrologEngine:
   given Conversion[String, Term] = Term.createTerm(_)
   given Conversion[Seq[_], Term] = _.mkString("[", ",", "]")
   // Conversione implicita da String (percorso file) a Theory
-  given Conversion[String, Theory] with
-    def apply(fileName: String): Theory =
-      new Theory(getClass.getResourceAsStream(fileName))
+  given Conversion[String, Theory] = fileName =>
+    val inputStream = getClass.getResourceAsStream(fileName)
+    if (inputStream == null) {
+      throw new IllegalArgumentException(s"Resource not found: $fileName")
+    }
+    try {
+      new Theory(inputStream)
+    } catch {
+      case e: Exception => 
+        throw new IllegalArgumentException(s"Error parsing Prolog file $fileName: ${e.getMessage}", e)
+    }
 
   // Factory method per creare un PrologEngine da uno o più Theory
   def apply(theories: Theory*): PrologEngine = PrologEngineImpl(theories*)
@@ -85,11 +93,5 @@ object PrologEngine:
     override def solveAll(goal: Term, term: String): LazyList[Term] =
       engine(goal).map(extractTerm(_, term))
 
-    private def extractTerm(solveInfo: SolveInfo, s: String): Term =
-      try {
-        solveInfo.getTerm(s)
-      } catch {
-        case e: Throwable =>
-          Term.createTerm("undefined")  // Gestione dell'errore se la variabile non esiste
-      }
+    private def extractTerm(solveInfo: SolveInfo, s: String): Term = solveInfo.getTerm(s)
 

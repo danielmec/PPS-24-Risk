@@ -6,26 +6,28 @@ import model.player.PlayerColor
 
 object BotFactory:
 
-  private val controller = new RiskBotController()
+  val controller = new RiskBotController()
 
-  def createAggressiveBot(playerId: String, name: String, color: PlayerColor): BotPlayer =
+  def createAggressiveBot(playerId: String, name: String, color: PlayerColor): (BotPlayer, RiskBotController) =
     val aggressiveRules = Set[StrategyRule](
+      new BotSetupPlaceTroopsRule(),
       new OffensiveBotAttackRule(),
       new OffensiveBotPlaceTroopsRule(),
       new OffensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, aggressiveRules)
     controller.registerStrategy(playerId, botPlayer)
-    botPlayer
+    (botPlayer, controller)
 
-  def createDefensiveBot(playerId: String, name: String, color: PlayerColor): BotPlayer =
+  def createDefensiveBot(playerId: String, name: String, color: PlayerColor): (BotPlayer, RiskBotController) =
     val defensiveRules = Set[StrategyRule](
+      new BotSetupPlaceTroopsRule(),
       new DefensiveBotAttackRule(),
       new DefensiveBotPlaceTroopsRule(),
       new DefensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, defensiveRules)
     controller.registerStrategy(playerId, botPlayer)
-    botPlayer
+    (botPlayer, controller)
 
   def getController(): RiskBotController = controller
