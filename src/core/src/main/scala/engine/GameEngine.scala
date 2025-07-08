@@ -35,6 +35,10 @@ class GameEngine(
     )
   )
 
+  private var battleResultCallback: Option[(String, String, String, String, BattleRoundResult) => Unit] = None
+  def setBattleResultCallback(callback: (String, String, String, String, BattleRoundResult) => Unit): Unit =
+    battleResultCallback = Some(callback)
+
   def setup(): GameState = 
     var currentDecksManager = decksManager.shuffleTerritoriesDeck().shuffleObjectivesDeck()
     val updatedBoard = distributeInitialTerritories(board, players)
@@ -165,97 +169,79 @@ class GameEngine(
 
   def executeBotTurn(): GameState =
     val currentPlayer = engineState.gameState.turnManager.currentPlayer
-    if currentPlayer.playerType != PlayerType.Bot || botController.isEmpty then
-      throw new InvalidPlayerException()
-      
-    println(s"=== ESECUZIONE TURNO BOT ===")
-    println(s"Bot: ${currentPlayer.id}")
-    println(s"Fase: ${engineState.gameState.turnManager.currentPhase}")
-    
-    var isCurrentTurn = true
-    var actionCount = 0
-    val maxActions = engineState.gameState.turnManager.currentPhase match {
-      case TurnPhase.SetupPhase => 50  // ← Aumentato per SetupPhase
-      case TurnPhase.MainPhase => 10   // ← Limite normale per MainPhase
-    }
-    
-    while isCurrentTurn && actionCount < maxActions do
-      try {
-        actionCount += 1
-        
-        val playerState = engineState.gameState.getPlayerState(currentPlayer.id).get
-        
-        // ← GESTIONE SETUP PHASE
-        if engineState.gameState.turnManager.currentPhase == TurnPhase.SetupPhase && playerState.bonusTroops == 0 then
-          println(s"Bot ha finito le truppe bonus (${playerState.bonusTroops}), termino il turno")
-          engineState = performActions(engineState, GameAction.EndSetup)
-          isCurrentTurn = false
-        // ← GESTIONE MAIN PHASE - FORZA PLACE TROOPS SE CI SONO BONUS
-        else if engineState.gameState.turnManager.currentPhase == TurnPhase.MainPhase && playerState.bonusTroops > 0 then
-          println(s"Richiesta azione #$actionCount (truppe rimanenti: ${playerState.bonusTroops}) - DEVE piazzare truppe")
-          
-          // Forza il piazzamento delle truppe bonus
-          val botTerritories = engineState.gameState.board.territories.filter(_.owner.exists(_.id == currentPlayer.id))
-          if botTerritories.nonEmpty then
-            val targetTerritory = botTerritories.head // Scegli il primo territorio disponibile
-            val placeTroopsAction = GameAction.PlaceTroops(currentPlayer.id, 1, targetTerritory.name)
-            println(s"Bot forza piazzamento su: ${targetTerritory.name}")
-            
-            engineState = performActions(engineState, placeTroopsAction)
-            println(s"Azione eseguita con successo")
-          else
-            println("ERRORE: Bot non ha territori disponibili!")
-            isCurrentTurn = false
-        else
-          println(s"Richiesta azione #$actionCount (truppe rimanenti: ${playerState.bonusTroops})")
-          
-          val action = botController.get.nextAction(engineState.gameState, currentPlayer.id)
-          val actionName = action match
-            case GameAction.EndTurn => "EndTurn"
-            case GameAction.EndSetup => "EndSetup"
-            case GameAction.PlaceTroops(_, troops, territory) => s"PlaceTroops($troops su $territory)"
-            case GameAction.Attack(_, _, from, to, troops) => s"Attack($from -> $to con $troops)"
-            case GameAction.Reinforce(_, from, to, troops) => s"Reinforce($from -> $to con $troops)"
-            case GameAction.TradeCards(cards, _) => s"TradeCards(${cards.size} carte)"
-            case _ => action.getClass.getSimpleName
-
-          println(s"Bot ha scelto: $actionName")
-          
-          engineState = performActions(engineState, action)
-          println(s"Azione eseguita con successo")
-          
-          action match
-            case GameAction.EndTurn => 
-              println("Bot ha terminato il turno")
-              isCurrentTurn = false
-            case GameAction.EndSetup =>
-              println("Bot ha terminato il setup")
-              isCurrentTurn = false
-            case _ => 
-              val updatedPlayer = engineState.gameState.turnManager.currentPlayer
-              if updatedPlayer.id != currentPlayer.id then 
-                println(s"Turno passato a: ${updatedPlayer.id}")
-                isCurrentTurn = false
-      } catch {
-        case e: Exception => 
-          println(s"Bot error: ${e.getMessage}")
-          e.printStackTrace()
-          isCurrentTurn = false
-      }
-    
-    if (actionCount >= maxActions) {
-      println(s"ATTENZIONE: Bot ha raggiunto il limite di azioni ($maxActions), termino forzatamente")
-      if engineState.gameState.turnManager.currentPhase == TurnPhase.SetupPhase then
-        try {
-          engineState = performActions(engineState, GameAction.EndSetup)
-        } catch {
-          case _: Exception => // Ignora errori di validazione
-        }
-    }
-    
-    println(s"=============================")
+    if (currentPlayer.playerType != PlayerType.Bot || botController.isEmpty) then throw new InvalidPlayerException()
+    engineState.gameState.turnManager.currentPhase match 
+      case TurnPhase.SetupPhase => executeBotSetupTurn()
+      case TurnPhase.MainPhase => executeBotMainTurn()
     engineState.gameState
 
+  private def executeBotSetupTurn(): Unit =
+    val currentPlayer = engineState.gameState.turnManager.currentPlayer
+    var currentPlayerState = engineState.gameState.getPlayerState(currentPlayer.id).get
+    while currentPlayerState.bonusTroops > 0 do
+      try
+        val action = botController.get.nextAction(engineState.gameState, currentPlayer.id)
+        engineState = performActions(engineState, action)
+        currentPlayerState = engineState.gameState.getPlayerState(currentPlayer.id).get
+      catch
+        case e: Exception =>
+          try engineState = performActions(engineState, GameAction.EndSetup)    // ends setup anyway
+          catch
+            case _: Exception => 
+          return
+    // 0 bonus troops left
+    try engineState = performActions(engineState, GameAction.EndSetup)
+    catch
+      case e: Exception =>
+        println(s"Errore nel terminare setup: ${e.getMessage}")
+
+  private def executeBotMainTurn(): Unit =
+    val currentPlayer = engineState.gameState.turnManager.currentPlayer
+    val playerState = engineState.gameState.getPlayerState(currentPlayer.id).get
+    if playerState.bonusTroops > 0 then placeAllBotBonusTroops()
+    executeBotAttack()
+    executeBotReinforceOrEnd()
+
+  private def placeAllBotBonusTroops(): Unit =
+    var currentPlayerState = engineState.gameState.getPlayerState(engineState.gameState.turnManager.currentPlayer.id).get
+    while currentPlayerState.bonusTroops > 0 do
+      val action = botController.get.nextAction(engineState.gameState, engineState.gameState.turnManager.currentPlayer.id)
+      engineState = performActions(engineState, action)
+      currentPlayerState = engineState.gameState.getPlayerState(engineState.gameState.turnManager.currentPlayer.id).get
+
+  private def executeBotAttack(): Unit =
+    try
+      val action = botController.get.nextAction(engineState.gameState, engineState.gameState.turnManager.currentPlayer.id)
+      action match
+        case attack: GameAction.Attack =>
+          val previousState = engineState.gameState
+          engineState = performActions(engineState, action)
+          // notifies other players
+          val updatedState = engineState.gameState
+          updatedState.lastBattleResult match
+            case Some(battleResult) => battleResultCallback.foreach{ callback => callback(attack.from, attack.to, attack.attackerId, attack.defenderId, battleResult)}
+            case None => println("Any battle result found.")
+        case _ => println("Bot doesn't want to attack.")
+    catch
+      case e: Exception => println(s"Attack failed: ${e.getMessage}")
+
+  private def executeBotReinforceOrEnd(): Unit =
+    try
+      val action = botController.get.nextAction(engineState.gameState, engineState.gameState.turnManager.currentPlayer.id)
+      action match
+        case _: GameAction.Reinforce =>
+          engineState = performActions(engineState, action)
+          engineState = performActions(engineState, GameAction.EndTurn)   // it should end turn after reinforce
+        case GameAction.EndTurn =>
+          engineState = performActions(engineState, action)
+        case _ =>
+          engineState = performActions(engineState, GameAction.EndTurn)
+    catch
+      case e: Exception =>
+        try engineState = performActions(engineState, GameAction.EndTurn)   // ends turn anyway
+        catch 
+          case _: Exception => 
+        
   def setGameState(newState: GameState): Unit = engineState = engineState.copy(gameState = newState)
 
   def getGameState: GameState = engineState.gameState

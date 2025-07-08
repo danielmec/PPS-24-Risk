@@ -14,7 +14,7 @@ reinforce(PlayerId, Territories, Neighbors, From, To) :-
         member(territory(TerritoryName, PlayerId, Troops), Territories),
         Troops > 1,
         findall(OpponentTroops, (
-            member(neighbor(TerritoryName, N), Neighbors),
+            member(neighbor(TerritoryName, N, _, OpponentId), Neighbors),
             member(territory(N, OpponentId, OpponentTroops), Territories),
             OpponentId \= PlayerId
         ), Threats),

@@ -83,7 +83,6 @@ object WebSocketHandler:
     
     def receive = {
       case SendPing =>
-        println(s"[DEBUG] Invio ping al client")
         sendProtocolMessage(protocol.ServerMessages.Ping())
       
       case OutgoingConnection(client) =>
@@ -94,7 +93,6 @@ object WebSocketHandler:
           case Success(msg) => 
             msg match {
               case protocol.ClientMessages.Pong() =>
-                println(s"[DEBUG] Ricevuto pong dal client")
               case other => 
                 handleClientMessage(other)
             }
@@ -116,10 +114,8 @@ object WebSocketHandler:
       try {
         val jsonValue = messageToJson(msg)
         val jsonString = jsonValue.compactPrint
-        println(s"[DEBUG]  Invio messaggio al client: $jsonString")
         clientConnection.foreach { conn => 
           conn ! TextMessage(jsonString)
-          println(s"[DEBUG] Messaggio inviato al client")
         }
       } catch {
         case ex: Exception =>

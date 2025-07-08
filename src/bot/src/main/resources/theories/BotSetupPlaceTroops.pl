@@ -1,6 +1,6 @@
 botsetupplacetroops(Territories, Neighbors, 'SetupPhase', PlayerId, Action, Score, Description) :-
-    % Trova tutti i territori posseduti dal bot
-    member(territory(Territory, PlayerId, _), Territories),
+    member(territory(Territory, PlayerId, Troops), Territories),
+    \+ (member(territory(_, PlayerId, LessTroops), Territories), LessTroops < Troops),
+    Score is 2.0 / (Troops + 1),
     Action = place_troops(Territory, 1),
-    Score = 1.0,
     Description = 'Place troops on owned territory during setup'.

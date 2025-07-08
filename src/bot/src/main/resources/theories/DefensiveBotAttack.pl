@@ -12,8 +12,8 @@ defensivebotattack(Territories, Neighbors, 'MainPhase', PlayerId, Action, Score,
 attack(PlayerId, Territories, Neighbors, From, To, TroopsToUse) :-
     member(territory(From, PlayerId, BotTroops), Territories),
     BotTroops > 1,
-    member(neighbor(From, To), Neighbors),
-    member(territory(To, DefenderId, DefTroops), Territories),
+    member(neighbor(From, To, PlayerId, DefenderId), Neighbors),
     DefenderId \= PlayerId,
     BotTroops >= 2 * DefTroops,
+    member(territory(To, DefenderId, DefTroops), Territories),
     TroopsToUse is min(BotTroops - 1, 3).

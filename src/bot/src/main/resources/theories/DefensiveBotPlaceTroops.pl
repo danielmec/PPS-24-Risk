@@ -8,7 +8,7 @@ place_troops(PlayerId, Territories, Neighbors, TerritoryInDanger) :-
     findall(NegThreat-TerritoryName, (
         member(territory(TerritoryName, PlayerId, _), Territories),
         findall(OpponentTroops, (
-            member(neighbor(TerritoryName, Neighbor), Neighbors),
+            member(neighbor(TerritoryName, Neighbor, _, OpponentId), Neighbors),
             member(territory(Neighbor, OpponentId, OpponentTroops), Territories),
             OpponentId \= PlayerId
         ), Threats),

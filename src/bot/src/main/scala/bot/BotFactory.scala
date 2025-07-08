@@ -11,8 +11,8 @@ object BotFactory:
   def createAggressiveBot(playerId: String, name: String, color: PlayerColor): (BotPlayer, RiskBotController) =
     val aggressiveRules = Set[StrategyRule](
       new BotSetupPlaceTroopsRule(),
-      new OffensiveBotAttackRule(),
       new OffensiveBotPlaceTroopsRule(),
+      new OffensiveBotAttackRule(),
       new OffensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, aggressiveRules)
@@ -22,8 +22,8 @@ object BotFactory:
   def createDefensiveBot(playerId: String, name: String, color: PlayerColor): (BotPlayer, RiskBotController) =
     val defensiveRules = Set[StrategyRule](
       new BotSetupPlaceTroopsRule(),
-      new DefensiveBotAttackRule(),
       new DefensiveBotPlaceTroopsRule(),
+      new DefensiveBotAttackRule(),
       new DefensiveBotReinforceRule()
     )
     val botPlayer = new BotPlayer(playerId, name, color, defensiveRules)
