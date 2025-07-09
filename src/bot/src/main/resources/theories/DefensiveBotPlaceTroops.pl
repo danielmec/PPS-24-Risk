@@ -1,19 +1,6 @@
 defensivebotplacetroops(Territories, Neighbors, 'MainPhase', PlayerId, Action, Score, Description) :-
-    place_troops(PlayerId, Territories, Neighbors, TerritoryInDanger),
-    Action = place_troops(TerritoryInDanger, 1),
-    Score = 1.0,
-    Description = 'Place troops on most endangered territory'.
-
-place_troops(PlayerId, Territories, Neighbors, TerritoryInDanger) :-
-    findall(NegThreat-TerritoryName, (
-        member(territory(TerritoryName, PlayerId, _), Territories),
-        findall(OpponentTroops, (
-            member(neighbor(TerritoryName, Neighbor, _, OpponentId), Neighbors),
-            member(territory(Neighbor, OpponentId, OpponentTroops), Territories),
-            OpponentId \= PlayerId
-        ), Threats),
-        sum_list(Threats, Threat),
-        NegThreat is -Threat
-    ), NegThreatLevels),
-    NegThreatLevels \= [],
-    keysort(NegThreatLevels, [_-TerritoryInDanger|_]).
+    member(territory(Territory, PlayerId, Troops), Territories),
+    \+ (member(territory(_, PlayerId, LessTroops), Territories), LessTroops < Troops),
+    Action = place_troops(Territory, 1),
+    Score is 2.0 / (Troops + 1),
+    Description = 'Place bonus troops in weakest territory'.
