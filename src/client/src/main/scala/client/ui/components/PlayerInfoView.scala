@@ -28,6 +28,7 @@ class PlayerInfoView(
     }
   }
   
+  
   val colorMap = Map(
     "RED" -> Color.RED,
     "BLUE" -> Color.BLUE,
@@ -71,8 +72,7 @@ class PlayerInfoView(
   val nameLabel = new Label(playerName) {
     maxWidth = Double.MaxValue
     HBox.setHgrow(this, Priority.Always)
-    
-
+  
   }
   
   padding = Insets(5)

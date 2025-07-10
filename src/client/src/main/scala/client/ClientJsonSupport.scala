@@ -380,7 +380,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     "playerLeft" -> { fields =>
       PlayerLeftMessage(
         extractString(fields, "gameId"),
-        extractString(fields, "player")
+        extractString(fields, "playerId")
       )
     },
     

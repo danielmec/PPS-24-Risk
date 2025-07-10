@@ -260,7 +260,7 @@ class GameSession(
                             val username = playerData.get(playerId).map(_.username).getOrElse(playerId)
                             val humanPlayers = updatedPlayers.filter(entry => !entry._1.startsWith("bot-"))
                             humanPlayers.values.foreach(player => 
-                                player ! ServerMessages.PlayerLeft(gameId, s"$username ($playerId)")
+                                player ! ServerMessages.PlayerLeft(gameId, playerId)
                             )
                             println(s"=== Giocatore $username ($playerId) ha lasciato la partita $gameId ===")
                             humanPlayers.values.foreach(player =>
