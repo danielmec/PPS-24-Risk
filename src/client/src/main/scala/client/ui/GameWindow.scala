@@ -803,18 +803,20 @@ class GameWindow(
         else 
           s"Attacco a ${battleResult.defenderTerritory} respinto."
         
-        if (currentPlayerId != myPlayerId) {
-          val attackMessage = s"Attacco da ${battleResult.attackerTerritory} a ${battleResult.defenderTerritory}"
-          val lossesMessage = s"$outcomeText\nPerdite: Attaccante ${battleResult.attackerLosses}, Difensore ${battleResult.defenderLosses}"
+        val attackerName = territories.find(_.name == battleResult.attackerTerritory)
+          .map(_.owner.value).getOrElse("Sconosciuto")
+
+        val attackMessage = s"Attacco di ${attackerName} da ${battleResult.attackerTerritory} a ${battleResult.defenderTerritory}"
+        val lossesMessage = s"$outcomeText\nPerdite: Attaccante ${battleResult.attackerLosses}, Difensore ${battleResult.defenderLosses}"
           
-          val alert = new Alert(Alert.AlertType.Information) {
+        val alert = new Alert(Alert.AlertType.Information) {
             initOwner(GameWindow.this)
             title = "Risultato Battaglia"
             headerText = attackMessage
             contentText = lossesMessage
           }
-          alert.show()
-        }
+        alert.show()
+        
       } catch {
         case ex: Exception =>
           println(s"[UI] ERRORE durante la gestione del risultato battaglia: ${ex.getMessage}")
