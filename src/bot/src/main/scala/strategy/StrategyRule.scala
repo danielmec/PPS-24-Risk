@@ -11,4 +11,4 @@ object StrategyRule:
     extension(self: Set[StrategyRule])
 
         def evaluateAction(gameState: GameState, playerId: String): Set[RatedAction] =
-            self.flatMap(_.evaluateAction(gameState, playerId))
+            self.flatMap(_.evaluateAction(gameState, playerId)) 
