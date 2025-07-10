@@ -84,6 +84,7 @@ class GameWindow(
   
   val playersList = ObservableBuffer(initPlayers.map(name => 
     new PlayerInfoView(name, initPlayers, networkManager, playerColors)): _*)
+
   val diceDisplay = new DiceDisplay()
   
   val sidebarPane = createSidebarPane()
@@ -678,19 +679,9 @@ class GameWindow(
         headerText = "Un giocatore ha lasciato la partita"
         contentText = s"$playerId ha lasciato la partita."
       }
-      // Rimuovi il giocatore dalla lista dei giocatori
-      playersList.find(_.nameLabel.text.value.contains(playerId)) match {
-        case Some(playerInfoView) =>
-          playersList -= playerInfoView
-          println(s"Giocatore $playerId rimosso dalla lista.")
-        case None =>
-          println(s"Giocatore $playerId non trovato nella lista.")
-      }
-      
-      playersLabel.text = s"Giocatori: ${playersList.size}"
-      
-      val newSidebarPane = createSidebarPane(playersList)
-      splitPane.items.set(1, newSidebarPane)
+      dialog.showAndWait()
+ 
+      close()
     }
   }
 
@@ -839,8 +830,12 @@ class GameWindow(
         else 
           s"Attacco a ${battleResult.defenderTerritory} respinto."
         
-        val attackerName = territories.find(_.name == battleResult.attackerTerritory)
+        val attackerId = territories.find(_.name == battleResult.attackerTerritory)
           .map(_.owner.value).getOrElse("Sconosciuto")
+
+        val attackerName = playersList.map(_.nameLabel.text.value)
+          .find(_.contains(s"($attackerId)"))
+          .getOrElse("Sconosciuto")
 
         val attackMessage = s"Attacco di ${attackerName} da ${battleResult.attackerTerritory} a ${battleResult.defenderTerritory}"
         val lossesMessage = s"$outcomeText\nPerdite: Attaccante ${battleResult.attackerLosses}, Difensore ${battleResult.defenderLosses}"
