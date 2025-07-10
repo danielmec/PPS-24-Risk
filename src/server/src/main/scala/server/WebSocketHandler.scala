@@ -15,10 +15,8 @@ import scala.util.Failure
 import scala.util.Try
 import scala.util.Success
 import protocol.{Message => ProtocolMessage}
-
 import spray.json._
 import protocol.JsonSupport._
-
 import scala.concurrent.duration._
 
 object WebSocketHandler:
@@ -29,9 +27,7 @@ object WebSocketHandler:
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
     
     val connectionId = java.util.UUID.randomUUID().toString.take(8)
-    
     val handler = system.actorOf(Props(new ConnectionActor(gameManager)), s"connection-$connectionId")
-    
     val incoming = Flow[Message]
       .collect {
         case TextMessage.Strict(text) => IncomingMessage(text)
@@ -41,14 +37,12 @@ object WebSocketHandler:
         onCompleteMessage = akka.actor.PoisonPill, 
         onFailureMessage = { case _ => akka.actor.PoisonPill } 
       ))
-    
     val outgoing = Source.actorRef(
       PartialFunction.empty,  
       PartialFunction.empty,  
       16,                     
       OverflowStrategy.dropHead
     )
-    
     Flow.fromSinkAndSourceMat(incoming, outgoing) { (_, outActor) =>
       handler ! OutgoingConnection(outActor)
       NotUsed
@@ -56,12 +50,9 @@ object WebSocketHandler:
 
   private class ConnectionActor(gameManager: ActorRef) extends Actor:
     var clientConnection: Option[ActorRef] = None
-    
     private var pingScheduler: Option[akka.actor.Cancellable] = None
     
-    override def preStart(): Unit = {
-      println(s"[DEBUG] ConnectionActor ${self.path.name} avviato")
-      
+    override def preStart(): Unit = {      
       import context.dispatcher
       pingScheduler = Some(context.system.scheduler.scheduleWithFixedDelay(
         50.seconds, 50.seconds, self, SendPing
@@ -70,8 +61,6 @@ object WebSocketHandler:
     
     override def postStop(): Unit = {
       pingScheduler.foreach(_.cancel())
-      
-      println(s"[DEBUG] ConnectionActor ${self.path.name} fermato, notifica GameManager")
       try {
         gameManager ! GameManager.PlayerDisconnected(self)
       } catch {
@@ -85,8 +74,7 @@ object WebSocketHandler:
       case SendPing =>
         sendProtocolMessage(protocol.ServerMessages.Ping())
       
-      case OutgoingConnection(client) =>
-        clientConnection = Some(client)
+      case OutgoingConnection(client) => clientConnection = Some(client)
         
       case IncomingMessage(text) =>
         parseJsonMessage(text) match {
@@ -100,8 +88,7 @@ object WebSocketHandler:
             println(s"[ERROR] Errore nel parsing del messaggio: ${ex.getMessage}")
         }
         
-      case msg: protocol.ServerMessages.Error =>
-       sendProtocolMessage(msg)
+      case msg: protocol.ServerMessages.Error => sendProtocolMessage(msg)
         
       case msg: ProtocolMessage =>
         val jsonString = messageToJson(msg).compactPrint
@@ -134,11 +121,9 @@ object WebSocketHandler:
           gameManager ! GameManager.CreateGameSession(name, maxPlayers, self, username, numBots, botStrategies, botNames)
           
         case protocol.ClientMessages.JoinGame(gameId, username) if gameId.isEmpty && username.isEmpty =>
-          println("Inoltro richiesta join lobby")
-         
+          println("Inoltro richiesta join lobby")        
           val lobbyMessage = protocol.ServerMessages.LobbyJoined("Benvenuto nella sala d'attesa!")
-          sendProtocolMessage(lobbyMessage)
-          
+          sendProtocolMessage(lobbyMessage)         
           gameManager ! GameManager.RegisterClient(self)
           
         case protocol.ClientMessages.JoinGame(gameId,username) =>
@@ -150,8 +135,7 @@ object WebSocketHandler:
           gameManager ! GameManager.GetAllGames(self)
           
         case action: protocol.ClientMessages.GameAction =>
-          println(s"Inoltro azione di gioco: ${action.action} per partita ${action.gameId}")
-          
+          println(s"Inoltro azione di gioco: ${action.action} per partita ${action.gameId}")  
           val playerId = self.path.name 
           gameManager ! GameManager.ProcessGameAction(action.gameId, playerId, action)
     

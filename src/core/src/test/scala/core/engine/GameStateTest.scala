@@ -12,7 +12,6 @@ class GameStateTest extends AnyFunSuite:
   val playerState = PlayerState(player, Set.empty, None, TurnPhase.SetupPhase, 0)
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
   val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.SetupPhase, 0)
-
   val territory1 = Territory("T1", Some(player), 3, Set.empty)
   val territory2 = Territory("T2", Some(player), 2, Set.empty)
   val territory3 = Territory("T3", Some(otherPlayer), 1, Set.empty)

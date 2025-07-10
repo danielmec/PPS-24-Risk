@@ -12,11 +12,8 @@ class ObjectiveValidatorTest extends AnyFunSuite:
   val otherPlayer = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
   val playerState = PlayerState(player, Set.empty, None, TurnPhase.MainPhase, 0)
   val otherState = PlayerState(otherPlayer, Set.empty, None, TurnPhase.MainPhase, 0)
-
-  // Setup board
   val (continents, territoriesMap) = CardsBuilder.createBoard()
   val allTerritories = territoriesMap.values.toList
-  
   val half = allTerritories.size / 2
   val player1Territories = allTerritories.take(half).map(_.copy(owner = Some(player), troops = 1))
   val player2Territories = allTerritories.drop(half).map(_.copy(owner = Some(otherPlayer), troops = 1))

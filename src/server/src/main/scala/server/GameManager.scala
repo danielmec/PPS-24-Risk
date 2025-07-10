@@ -77,25 +77,18 @@ class GameManager extends Actor with ActorLogging:
             )
             val updatedGames = games + (gameId -> gameSession)
             val updatedPlayerToGame = playerToGame + (creator -> gameId)
-
             creator ! ServerMessages.GameCreated(
                 gameId,
                 gameName,
                 creator.path.name
             )
-
             gameSession ! GameSession.JoinGame(creator.path.name, creator, username, numBots, botStrategies, botNames)
-            println(s"Game session $gameId created by ${creator.path.name}")
-            
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
         case JoinGameSession(gameId, player, username) =>
             games.get(gameId) match 
                 case Some(gameSession) =>
                     log.warning(s"Player ${player.path.name} joining game session: $gameId")
-                    
-                    //messaggio con 0 bot per evitare la creazione di nuovi bot,
-                    // ma il manageBots manterrà quelli esistenti
                     gameSession ! GameSession.JoinGame(
                         player.path.name, 
                         player, 
@@ -104,7 +97,6 @@ class GameManager extends Actor with ActorLogging:
                         Some(List.empty),  
                         Some(List.empty)   
                     )
-
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
                     context.become(running(games, connectedClients, updatedPlayerToGame))
                     
@@ -117,71 +109,54 @@ class GameManager extends Actor with ActorLogging:
                 case Some(gameSession) =>
                     log.info(s"Player ${player.path.name} leaving game session: $gameId")
                     gameSession ! GameSession.LeaveGame(player.path.name)
-
                     val updatedPlayerToGame = playerToGame - player
                     context.become(running(games, connectedClients, updatedPlayerToGame))
                     
-                case None =>
-                    log.warning(s"Game session $gameId not found for player ${player.path.name}")
+                case None => log.warning(s"Game session $gameId not found for player ${player.path.name}")
             
         case GetAllGames(replyTo) =>
-            println("Invio lista di tutte le partite attive")
             val gameList = games.keys.toList
             replyTo ! ServerMessages.GameList(gameList)
 
         case ForwardToGame(gameId, message) =>
             games.get(gameId) match 
-                case Some(gameSession) =>
-                    gameSession forward message
+                case Some(gameSession) => gameSession forward message
                 case None =>
                     log.warning(s"Forwarding failed: Game session $gameId not found")
                     sender() ! ServerMessages.Error(s"Game session $gameId not found")
             
         case PlayerDisconnected(player) =>
             val updatedClients = connectedClients - player
-            log.warning(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")
-            
+            log.warning(s"Client ${player.path.name} disconnected. Total connected clients: ${updatedClients.size}")    
             playerToGame.get(player) match 
                 case Some(gameId) =>
                     log.info(s"Player ${player.path.name} disconnected from game session: $gameId")
                     games.get(gameId) match 
-                        case Some(gameSession) =>
-                            
-                            gameSession ! GameSession.LeaveGame(player.path.name)
-                            
+                        case Some(gameSession) =>                         
+                            gameSession ! GameSession.LeaveGame(player.path.name)                         
                             implicit val timeout: Timeout = 3.seconds
-                            implicit val ec = context.dispatcher
-                            
+                            implicit val ec = context.dispatcher                           
                             context.system.scheduler.scheduleOnce(200.milliseconds) {
                                 (gameSession ? GameSession.GetStateRequest).foreach {
-                                    case state: ServerMessages.GameState if state.players.isEmpty =>
-                                        log.warning(s"Partita $gameId rimasta vuota dopo disconnessione, rimuovo...")
-                                        self ! GameSessionEnded(gameId)
+                                    case state: ServerMessages.GameState if state.players.isEmpty => self ! GameSessionEnded(gameId)
                                     case _ => 
                                 }
                             }
                             
-                        case None =>
-                            log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
+                        case None => log.warning(s"Game session $gameId not found for disconnected player ${player.path.name}")
 
-                case None => log.warning(s"Player ${player.path.name} not found")
-            
-                
+                case None => log.warning(s"Player ${player.path.name} not found")             
                 val updatedPlayerToGame = playerToGame - player
                 context.become(running(games, updatedClients, updatedPlayerToGame))
         
         case GameSessionEnded(gameId) =>
-
-            log.info(s"Game session $gameId has ended, removing from active games")
-            
-            val updatedGames = games - gameId
-            
+            log.info(s"Game session $gameId has ended, removing from active games")           
+            val updatedGames = games - gameId           
             connectedClients.foreach { client =>
                 client ! ServerMessages.GameRemoved(gameId)
             }
             val playersInGame = playerToGame.filter(_._2 == gameId).keys.toSet
-            val updatedPlayerToGame = playerToGame -- playersInGame
-            
+            val updatedPlayerToGame = playerToGame -- playersInGame        
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
 
        

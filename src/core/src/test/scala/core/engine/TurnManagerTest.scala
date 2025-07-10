@@ -10,7 +10,6 @@ class TurnManagerTest extends AnyFunSuite:
   val player1 = PlayerImpl("1", "Alice", PlayerColor.Red, PlayerType.Human)
   val player2 = PlayerImpl("2", "Bob", PlayerColor.Blue, PlayerType.Human)
   val players = List(player1, player2)
-  
   val territoryA = Territory("TerritoryA", Some(player1), 5)
   val territoryB = Territory("TerritoryB", Some(player1), 5)
   val territoryC = Territory("TerritoryC", Some(player2), 3)
@@ -20,7 +19,6 @@ class TurnManagerTest extends AnyFunSuite:
   val territories = Set(tA, tB, tC)
   val continent = Continent("TestContinent", territories, bonusTroops = 0)
   val board = Board("test", Set(continent))
-  
   val playerState1 = PlayerState(player1, bonusTroops = 10)
   val playerState2 = PlayerState(player2, bonusTroops = 5)
 
@@ -59,17 +57,15 @@ class TurnManagerTest extends AnyFunSuite:
   test("currentPhase starts with SetupPhase and changes to MainPhase after a full round"):
     val tm = createTurnManager(TurnPhase.SetupPhase)
     assert(tm.currentPhase == TurnPhase.SetupPhase)
-    val tm2 = tm.nextPlayer() // Move to player 2
+    val tm2 = tm.nextPlayer() 
     assert(tm2.currentPhase == TurnPhase.SetupPhase) 
-    val tm3 = tm2.nextPlayer() // Back to player 1, should change to MainPhase
+    val tm3 = tm2.nextPlayer() 
     assert(tm3.currentPhase == TurnPhase.MainPhase)
 
-  // Action validation tests
   test("isValidAction for PlaceTroops in SetupPhase"):
     val tm = createTurnManager(TurnPhase.SetupPhase)
     val gs = createGameState(tm)
     val es = createEngineState(gs)
-    
     assert(tm.isValidAction(GameAction.PlaceTroops("1", 3, "TerritoryA"), gs, es))
     assert(!tm.isValidAction(GameAction.PlaceTroops("2", 3, "TerritoryA"), gs, es))
     assert(!tm.isValidAction(GameAction.PlaceTroops("1", 0, "TerritoryA"), gs, es))
@@ -78,7 +74,6 @@ class TurnManagerTest extends AnyFunSuite:
     val tm = createTurnManager(TurnPhase.MainPhase)
     val gs = createGameState(tm)
     val es = createEngineState(gs)
-    
     assert(tm.isValidAction(GameAction.PlaceTroops("1", 3, "TerritoryA"), gs, es))  
     assert(!tm.isValidAction(GameAction.PlaceTroops("1", 11, "TerritoryA"), gs, es)) // More than available bonus
     assert(!tm.isValidAction(GameAction.PlaceTroops("2", 3, "TerritoryA"), gs, es)) // Not current player
@@ -95,21 +90,17 @@ class TurnManagerTest extends AnyFunSuite:
       objectiveCards = List.empty
     )
     val es = createEngineState(gs)
-    
     assert(tm.isValidAction(GameAction.Reinforce("1", "TerritoryA", "TerritoryB", 2), gs, es))
     assert(tm.isValidAction(GameAction.Reinforce("1", "TerritoryA", "TerritoryB", 0), gs, es))
-    
     assert(!tm.isValidAction(GameAction.Reinforce("2", "TerritoryA", "TerritoryB", 2), gs, es))
 
   test("isValidAction for TradeCards in MainPhase"):
     val tm = createTurnManager(TurnPhase.MainPhase)
-    
     val cardSet = Set(
       TerritoryCard(tA, CardImg.Artillery),
       TerritoryCard(tB, CardImg.Cavalry),
       TerritoryCard(tC, CardImg.Infantry)
     )
-    
     val updatedPlayerState = playerState1.copy(territoryCards = cardSet)
     val gs = GameState(
       gameId = "test",
@@ -120,13 +111,11 @@ class TurnManagerTest extends AnyFunSuite:
       objectiveCards = List.empty
     )
     val es = createEngineState(gs)
-    
-    assert(tm.isValidAction(GameAction.TradeCards(cardSet), gs, es))
+    assert(tm.isValidAction(GameAction.TradeCards(player1.id, cardSet.map(_.territory.name)), gs, es))
 
   test("isValidAction for Attack in MainPhase"):
     val tm = createTurnManager(TurnPhase.MainPhase)
     val (attackBoard, attackerTerritory, defenderTerritory) = createAttackBoard()
-    
     val playerState1NoBonusTroops = playerState1.copy(bonusTroops = 0)
     val gs = GameState(
       gameId = "test",
@@ -136,13 +125,11 @@ class TurnManagerTest extends AnyFunSuite:
       decksManager = DecksManagerImpl(List.empty, List.empty),
       objectiveCards = List.empty
     )
-    val es = createEngineState(gs)
-    
+    val es = createEngineState(gs) 
     assert(tm.isValidAction(
       GameAction.Attack("1", "2", attackerTerritory.name, defenderTerritory.name, 3), 
       gs, es
     ))
-    
     assert(!tm.isValidAction(
       GameAction.Attack("2", "1", defenderTerritory.name, attackerTerritory.name, 3), 
       gs, es
@@ -164,7 +151,6 @@ class TurnManagerTest extends AnyFunSuite:
       objectiveCards = List.empty
     )
     val es = createEngineState(gs)
-    
     assert(tm.isValidAction(GameAction.EndTurn, gs, es))
     
   test("isValidAction for EndSetup"):
@@ -179,12 +165,10 @@ class TurnManagerTest extends AnyFunSuite:
       objectiveCards = List.empty
     )
     val es = createEngineState(gs)
-    
     assert(tm.isValidAction(GameAction.EndSetup, gs, es))
 
   test("isValidAction returns false for invalid actions in current phase"):
     val tm = createTurnManager(TurnPhase.SetupPhase)
     val gs = createGameState(tm)
     val es = createEngineState(gs)
-    
     assert(!tm.isValidAction(GameAction.Attack("1", "2", "TerritoryA", "TerritoryB", 3), gs, es))

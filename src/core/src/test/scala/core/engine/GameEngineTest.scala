@@ -62,13 +62,11 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     val updatedPlayerStates = engine.getGameState.playerStates.map:
       case ps if ps.playerId == "1" => playerWithFewBonus
       case ps => ps
-    
     val updatedTurnManager = TurnManagerImpl(
       players = List(player1, player2),
       currentPlayerIndex = 0,
       phase = TurnPhase.MainPhase
     )
-    
     engine.setGameState(engine.getGameState.copy(
       playerStates = updatedPlayerStates,
       turnManager = updatedTurnManager
@@ -108,12 +106,10 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
   test("Start turn bonus is territories/3 rounded down (min 3)"):
     val allTerritories = engine.getGameState.board.territories.toList
     val updatedBoard = assignTerritoriesToPlayer(engine.getGameState.board, allTerritories.take(9), player1) 
-    
     val calculatedBonus = 3 // min(3, 9/3)
     val updatedPlayerStates = engine.getGameState.playerStates.map:
       case ps if ps.playerId == "1" => ps.copy(bonusTroops = calculatedBonus)
       case ps => ps
-      
     engine.setGameState(engine.getGameState.copy(
       board = updatedBoard,
       playerStates = updatedPlayerStates,
@@ -248,7 +244,7 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     ))
     val cards = Set.empty[TerritoryCard] 
     an [InvalidActionException] should be thrownBy {
-      engine.processAction(GameAction.TradeCards(cards))
+      engine.processAction(GameAction.TradeCards(player1.id, Set.empty[String]))
     }
 
   test("Player draws territory card only if conquered at least one territory"):
@@ -264,50 +260,35 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
       turnManager = resetTurnManager(List(player1, player2), TurnPhase.MainPhase)
     ))
     
-    // Esegui l'attacco che potrebbe non portare alla conquista a causa della casualità dei dadi
     val attackResult = engine.processAction(GameAction.Attack("1", "2", t1.name, t2.name, 3))
-    
-    // Verifica se il territorio è stato conquistato dopo l'attacco
     val territoryAfterAttack = engine.getGameState.board.territories.find(_.name == t2.name).get
     val conquered = territoryAfterAttack.owner.exists(_.id == "1")
     
-    if (!conquered) {
-      // Se non è stato conquistato, modifica manualmente lo stato per simulare una conquista
+    if (!conquered)
       val conqueredT2 = territoryAfterAttack.copy(owner = Some(player1), troops = 1)
       val boardAfterConquest = updateTerritoriesInBoard(engine.getGameState.board, conqueredT2)
-      
-      // Imposta il nuovo board nello stato di gioco
       engine.setGameState(engine.getGameState.copy(board = boardAfterConquest))
-      
-      // Accedi direttamente al campo engineState usando reflection per impostare il flag
       val engineStateField = engine.getClass.getDeclaredField("engineState")
       engineStateField.setAccessible(true)
       val currentEngineState = engineStateField.get(engine).asInstanceOf[EngineState]
       val updatedEngineState = currentEngineState.copy(territoryConqueredThisTurn = true)
       engineStateField.set(engine, updatedEngineState)
-    }
     
-    // A questo punto, o abbiamo una conquista reale o l'abbiamo simulata
     val beforeCards = engine.getGameState.playerStates.find(_.playerId == "1").get.territoryCards.size
     engine.processAction(GameAction.EndTurn)
     val afterCards = engine.getGameState.playerStates.find(_.playerId == "1").get.territoryCards.size
     afterCards should be > beforeCards
 
   test("Game over when objective is completed"):
-    // Cambiamo l'obiettivo per renderlo più chiaro
     val winningObjective = ObjectiveCard.ConquerTerritories(2, 1)
     val playerStateWithObjective = engine.getGameState.playerStates
       .find(_.playerId == "1")
       .getOrElse(fail("Player not found"))
       .copy(objectiveCard = Some(winningObjective)) 
-    
-    // Assicuriamoci che ci siano due territori con almeno 1 truppa
     val territories = engine.getGameState.board.territories.toList
     val t1 = territories(0).copy(owner = Some(player1), troops = 3)
     val t2 = territories(1).copy(owner = Some(player1), troops = 3)
     val updatedBoard = updateTerritoriesInBoard(engine.getGameState.board, t1, t2)
-    
-    // Assicuriamoci che non ci siano truppe bonus rimanenti
     val updatedPlayerStates = engine.getGameState.playerStates.map:
       case ps if ps.playerId == "1" => playerStateWithObjective.copy(bonusTroops = 0)
       case ps => ps  
@@ -317,8 +298,6 @@ class GameEngineTest extends AnyFunSuite with Matchers with BeforeAndAfterEach:
       playerStates = updatedPlayerStates,
       turnManager = updatedTurnManager
     ))
-    
-    // Ora l'EndTurn dovrebbe causare la verifica della vittoria
     an [GameOverException] should be thrownBy {
       engine.processAction(GameAction.EndTurn)
     }

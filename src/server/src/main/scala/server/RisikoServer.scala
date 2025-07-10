@@ -22,14 +22,10 @@ object RisikoServer:
     
     implicit val system = ActorSystem("RiskServer")
     implicit val executionContext = system.dispatcher 
-
     val log = Logging(system, getClass.getName())
-    
     val host = "localhost"
     val port = 8080
-   
     val gameManager = system.actorOf(GameManager.props, "game-Manager")
-    
     val serverSettings = ServerSettings(system)
       .withTimeouts(
         ServerSettings(system).timeouts
@@ -40,18 +36,14 @@ object RisikoServer:
           .withPeriodicKeepAliveMaxIdle(Duration.Inf) 
       )
 
-    log.info(s"Server WebSocket configurato con timeout infinito")
-
     val route =
       concat(
-        
         path("health") 
         {
           get{ 
             complete(HttpEntity(ContentTypes.`application/json`, """{\"status\":\"ok\"}"""))
           }
         },
-        
         path("ws"){
           handleWebSocketMessages(WebSocketHandler(gameManager))
         },
@@ -74,9 +66,7 @@ object RisikoServer:
       .withSettings(serverSettings)
       .bind(route)
     println(s"Server online at http://$host:$port/\nPress RETURN to stop...")
-
     StdIn.readLine() 
-
     scala.sys.addShutdownHook {
       bindingFuture
         .flatMap(_.unbind())
