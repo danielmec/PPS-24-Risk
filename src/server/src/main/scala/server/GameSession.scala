@@ -309,7 +309,7 @@ class GameSession(
                             humanPlayers.values.foreach(player => 
                                 player ! ServerMessages.PlayerLeft(gameId, s"$username ($playerId)")
                             )
-
+                            println(s"=== Giocatore $username ($playerId) ha lasciato la partita $gameId ===")
                             humanPlayers.values.foreach(player =>
                                 player ! ServerMessages.GameState(
                                     gameId,

@@ -155,6 +155,10 @@ object WebSocketHandler:
           val playerId = self.path.name 
           gameManager ! GameManager.ProcessGameAction(action.gameId, playerId, action)
     
+        case protocol.ClientMessages.LeaveGame(gameId) =>
+          println(s"Inoltro richiesta uscita dalla partita: $gameId")
+          gameManager ! GameManager.LeaveGameSession(gameId, self)
+          
         case _ => 
           println(s"Messaggio non gestito: $msg")
           val errorMessage = protocol.ServerMessages.Error("UNSUPPORTED")

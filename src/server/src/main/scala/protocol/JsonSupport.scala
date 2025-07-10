@@ -270,6 +270,12 @@ object JsonSupport extends DefaultJsonProtocol:
             "playerId" -> JsString(msg.playerId),
             "bonus" -> JsNumber(msg.bonus)
           )
+        case msg: ServerMessages.PlayerLeft =>
+          JsObject(
+            "type" -> JsString("playerLeft"),
+            "gameId" -> JsString(msg.gameId),
+            "playerId" -> JsString(msg.playerId)
+          )
         case _ =>
           println(s"[WARN] Messaggio di tipo sconosciuto: ${obj.getClass.getName}")
           JsObject("type" -> JsString("unknown"))

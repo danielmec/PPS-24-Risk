@@ -162,6 +162,12 @@ class GameWindow(
       val gameOver = msg.asInstanceOf[GameOverMessage]
       handleGameOver(gameOver)
     })
+
+    networkManager.registerCallback("playerLeft", msg => {
+      println(s"Callback playerLeft ricevuto!")
+      val playerLeftMsg = msg.asInstanceOf[PlayerLeftMessage]
+      handlePlayerLeft(playerLeftMsg)
+    })
     
     networkManager.registerCallback("gameJoined", msg => {
       msg match {
@@ -657,6 +663,36 @@ class GameWindow(
    */
   def getGameId: String = gameId
   
+
+  /**
+   * Handle the player left message.
+   */
+  def handlePlayerLeft(msg: PlayerLeftMessage): Unit = {
+    Platform.runLater {
+      val playerId = msg.player
+      println(s"Il giocatore ${msg.player} ha lasciato la partita.")
+      
+      val dialog = new Alert(Alert.AlertType.Information) {
+        initOwner(GameWindow.this)
+        title = "Giocatore Uscito"
+        headerText = "Un giocatore ha lasciato la partita"
+        contentText = s"$playerId ha lasciato la partita."
+      }
+      // Rimuovi il giocatore dalla lista dei giocatori
+      playersList.find(_.nameLabel.text.value.contains(playerId)) match {
+        case Some(playerInfoView) =>
+          playersList -= playerInfoView
+          println(s"Giocatore $playerId rimosso dalla lista.")
+        case None =>
+          println(s"Giocatore $playerId non trovato nella lista.")
+      }
+      
+      playersLabel.text = s"Giocatori: ${playersList.size}"
+      
+      val newSidebarPane = createSidebarPane(playersList)
+      splitPane.items.set(1, newSidebarPane)
+    }
+  }
 
   /*
     * Update the players list and their colors.
