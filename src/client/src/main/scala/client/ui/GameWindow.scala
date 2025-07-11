@@ -130,6 +130,15 @@ class GameWindow(
 
   setupUIEventHandlers()
 
+
+  private var waitAlert: Option[Alert] = None
+
+  showWaitingForPlayersAlert()
+
+
+  /**
+   * It registers the callbacks for various game events.
+   **/
   private def registerCallbacks(): Unit = {
     networkManager.registerCallback("gameStarted", msg => {
       println(s"Callback gameStarted ricevuto!")
@@ -186,9 +195,8 @@ class GameWindow(
         case _ => println("Messaggio gameJoined ricevuto con formato non valido")
       }
     })
-  }
-    
-    networkManager.registerCallback("trisPlayed", msg => {
+
+     networkManager.registerCallback("trisPlayed", msg => {
       val trisMsg = msg.asInstanceOf[TrisPlayedMessage]
       if (trisMsg.playerId == myPlayerId) {
         Platform.runLater {
@@ -202,8 +210,13 @@ class GameWindow(
         }
       }
     })
-  
-  
+
+  }
+    
+
+  /** 
+   * Setup the UI event handlers for the action buttons.
+   */
   private def setupUIEventHandlers(): Unit = {
     actionPane.endTurnButton.onAction = handle {
       actionPane.endTurnButton.disable = true
@@ -519,13 +532,17 @@ class GameWindow(
     * This will initialize the game state and update the UI accordingly. 
   */
   def handleGameStarted(gameStartedMsg: GameStartedMessage): Unit = {
+
+    waitAlert.foreach(alert => Platform.runLater {
+      alert.close()
+      waitAlert = None
+    })
+    
     Platform.runLater {
-      println("GESTIONE GAME STARTED")
+  
       println(s"Sono: $myUsername ($myPlayerId)")
       println(s"Turno di: ${gameStartedMsg.currentPlayerId}")
-      println(s"È il mio turno? ${gameStartedMsg.currentPlayerId == myPlayerId}")
-      println("------------------------")
-      
+
       currentPlayerId = gameStartedMsg.currentPlayerId
       
       val initialState = gameStartedMsg.initialState
@@ -919,6 +936,28 @@ class GameWindow(
       alert.showAndWait()
       
       close()
+    }
+  }
+  
+  /**
+    * Show an alert indicating that the game is waiting for more players to join.
+    * This is shown when the game is not yet full and waiting for more players.
+    */
+  private def showWaitingForPlayersAlert(): Unit = {
+    Platform.runLater {
+      val alert = new Alert(Alert.AlertType.Information) {
+        initOwner(GameWindow.this)
+        title = "In attesa"
+        headerText = "Lobby non completa"
+        contentText = "In attesa che altri giocatori si uniscano alla partita..."
+        
+        dialogPane().style = "-fx-background-color: #f8f8ff;"
+        
+        x = GameWindow.this.x.value + 50
+        y = GameWindow.this.y.value + 50
+      }
+      waitAlert = Some(alert)
+      alert.show()
     }
   }
 
