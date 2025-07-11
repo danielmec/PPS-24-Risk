@@ -63,8 +63,6 @@ You can start multiple clients to simulate multiple players.
 
 ## Notes
 
-- Ensure the server is started **before** launching the clients for online mode.
-- For local mode, you can start only the client.
 - The project is compatible with Mac, Linux, and Windows (requires JavaFX/ScalaFX to be properly configured on the system).
 
 ---
@@ -78,4 +76,4 @@ You can start multiple clients to simulate multiple players.
 
 ## Contact
 
-To report bugs or request support, open an issue on GitHub or contact the developers
+If you need assistance with running the project, open an issue on GitHub or contact the developers

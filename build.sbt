@@ -12,6 +12,8 @@ lazy val core = (project in file("src/core"))
     )
   )
 
+import sbtassembly.AssemblyPlugin.autoImport._
+
 lazy val client = (project in file("src/client"))
   .settings(
     name := "RiskClient",
@@ -21,8 +23,15 @@ lazy val client = (project in file("src/client"))
       "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
       "io.spray" %% "spray-json" % "1.3.6",
       "com.typesafe.akka" %% "akka-http" % "10.5.3"
-    )
-  ).dependsOn(core)
+    ),
+    mainClass := Some("client.ui.ClientUI"),
+    assemblyMergeStrategy in assembly := {
+      case PathList("META-INF", "substitute", "config", "reflectionconfig.json") => MergeStrategy.first
+      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+      case x => MergeStrategy.first
+    }
+  )
+  .dependsOn(core)
 
 lazy val bot = (project in file("src/bot"))
   .settings(
