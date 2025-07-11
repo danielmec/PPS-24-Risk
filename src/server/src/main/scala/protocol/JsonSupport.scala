@@ -184,7 +184,9 @@ object JsonSupport extends DefaultJsonProtocol:
         case msg: ServerMessages.GameList =>
           JsObject(
             "type" -> JsString("gameList"),
-            "games" -> JsArray(msg.games.map(JsString(_)).toVector)
+            "games" -> JsArray(msg.games.map { case (id, name) => 
+              JsArray(Vector(JsString(id), JsString(name)))
+            }.toVector)
           )
         case msg: ServerMessages.GameRemoved =>
           JsObject(

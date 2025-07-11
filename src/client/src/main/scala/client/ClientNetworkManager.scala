@@ -235,7 +235,11 @@ class ClientNetworkManager:
     }
   }
   
-
+  /**
+   * Sends a message to the WebSocket server.
+   * The message is queued and sent asynchronously.
+   * Returns a Future indicating whether the message was successfully queued.
+   **/
   def sendWebSocketMessage(message: String): Future[Boolean] = {
     messageQueue match {
       case Some(queue) => 
@@ -277,7 +281,10 @@ class ClientNetworkManager:
   }
 }
   
-
+  /**
+   * Used from client UI to send messages to the server.
+   * It uses the method `sendWebSocketMessage` to send the message as a JSON string.
+   **/
   def sendMessage[T](messageObject: T): Future[Boolean] = {
     val jsonString = ClientJsonSupport.toJson(messageObject).compactPrint
     sendWebSocketMessage(jsonString)

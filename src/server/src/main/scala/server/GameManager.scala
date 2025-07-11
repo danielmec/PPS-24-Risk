@@ -48,15 +48,16 @@ class GameManager extends Actor with ActorLogging:
    
     override def preStart(): Unit =
         log.info("GameManager started")
-        context.become(running(Map.empty, Set.empty, Map.empty)) 
+        context.become(running(Map.empty, Set.empty, Map.empty, Map.empty)) 
 
     def receive: Receive =
         case Empty => log.info("GameManager initialized with empty state") 
     
     def running(
-        games: Map[String, ActorRef], 
+        games: Map[String, ActorRef], //mappa di gameId a GameSession ActorRef
         connectedClients: Set[ActorRef],
-        playerToGame: Map[ActorRef, String]
+        playerToGame: Map[ActorRef, String],
+        gameNameMap: Map[String, String] //Mappa di gameId a gameName
     ): Receive = 
 
         case RegisterClient(client) =>
@@ -65,7 +66,7 @@ class GameManager extends Actor with ActorLogging:
             println(s"Updated clients: ${updatedClients.map(_.path)}")
             println(s"Total connected clients: ${updatedClients.size}")
             log.warning(s"Client ${client.path} connected. Total connected clients: ${updatedClients.size}")
-            context.become(running(games, updatedClients, playerToGame))
+            context.become(running(games, updatedClients, playerToGame, gameNameMap))
             
         case CreateGameSession(gameName, maxPlayers, creator, username, numBots, botStrategies, botNames) =>
             val gameId = UUID.randomUUID().toString().take(6) 
@@ -83,7 +84,8 @@ class GameManager extends Actor with ActorLogging:
                 creator.path.name
             )
             gameSession ! GameSession.JoinGame(creator.path.name, creator, username, numBots, botStrategies, botNames)
-            context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
+            val updatedGameNameMap = gameNameMap + (gameId -> gameName) // Salva l'associazione gameId -> gameName
+            context.become(running(updatedGames, connectedClients, updatedPlayerToGame, updatedGameNameMap))
 
         case JoinGameSession(gameId, player, username) =>
             games.get(gameId) match 
@@ -98,7 +100,7 @@ class GameManager extends Actor with ActorLogging:
                         Some(List.empty)   
                     )
                     val updatedPlayerToGame = playerToGame + (player -> gameId)
-                    context.become(running(games, connectedClients, updatedPlayerToGame))
+                    context.become(running(games, connectedClients, updatedPlayerToGame, gameNameMap))
                     
                 case None =>
                     log.warning(s"Game session $gameId not found for player ${player.path.name}")
@@ -110,13 +112,15 @@ class GameManager extends Actor with ActorLogging:
                     log.info(s"Player ${player.path.name} leaving game session: $gameId")
                     gameSession ! GameSession.LeaveGame(player.path.name)
                     val updatedPlayerToGame = playerToGame - player
-                    context.become(running(games, connectedClients, updatedPlayerToGame))
+                    context.become(running(games, connectedClients, updatedPlayerToGame, gameNameMap))
                     
                 case None => log.warning(s"Game session $gameId not found for player ${player.path.name}")
             
         case GetAllGames(replyTo) =>
-            val gameList = games.keys.toList
-            replyTo ! ServerMessages.GameList(gameList)
+            val gameInfoList = games.keys.toList.map { gameId =>
+                (gameId, gameNameMap.getOrElse(gameId, "Partita senza nome"))
+            }
+            replyTo ! ServerMessages.GameList(gameInfoList)
 
         case ForwardToGame(gameId, message) =>
             games.get(gameId) match 
@@ -147,7 +151,7 @@ class GameManager extends Actor with ActorLogging:
 
                 case None => log.warning(s"Player ${player.path.name} not found")             
                 val updatedPlayerToGame = playerToGame - player
-                context.become(running(games, updatedClients, updatedPlayerToGame))
+                context.become(running(games, updatedClients, updatedPlayerToGame, gameNameMap))
         
         case GameSessionEnded(gameId) =>
             log.info(s"Game session $gameId has ended, removing from active games")           
@@ -156,8 +160,9 @@ class GameManager extends Actor with ActorLogging:
                 client ! ServerMessages.GameRemoved(gameId)
             }
             val playersInGame = playerToGame.filter(_._2 == gameId).keys.toSet
-            val updatedPlayerToGame = playerToGame -- playersInGame        
-            context.become(running(updatedGames, connectedClients, updatedPlayerToGame))
+            val updatedPlayerToGame = playerToGame -- playersInGame
+            val updatedGameNameMap = gameNameMap - gameId     
+            context.become(running(updatedGames, connectedClients, updatedPlayerToGame, updatedGameNameMap))
 
        
         case ProcessGameAction(gameId, playerId, action) =>

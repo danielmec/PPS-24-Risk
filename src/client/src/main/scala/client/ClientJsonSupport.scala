@@ -27,7 +27,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
   case class GameJoinedMessage(gameId: String, players: List[String], gameName: String, playerColors: Option[Map[String, String]] = None)
   case class LoginResponse(playerId: String, message: Option[String] = None)
   case class PingMessage() 
-  case class GameListMessage(games: List[String])
+  case class GameListMessage(games: List[(String, String)])  // (gameId, gameName)
   
   case class GameSetupStartedMessage(gameId: String, message: String)
   case class PlayerLeftMessage(gameId: String, player: String)
@@ -92,7 +92,25 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     fields.getOrElse(key, JsBoolean(default)).convertTo[Boolean]
     
   private def extractStringList(fields: Map[String, JsValue], key: String): List[String] =
-    fields.getOrElse(key, JsArray()).convertTo[List[String]]
+    fields.get(key).map {
+      case JsArray(elements) => elements.map {
+        case JsString(s) => s
+        case other => throw DeserializationException(s"Expected string element in array, but got $other")
+      }.toList
+      case other => throw DeserializationException(s"Expected array for field $key, but got $other")
+    }.getOrElse(List.empty)
+    
+  /**
+   * It extract (gameId, gameName)
+   **/
+  private def extractGameInfoList(fields: Map[String, JsValue], key: String): List[(String, String)] =
+    fields.get(key).map {
+      case JsArray(elements) => elements.map {
+        case JsArray(Vector(JsString(id), JsString(name))) => (id, name)
+        case other => throw DeserializationException(s"Expected tuple [id, name] in array, but got $other")
+      }.toList
+      case other => throw DeserializationException(s"Expected array for field $key, but got $other")
+    }.getOrElse(List.empty)
     
   private def extractOption[T](fields: Map[String, JsValue], key: String)(convert: JsValue => T): Option[T] =
     fields.get(key) match
@@ -259,7 +277,7 @@ object ClientJsonSupport extends DefaultJsonProtocol:
     },
     
     "gameList" -> { fields => 
-      GameListMessage(extractStringList(fields, "games"))
+      GameListMessage(extractGameInfoList(fields, "games"))
     },
     
     "ping" -> { _ => PingMessage() },

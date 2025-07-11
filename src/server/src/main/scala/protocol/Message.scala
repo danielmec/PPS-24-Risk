@@ -81,7 +81,7 @@ object ServerMessages:
         message: String,
     ) extends Message
 
-    case class GameList(games: List[String]) extends Message
+    case class GameList(games: List[(String, String)]) extends Message // (gameId, gameName)
 
     case class PlayerLeft(gameId: String, playerId:String) extends Message
 
