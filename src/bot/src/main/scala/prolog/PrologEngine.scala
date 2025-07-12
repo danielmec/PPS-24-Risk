@@ -3,37 +3,56 @@ package prolog
 import strategy.*
 import alice.tuprolog.*
 
+/**
+ * Trait for a Prolog engine that can solve goals using registered theories.
+ */
 trait PrologEngine:
   /**
-   * Verifica se un goal è soddisfatto con le teorie registrate
+   * Checks if a goal is satisfied with the registered theories.
+   * @param goal The Prolog goal to solve.
+   * @return True if the goal is satisfied, false otherwise.
    */
   def solveWithSuccess(goal: Term): Boolean
 
   /**
-   * Risolve un goal e restituisce il valore del termine specificato
+   * Solves a goal and returns the value of the specified term.
+   * @param goal The Prolog goal to solve.
+   * @param term The name of the term to extract.
+   * @return The value of the term as a Prolog Term.
    */
   def solveOneAndGetTerm(goal: Term, term: String): Term
 
   /**
-   * Risolve un goal e restituisce i valori di più termini specificati
+   * Solves a goal and returns the values of multiple specified terms.
+   * @param goal The Prolog goal to solve.
+   * @param terms The names of the terms to extract.
+   * @return A map from term names to their values.
    */
   def solveOneAndGetTerms(goal: Term, terms: String*): Map[String, Term]
 
   /**
-   * Risolve un goal e restituisce tutte le soluzioni con i valori dei termini specificati
+   * Solves a goal and returns all solutions with the values of the specified terms.
+   * @param goal The Prolog goal to solve.
+   * @param terms The names of the terms to extract.
+   * @return A LazyList of maps from term names to their values.
    */
   def solveAll(goal: Term, terms: String*): LazyList[Map[String, Term]]
 
   /**
-   * Risolve un goal e restituisce tutte le soluzioni per un singolo termine
+   * Solves a goal and returns all solutions for a single term.
+   * @param goal The Prolog goal to solve.
+   * @param term The name of the term to extract.
+   * @return A LazyList of Prolog Terms.
    */
   def solveAll(goal: Term, term: String): LazyList[Term]
 
+/**
+ * Companion object for PrologEngine.
+ * Provides implicit conversions and a factory method for creating PrologEngine instances.
+ */
 object PrologEngine:
-  // Conversioni implicite per facilitare l'uso
   given Conversion[String, Term] = Term.createTerm(_)
   given Conversion[Seq[_], Term] = _.mkString("[", ",", "]")
-  // Conversione implicita da String (percorso file) a Theory
   given Conversion[String, Theory] = fileName =>
     val inputStream = getClass.getResourceAsStream(fileName)
     if (inputStream == null) {
@@ -46,7 +65,6 @@ object PrologEngine:
         throw new IllegalArgumentException(s"Error parsing Prolog file $fileName: ${e.getMessage}", e)
     }
 
-  // Factory method per creare un PrologEngine da uno o più Theory
   def apply(theories: Theory*): PrologEngine = PrologEngineImpl(theories*)
 
   private case class PrologEngineImpl(theories: Theory*) extends PrologEngine:

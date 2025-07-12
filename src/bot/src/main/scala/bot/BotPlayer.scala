@@ -10,21 +10,35 @@ import engine.TurnPhase
 import engine.GameAction
 import prolog._
 
+/**
+  * Represents a bot player in the game.
+  * A BotPlayer uses a set of strategy rules to decide its moves automatically.
+  *
+  * @param id The unique identifier of the bot player.
+  * @param name The name of the bot player.
+  * @param color The color associated with the bot player.
+  * @param strategyRules The set of strategy rules that define the bot's behavior.
+  */
 class BotPlayer(
     override val id: String,
     override val name: String,
     override val color: PlayerColor,
     val strategyRules: Set[StrategyRule]
 ) extends Player, Strategy:
+
+  /**
+    * The type of player (always Bot for BotPlayer).
+    * @return PlayerType.Bot
+    */
   override def playerType: PlayerType = PlayerType.Bot
   
   private val isOffensive: Boolean = 
     strategyRules.exists(_.isInstanceOf[OffensiveBotAttackRule])
   
   /**
-   * Decides the next move based on the current game state and the bot's strategy.
-   * It evaluates the available actions according to the rules defined in `strategyRules`.
-   * 
+   * Decides the next move based on the current game state and the bot's strategy rules.
+   * Evaluates the available actions according to the rules defined in `strategyRules`.
+   *
    * @param gameState The current state of the game.
    * @return The action decided by the bot.
    */
@@ -49,7 +63,6 @@ class BotPlayer(
           val attackActions = attackRules.evaluateAction(gameState, id)
           if attackActions.nonEmpty then
             val bestAttack = attackActions.max
-            println(s"[BOT $name] Trovati ${attackActions.size} attacchi validi, eseguo: ${bestAttack.action}")
             bestAttack.action match
               case _: GameAction.Attack => Thread.sleep(3000)
               case _ =>
@@ -60,11 +73,8 @@ class BotPlayer(
             else strategyRules.filter(_.isInstanceOf[DefensiveBotReinforceRule])
           val reinforceActions = reinforceRules.evaluateAction(gameState, id)
           
-          if reinforceActions.nonEmpty then
-            println(s"[BOT $name] Trovati ${reinforceActions.size} rinforzi validi, scelgo il migliore")
-            return reinforceActions.max.action
+          if reinforceActions.nonEmpty then return reinforceActions.max.action
           
-          println(s"[BOT $name] Nessuna azione valida, termino il turno")
           return GameAction.EndTurn
   
     val ratedActions = phaseAppropriateRules.evaluateAction(gameState, id)
@@ -74,5 +84,4 @@ class BotPlayer(
         case TurnPhase.MainPhase  => GameAction.EndTurn
     else
       val bestAction = ratedActions.max
-      println(s"[BOT $name] Azione scelta: ${bestAction.action} (score: ${bestAction.score})")
       bestAction.action

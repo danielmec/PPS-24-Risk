@@ -9,13 +9,19 @@ import prolog.PrologEngine.given_Conversion_String_Term
 import exceptions._
 
 /**
- * Trait che implementa una regola di strategia usando Prolog
- * @param theory nome del file Prolog (senza estensione)
+ * Trait that implements a strategy rule using Prolog.
+ * @param theoryName the name of the Prolog theory file (without extension)
  */
 trait PrologRule(val theoryName: String) extends StrategyRule:
 
   private val engine: PrologEngine = PrologEngine("/theories/" + theoryName + ".pl")
 
+  /**
+   * Evaluates all possible actions for the player using the Prolog theory.
+   * @param gameState The current state of the game.
+   * @param playerId The id of the player for whom to evaluate actions.
+   * @return A set of RatedAction representing possible actions and their scores.
+   */
   override def evaluateAction(gameState: GameState, playerId: String): Set[RatedAction] =
     val (territoriesStr, neighborStr) = encodeGameState(gameState)
     val phase = gameState.turnManager.currentPhase.toString
@@ -37,7 +43,12 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
     }).toSet
 
     actions
-  
+
+  /**
+   * Encodes the game state as Prolog facts for territories and neighbors.
+   * @param gameState The current state of the game.
+   * @return A tuple of (territoriesStr, neighborStr) as Prolog lists.
+   */
   protected def encodeGameState(gameState: GameState): (String, String) = 
     val territoryMap = gameState.board.territories.map(t => t.name -> t).toMap
     // territory('TerritoryName', 'OwnerId', Troops)
@@ -45,7 +56,7 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
       val owner = t.owner.map(_.id).getOrElse("none")
       s"territory('${escapeName(t.name)}', '$owner', ${t.troops})"
     }.mkString("[", ",", "]")    
-    // neighbor('NomeTerritorio', 'NomeVicino', 'IDProprietarioVicino'), Ex: neighbor('Cina', 'India', 'proprietarioIndia')
+    // neighbor('TerritoryName', 'NeighborName', 'NeighborOwnerId')
     val neighborStr = gameState.board.territories.flatMap { t =>
       t.neighbors.map { n => 
         val updatedNeighbor = territoryMap.getOrElse(n.name, n)
@@ -54,13 +65,18 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
       }
     }.mkString("[", ",", "]")    
     (territoriesStr, neighborStr)
-  
+
   private def escapeName(name: String): String = 
     name.replace("'", "\\'")
-  
 
+  /**
+   * Parses a Prolog action term into a GameAction.
+   * @param gameState The current state of the game.
+   * @param actionTerm The Prolog term representing the action.
+   * @param playerId The id of the player.
+   * @return The corresponding GameAction.
+   */
   protected def parseAction(gameState: GameState, actionTerm: Term, playerId: String): GameAction =
-    
     if (actionTerm.toString.startsWith("place_troops"))   // functors
       val args = extractArgs(actionTerm)
       val territoryName = args(0)
@@ -88,7 +104,7 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
      
     else if (actionTerm.toString.startsWith("end_turn")) then GameAction.EndTurn
     else throw new InvalidActionException()
-  
+
   private def extractArgs(term: Term): Array[String] = 
     val content = term.toString
     val argsStr = content.substring(content.indexOf("(") + 1, content.lastIndexOf(")"))

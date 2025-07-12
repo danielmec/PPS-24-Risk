@@ -6,6 +6,10 @@ import model.board._
 import utils._
 import exceptions._
 
+/**
+  * Trait that manages the turn logic for the Risk game.
+  * Handles the current player, phase transitions, and validation of actions.
+  */
 trait TurnManager:
     /**
       * Returns the player whose turn is currently active.
@@ -34,6 +38,15 @@ trait TurnManager:
       */
     def isValidAction(action: GameAction, gameState: GameState, engineState: EngineState): Boolean
 
+/**
+  * Implementation of TurnManager.
+  * Keeps track of the list of players, the current player index, and the current phase.
+  * Provides logic for advancing turns and validating actions.
+  *
+  * @param players The list of players in the game.
+  * @param currentPlayerIndex The index of the player whose turn is active.
+  * @param phase The current phase of the game.
+  */
 case class TurnManagerImpl(
     players: List[Player],
     currentPlayerIndex: Int = 0,
