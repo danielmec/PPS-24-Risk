@@ -1,7 +1,6 @@
 package model.board
 
-import model.board.*
-import model.player.*
+import model.player._
 
 case class Board(
   gameId: String,
@@ -10,12 +9,13 @@ case class Board(
   def territories: List[Territory] = continents.flatMap(_.territories).toList
   
   def updatedTerritory(territory: Territory): Board =
-    val updatedContinents = continents.map { continent =>
-      if continent.territories.exists(_.name == territory.name) then
-        continent.copy(territories = continent.territories.map { t =>
-          if t.name == territory.name then territory else t
+    val updatedContinents = continents.map {
+      case continent if continent.territories.exists(_.name == territory.name) =>
+        continent.copy(territories = continent.territories.map {
+          case t if t.name == territory.name => territory
+          case t => t
         })
-      else continent
+      case continent => continent
     }
     copy(continents = updatedContinents)
     

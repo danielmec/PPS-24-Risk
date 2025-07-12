@@ -23,13 +23,6 @@ case class Territory(
 
   def changeOwner(newOwner: Player): Territory =
     copy(owner = Some(newOwner))
-    
-  def canAttack(target: Territory): Boolean =
-    hasEnoughTroops(2) && 
-    neighbors.exists(_.name == target.name) &&
-    owner.isDefined && target.owner.isDefined &&
-    owner.get.id != target.owner.get.id
-
   
   override def toString(): String = 
     s"Territory($name, ${neighbors.size} neighbors, $owner, $troops)"

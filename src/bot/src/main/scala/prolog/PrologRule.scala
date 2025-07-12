@@ -40,9 +40,6 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
   
   protected def encodeGameState(gameState: GameState): (String, String) = 
     val territoryMap = gameState.board.territories.map(t => t.name -> t).toMap
-    val territoriesWithNeighbors = gameState.board.territories.map(t => 
-      (t.name, t.neighbors.map(_.name).toList)
-    )
     // territory('TerritoryName', 'OwnerId', Troops)
     val territoriesStr = gameState.board.territories.map { t =>
       val owner = t.owner.map(_.id).getOrElse("none")
@@ -90,7 +87,7 @@ trait PrologRule(val theoryName: String) extends StrategyRule:
       GameAction.Attack(playerId, defenderId, from, to, troops)
      
     else if (actionTerm.toString.startsWith("end_turn")) then GameAction.EndTurn
-    else throw new IllegalArgumentException(s"Unknown action: ${actionTerm.toString()}")
+    else throw new InvalidActionException()
   
   private def extractArgs(term: Term): Array[String] = 
     val content = term.toString

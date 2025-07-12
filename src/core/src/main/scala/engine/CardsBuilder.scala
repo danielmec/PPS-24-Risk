@@ -40,33 +40,27 @@ object CardsBuilder:
         (continents, territoriesMap)
     
     private def createInitialTerritories(continentsJson: Seq[JsValue]): Map[String, Territory] =
-        var territoriesMap = Map.empty[String, Territory]
-        continentsJson.foreach { continentJson =>
-            val territoriesJson = (continentJson \ "territories").as[JsArray].value
-            territoriesJson.foreach { territoryJson =>
-                val name = (territoryJson \ "name").as[String]
-                val territory = Territory(name)
-                territoriesMap += (name -> territory)
-            }
+      continentsJson.flatMap { continentJson =>
+        val territoriesJson = (continentJson \ "territories").as[JsArray].value
+        territoriesJson.map { territoryJson =>
+          val name = (territoryJson \ "name").as[String]
+          name -> Territory(name)
         }
-        territoriesMap
+      }.toMap
     
     private def addNeighborsToTerritories(
-        continentsJson: Seq[JsValue], 
+        continentsJson: Seq[JsValue],
         territoriesMap: Map[String, Territory]
     ): Map[String, Territory] =
-        var updatedMap = territoriesMap
-        continentsJson.foreach:
-            continentJson =>
-                val territoriesJson = (continentJson \ "territories").as[JsArray].value
-                territoriesJson.foreach:
-                    territoryJson =>
-                        val name = (territoryJson \ "name").as[String]
-                        val neighborsNames = (territoryJson \ "neighbors").as[JsArray].value.map(_.as[String])
-                        val neighbors = neighborsNames.flatMap(n => updatedMap.get(n)).toSet
-                        val updatedTerritory = updatedMap(name).copy(neighbors = neighbors)
-                        updatedMap += (name -> updatedTerritory)        
-        updatedMap
+      continentsJson.flatMap { continentJson =>
+        val territoriesJson = (continentJson \ "territories").as[JsArray].value
+        territoriesJson.map { territoryJson =>
+          val name = (territoryJson \ "name").as[String]
+          val neighborsNames = (territoryJson \ "neighbors").as[JsArray].value.map(_.as[String])
+          val neighbors = neighborsNames.flatMap(territoriesMap.get).toSet
+          name -> territoriesMap(name).copy(neighbors = neighbors)
+        }
+      }.toMap
     
     private def createContinentsFromJson(
         continentsJson: Seq[JsValue], 
@@ -125,4 +119,3 @@ object CardsBuilder:
                 ObjectiveCard.ConquerTerritories(count, minTroops)
             }.toList
         }.getOrElse(List.empty)
-    

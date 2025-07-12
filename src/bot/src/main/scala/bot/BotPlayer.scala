@@ -18,7 +18,6 @@ class BotPlayer(
 ) extends Player, Strategy:
   override def playerType: PlayerType = PlayerType.Bot
   
-  // Determina il tipo di strategia in base alle regole disponibili
   private val isOffensive: Boolean = 
     strategyRules.exists(_.isInstanceOf[OffensiveBotAttackRule])
   
@@ -34,67 +33,41 @@ class BotPlayer(
     
     val phaseAppropriateRules = gameState.turnManager.currentPhase match
       case TurnPhase.SetupPhase => 
-        // In fase di setup, usa solo le regole di setup
         val setupRules = strategyRules.filter(_.isInstanceOf[BotSetupPlaceTroopsRule])
-        println(s"[BOT $name] Fase di SETUP: utilizzando ${setupRules.size} regole di setup")
-        println("strategyRules: " + strategyRules.map(_.getClass.getSimpleName).mkString(", "))
-
         setupRules
         
       case TurnPhase.MainPhase => 
         if currentPlayerState.bonusTroops > 0 then
-
-          val placeTroopsRules = if (isOffensive)
-            strategyRules.filter(_.isInstanceOf[OffensiveBotPlaceTroopsRule])
-          else
-            strategyRules.filter(_.isInstanceOf[DefensiveBotPlaceTroopsRule])
-            
-          println(s"[BOT $name] MAIN PHASE - PIAZZAMENTO: utilizzando ${placeTroopsRules.size} regole di piazzamento ${if (isOffensive) "offensive" else "difensive"}")
+          val placeTroopsRules = 
+            if (isOffensive) then strategyRules.filter(_.isInstanceOf[OffensiveBotPlaceTroopsRule])
+            else strategyRules.filter(_.isInstanceOf[DefensiveBotPlaceTroopsRule])        
           placeTroopsRules
         else
-         
-          val attackRules = if (isOffensive)
-            strategyRules.filter(_.isInstanceOf[OffensiveBotAttackRule])
-          else
-            strategyRules.filter(_.isInstanceOf[DefensiveBotAttackRule])
-            
-          println(s"[BOT $name] MAIN PHASE - Controllo attacchi: utilizzando ${attackRules.size} regole di attacco ${if (isOffensive) "offensive" else "difensive"}")
+          val attackRules = 
+            if (isOffensive) then strategyRules.filter(_.isInstanceOf[OffensiveBotAttackRule])
+            else strategyRules.filter(_.isInstanceOf[DefensiveBotAttackRule])
           val attackActions = attackRules.evaluateAction(gameState, id)
-          
           if attackActions.nonEmpty then
             val bestAttack = attackActions.max
             println(s"[BOT $name] Trovati ${attackActions.size} attacchi validi, eseguo: ${bestAttack.action}")
-            
             bestAttack.action match
-              case _: GameAction.Attack =>
-                println(s"[BOT $name] Sto pensando al prossimo attacco...")
-                Thread.sleep(3000)
-                println(s"[BOT $name] Attacco deciso!")
+              case _: GameAction.Attack => Thread.sleep(3000)
               case _ =>
-            
             return bestAttack.action
           
-          // Usa le regole di rinforzo appropriate
-          println(s"[BOT $name] Nessun attacco valido disponibile, passo ai rinforzi")
-          val reinforceRules = if (isOffensive)
-            strategyRules.filter(_.isInstanceOf[OffensiveBotReinforceRule])
-          else
-            strategyRules.filter(_.isInstanceOf[DefensiveBotReinforceRule])
-            
-          println(s"[BOT $name] MAIN PHASE - Controllo rinforzi: utilizzando ${reinforceRules.size} regole di rinforzo ${if (isOffensive) "offensive" else "difensive"}")
+          val reinforceRules = 
+            if (isOffensive) then strategyRules.filter(_.isInstanceOf[OffensiveBotReinforceRule])
+            else strategyRules.filter(_.isInstanceOf[DefensiveBotReinforceRule])
           val reinforceActions = reinforceRules.evaluateAction(gameState, id)
           
           if reinforceActions.nonEmpty then
             println(s"[BOT $name] Trovati ${reinforceActions.size} rinforzi validi, scelgo il migliore")
             return reinforceActions.max.action
           
-          // 3 termina il turno
           println(s"[BOT $name] Nessuna azione valida, termino il turno")
           return GameAction.EndTurn
   
-    // Esegue la regola appropriata alla fase corrente con PrologRule
     val ratedActions = phaseAppropriateRules.evaluateAction(gameState, id)
-    
     if ratedActions.isEmpty then
       gameState.turnManager.currentPhase match
         case TurnPhase.SetupPhase => GameAction.EndSetup

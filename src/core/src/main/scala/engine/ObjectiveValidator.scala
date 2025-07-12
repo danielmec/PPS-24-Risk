@@ -15,13 +15,12 @@ object ObjectiveValidator:
 
       case ObjectiveCard.ConquerContinents(continents) =>
         continents.forall: continent =>
-          continent.territories.forall: territory =>
-            gameState.board.territories.find(_.name == territory.name).exists(_.owner.exists(_.id == playerState.playerId))
+          gameState.board.continents.find(_.name == continent.name)
+            .exists(_.isFullyOwnedBy(playerState.playerId))
 
       case ObjectiveCard.ConquerNContinents(n) =>
         val ownedContinents = gameState.board.continents.count: continent =>
-          continent.territories.forall: territory =>
-            gameState.board.territories.find(_.name == territory.name).exists(_.owner.exists(_.id == playerState.playerId))
+          continent.isFullyOwnedBy(playerState.playerId)
         ownedContinents >= n
 
       case null => false

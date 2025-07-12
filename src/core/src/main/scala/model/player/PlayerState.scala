@@ -23,5 +23,3 @@ case class PlayerState(
     
   def removeTerritoryCards(cards: Set[TerritoryCard]): PlayerState =
     copy(territoryCards = territoryCards -- cards)
-    
-  def hasTerritoryCards: Boolean = territoryCards.nonEmpty
