@@ -34,39 +34,32 @@ object CardsBuilder:
     def createBoard(): (Set[Continent], Map[String, Territory]) = 
         val json = loadJsonFromFile(boardPath)
         val continentsFromJson = (json \ "continents").as[JsArray].value.toSeq  
-        var territoriesMap = createInitialTerritories(continentsFromJson) 
-        territoriesMap = addNeighborsToTerritories(continentsFromJson, territoriesMap)
-        val continents = createContinentsFromJson(continentsFromJson, territoriesMap)
-        (continents, territoriesMap)
+        val initialTerritories = createInitialTerritories(continentsFromJson) 
+        val territoriesWithNeighbors = addNeighborsToTerritories(continentsFromJson, initialTerritories)
+        val continents = createContinentsFromJson(continentsFromJson, territoriesWithNeighbors)
+        (continents, territoriesWithNeighbors)
     
     private def createInitialTerritories(continentsJson: Seq[JsValue]): Map[String, Territory] =
-        var territoriesMap = Map.empty[String, Territory]
-        continentsJson.foreach { continentJson =>
-            val territoriesJson = (continentJson \ "territories").as[JsArray].value
-            territoriesJson.foreach { territoryJson =>
-                val name = (territoryJson \ "name").as[String]
-                val territory = Territory(name)
-                territoriesMap += (name -> territory)
-            }
+    continentsJson.flatMap { continentJson =>
+        (continentJson \ "territories").as[JsArray].value.map { territoryJson =>
+            val name = (territoryJson \ "name").as[String]
+            name -> Territory(name)
         }
-        territoriesMap
+    }.toMap
     
     private def addNeighborsToTerritories(
         continentsJson: Seq[JsValue], 
         territoriesMap: Map[String, Territory]
     ): Map[String, Territory] =
-        var updatedMap = territoriesMap
-        continentsJson.foreach:
-            continentJson =>
-                val territoriesJson = (continentJson \ "territories").as[JsArray].value
-                territoriesJson.foreach:
-                    territoryJson =>
-                        val name = (territoryJson \ "name").as[String]
-                        val neighborsNames = (territoryJson \ "neighbors").as[JsArray].value.map(_.as[String])
-                        val neighbors = neighborsNames.flatMap(n => updatedMap.get(n)).toSet
-                        val updatedTerritory = updatedMap(name).copy(neighbors = neighbors)
-                        updatedMap += (name -> updatedTerritory)        
-        updatedMap
+        continentsJson.foldLeft(territoriesMap) { (accMap, continentJson) =>
+            (continentJson \ "territories").as[JsArray].value.foldLeft(accMap) { (mapAcc, territoryJson) =>
+                val name = (territoryJson \ "name").as[String]
+                val neighborsNames = (territoryJson \ "neighbors").as[JsArray].value.map(_.as[String])
+                val neighbors = neighborsNames.flatMap(n => mapAcc.get(n)).toSet
+                val updatedTerritory = mapAcc(name).copy(neighbors = neighbors)
+                mapAcc + (name -> updatedTerritory)
+            }
+        }
     
     private def createContinentsFromJson(
         continentsJson: Seq[JsValue], 
