@@ -38,7 +38,7 @@ class BotPlayer(
         val setupRules = strategyRules.filter(_.isInstanceOf[BotSetupPlaceTroopsRule])
         println(s"[BOT $name] Fase di SETUP: utilizzando ${setupRules.size} regole di setup")
         println("strategyRules: " + strategyRules.map(_.getClass.getSimpleName).mkString(", "))
-
+       
         setupRules
         
       case TurnPhase.MainPhase => 

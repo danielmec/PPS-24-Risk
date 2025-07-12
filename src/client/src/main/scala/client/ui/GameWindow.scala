@@ -533,16 +533,27 @@ class GameWindow(
   */
   def handleGameStarted(gameStartedMsg: GameStartedMessage): Unit = {
 
-    waitAlert.foreach(alert => Platform.runLater {
-      alert.close()
-      waitAlert = None
-    })
+    if (waitAlert != null && waitAlert.isDefined) {
+      val alertToClose = waitAlert.get
+      Platform.runLater {
+        try {
+          alertToClose.close()
+        } catch {
+          case e: Exception => 
+            println(s"Errore durante la chiusura dell'alert: ${e.getMessage}")
+        } finally {
+          waitAlert = None
+        }
+      }
+    } else {
+      println("Nessun alert di attesa trovato da chiudere")
+    }
     
     Platform.runLater {
-  
+
       println(s"Sono: $myUsername ($myPlayerId)")
       println(s"Turno di: ${gameStartedMsg.currentPlayerId}")
-
+      
       currentPlayerId = gameStartedMsg.currentPlayerId
       
       val initialState = gameStartedMsg.initialState
