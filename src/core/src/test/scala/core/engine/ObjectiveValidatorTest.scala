@@ -36,23 +36,26 @@ class ObjectiveValidatorTest extends AnyFunSuite:
   test("ConquerContinents: returns true if player owns all territories of at least one continent"):
     val (gs, ownedContinent) = gameStateWithPlayerOwningAContinent
     val obj = ObjectiveCard.ConquerContinents(Set(ownedContinent))
-    assert(ObjectiveValidator.done(obj, gs, playerState))
+    assert(ObjectiveValidator.done(Some(obj), gs, playerState))
 
   test("ConquerNContinents: returns true if player owns enough continents"):
     val (gs, _) = gameStateWithPlayerOwningAContinent
     val obj = ObjectiveCard.ConquerNContinents(1)
-    assert(ObjectiveValidator.done(obj, gs, playerState))
+    assert(ObjectiveValidator.done(Some(obj), gs, playerState))
 
   test("ConquerTerritories: returns true if player owns enough territories with sufficient troops"):
     val obj = ObjectiveCard.ConquerTerritories(player1Territories.size, 1)
-    assert(ObjectiveValidator.done(obj, gameState, playerState))
+    assert(ObjectiveValidator.done(Some(obj), gameState, playerState))
 
   test("ConquerTerritories: returns false if player does not own enough territories"):
     val obj = ObjectiveCard.ConquerTerritories(3, 2)
-    assert(!ObjectiveValidator.done(obj, gameState, playerState))
+    assert(!ObjectiveValidator.done(Some(obj), gameState, playerState))
 
   test("All territories must have unique names on the board"):
     assert(board.territories.groupBy(_.name).forall(_._2.size == 1))
+
+  test("Returns false for None objective"):
+    assert(!ObjectiveValidator.done(None, gameState, playerState))
 
   def gameStateWithPlayerOwningAContinent: (GameState, Continent) =
     val continentToOwn = updatedContinents.head

@@ -42,7 +42,5 @@ case class GameState(
     
   def checkWinCondition: Option[PlayerState] =
     playerStates.find(playerState => 
-      playerState.objectiveCard.exists(objective => 
-        ObjectiveValidator.done(objective, this, playerState)
-      )
+      ObjectiveValidator.done(playerState.objectiveCard, this, playerState)
     )

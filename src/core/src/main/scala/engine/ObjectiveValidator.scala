@@ -6,7 +6,10 @@ import model.board.*
 
 object ObjectiveValidator:
 
-  def done(objective: ObjectiveCard, gameState: GameState, playerState: PlayerState): Boolean =
+  def done(objective: Option[ObjectiveCard], gameState: GameState, playerState: PlayerState): Boolean =
+    objective.exists(card => evaluateObjective(card, gameState, playerState))
+    
+  private def evaluateObjective(objective: ObjectiveCard, gameState: GameState, playerState: PlayerState): Boolean =
     objective match
       case ObjectiveCard.ConquerTerritories(num, minTroopsToOwn) =>
         val owned = gameState.board.territories.count: territory =>
@@ -23,5 +26,3 @@ object ObjectiveValidator:
           continent.territories.forall: territory =>
             gameState.board.territories.find(_.name == territory.name).exists(_.owner.exists(_.id == playerState.playerId))
         ownedContinents >= n
-
-      case null => false
