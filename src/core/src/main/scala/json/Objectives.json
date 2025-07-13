@@ -11,11 +11,6 @@
     "nContinents": [
       { "type": "ConquerNContinents", "count": 2 },
       { "type": "ConquerNContinents", "count": 3 }
-    ],
-    "territories": [
-      { "type": "ConquerTerritories", "count": 6, "minTroops": 2 },
-      { "type": "ConquerTerritories", "count": 8, "minTroops": 1 },
-      { "type": "ConquerTerritories", "count": 12, "minTroops": 1 }
     ]
   }
 }

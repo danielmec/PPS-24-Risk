@@ -6,19 +6,20 @@ import model.player._
 import engine._
 
 /**
- * Utility object per il calcolo dei bonus in base alle regole del gioco Risiko.
+ * Utility object for calculating various types of bonuses in the game.
  */
 object BonusCalculator:
 
   /**
-   * Calcola il bonus truppe derivante dalla combinazione di tre carte territorio.
+   * Calculates the troop bonus for trading in a set of three territory cards.
    *
-   * @param cards Una sequenza di tre carte territorio giocate dal giocatore.
-   * @return Il numero di truppe bonus ricevute in base al tris:
-   *         - 4 per tre artiglierie
-   *         - 6 per tre fanterie
-   *         - 8 per tre cavallerie
-   *         - 0 in tutti gli altri casi (inclusi tris non validi)
+   * @param cards A sequence of three territory cards played by the player.
+   * @return The number of bonus troops awarded based on the card combination:
+   *         - 4 for three Artillery cards
+   *         - 6 for three Infantry cards
+   *         - 8 for three Cavalry cards
+   *         - 10 for one of each type (mixed set)
+   *         - 0 for any invalid set (e.g., wrong number of cards or unrecognized combination)
    */
   def calculateTradeBonus(cards: Seq[TerritoryCard]): Int =
     val imgs = cards.map(_.cardImg)
@@ -27,16 +28,17 @@ object BonusCalculator:
     else if (imgs.forall(_ == CardImg.Artillery)) 4
     else if (imgs.forall(_ == CardImg.Infantry)) 6
     else if (imgs.forall(_ == CardImg.Cavalry)) 8
+    else if (imgs.distinct.size == 3) 10
     else 0
 
   /**
-   * Calcola il bonus truppe a inizio turno per un giocatore.
+   * Calculates the start-of-turn troop bonus for a given player.
    *
-   * @param playerId L'identificativo del giocatore.
-   * @param board Il board corrente della partita.
-   * @return Il numero totale di truppe bonus, calcolato come:
-   *         - Max(3, numero territori posseduti / 3)
-   *         - + bonus derivanti dai continenti interamente posseduti
+   * @param playerId The ID of the player.
+   * @param board The current game board state.
+   * @return The total bonus troops based on:
+   *         - Number of territories owned (minimum of 3 troops, or territoriesOwned / 3)
+   *         - Additional bonus troops from owning entire continents
    */
   def calculateStartTurnBonus(playerId: String, board: Board): Int =
     val territoriesOwned = board.territoriesOwnedBy(playerId).size
@@ -46,14 +48,14 @@ object BonusCalculator:
     territoryBonus + continentBonus
 
   /**
-   * Calcola le truppe iniziali disponibili per ogni giocatore all'inizio della partita
-   * e aggiorna lo stato dei giocatori.
+   * Initializes the number of troops each player has at the start of the game,
+   * based on the number of players and territories already owned.
    *
-   * @param players La lista dei giocatori.
-   * @param playerStates La lista degli stati iniziali dei giocatori.
-   * @param board Il board corrente della partita.
-   * @return Una nuova lista di stati dei giocatori, con truppe iniziali assegnate
-   *         e la fase impostata a `SetupPhase`.
+   * @param players The list of participating players.
+   * @param playerStates The list of current player states.
+   * @param board The current game board.
+   * @return A new list of player states with initial troops assigned and the turn phase
+   *         set to `SetupPhase`.
    */
   def calculateInitialTroops(players: List[PlayerImpl], playerStates: List[PlayerState], board: Board): List[PlayerState] =
     val baseTroops = players.size match {

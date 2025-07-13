@@ -14,6 +14,14 @@ import scalafx.util.StringConverter
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 
+/**
+ * Case class representing the outcome of an attack.
+ *
+ * @param fromTerritory Name of the attacking territory.
+ * @param toTerritory Name of the defending territory.
+ * @param troops Number of troops used in the attack.
+ * @param defenderId ID of the defending player.
+ */
 case class AttackInfo(
   fromTerritory: String,
   toTerritory: String,
@@ -21,6 +29,18 @@ case class AttackInfo(
   defenderId: String
 )
 
+/**
+ * Dialog window for performing an attack from one territory to another.
+ *
+ * Allows the player to:
+ * - Select a valid owned territory with more than one troop.
+ * - Select an adjacent enemy territory.
+ * - Choose the number of troops to attack with (between 1 and 3, depending on availability).
+ *
+ * @param owner The main game window that owns this dialog.
+ * @param myTerritories The list of territories owned by the player.
+ * @param enemyTerritories The list of adjacent enemy territories that can be attacked.
+ */
 class AttackDialog(
   owner: GameWindow,
   myTerritories: ObservableBuffer[UITerritory],
@@ -35,12 +55,19 @@ class AttackDialog(
 
   private var _result: Option[AttackInfo] = None
 
+  /**
+   * Converter for displaying `UITerritory` objects in ComboBoxes.
+   */
   private val territoryConverter = new StringConverter[UITerritory] {
     override def toString(t: UITerritory): String =
       if (t == null) "" else s"${t.name} (${t.armies.value} truppe)"
     override def fromString(s: String): UITerritory = null
   }
 
+  /**
+   * ComboBox for selecting the attacking territory.
+   * Only territories with more than one troop are included.
+   */
   private val fromCombo = new ComboBox[UITerritory] {
     items = ObservableBuffer.from(myTerritories.filter(_.armies.value > 1))
     promptText = "Seleziona il territorio di partenza"
@@ -48,6 +75,10 @@ class AttackDialog(
     onAction = _ => updateToCombo()
   }
 
+  /**
+   * ComboBox for selecting the target territory to attack.
+   * It is updated based on the selected attacking territory.
+   */
   private val toCombo = new ComboBox[UITerritory] {
     promptText = "Seleziona il territorio da attaccare"
     disable = true
@@ -55,26 +86,39 @@ class AttackDialog(
     onAction = _ => updateTroopsSpinner()
   }
 
+  /**
+   * Spinner to select the number of attacking troops.
+   * Range is 1 to min(3, armies in attacking territory - 1).
+   */
   private val troopsSpinner = new Spinner[Int](1, 1, 1) {
     disable = true
     editable = true
   }
 
+  /**
+   * Button to confirm and execute the attack.
+   */
   private val attackButton = new Button("Attacca") {
     disable = true
     onAction = _ => executeAttack()
   }
 
+  /**
+   * Button to cancel and close the dialog.
+   */
   private val cancelButton = new Button("Annulla") {
     onAction = _ => close()
   }
 
+  // UI layout definition
   scene = new Scene {
     root = new VBox(15) {
       padding = Insets(20)
       alignment = Pos.Center
       children = Seq(
-        new Label("Attacca un territorio nemico adiacente") { style = "-fx-font-size: 16px; -fx-font-weight: bold;" },
+        new Label("Attacca un territorio nemico adiacente") {
+          style = "-fx-font-size: 16px; -fx-font-weight: bold;"
+        },
         new GridPane {
           hgap = 10
           vgap = 15
@@ -97,6 +141,10 @@ class AttackDialog(
     }
   }
 
+  /**
+   * Updates the list of enemy territories in the `toCombo`
+   * based on the selected attacking territory.
+   */
   private def updateToCombo(): Unit = {
     Option(fromCombo.value.value).foreach { from =>
       val enemyNeighbors = enemyTerritories.filter(t => from.isNeighbor(t))
@@ -108,6 +156,9 @@ class AttackDialog(
     }
   }
 
+  /**
+   * Updates the troop spinner range based on selected attacking territory.
+   */
   private def updateTroopsSpinner(): Unit = {
     for {
       from <- Option(fromCombo.value.value)
@@ -123,6 +174,10 @@ class AttackDialog(
     }
   }
 
+  /**
+   * Executes the attack and stores the result.
+   * Closes the dialog afterward.
+   */
   private def executeAttack(): Unit = {
     for {
       from <- Option(fromCombo.value.value)
@@ -135,9 +190,13 @@ class AttackDialog(
     }
   }
 
+  /**
+   * Displays the dialog and returns the result (if the attack was confirmed).
+   *
+   * @return Some(AttackInfo) if the player confirmed the attack, None otherwise.
+   */
   def showAndWaitWithResult(): Option[AttackInfo] = {
     super.showAndWait()
     _result
   }
 }
-
