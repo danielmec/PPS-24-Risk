@@ -4,11 +4,8 @@ import model.board.Territory
 import model.player.Player
 import utils.Dice
 
-sealed trait BattleResult
-object BattleResult:
-  case object AttackerWins extends BattleResult
-  case object DefenderWins extends BattleResult
-  case object BattleContinues extends BattleResult
+enum BattleResult:
+  case AttackerWins, DefenderWins, BattleContinues
 
 import BattleResult._
 
