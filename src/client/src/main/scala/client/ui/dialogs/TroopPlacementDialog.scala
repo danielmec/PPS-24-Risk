@@ -17,9 +17,25 @@ import scalafx.beans.binding.Bindings
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 import model.cards.TerritoryCard
-import utils.BonusCalculator 
+import utils.BonusCalculator
 
-
+/**
+ * Dialog that allows the player to assign troops to owned territories and optionally
+ * trade a valid set of territory cards (a "tris") for bonus troops.
+ * 
+ * This dialog is used both during the Setup phase (to place initial troops)
+ * and the Main phase (to place reinforcement troops and trade cards).
+ *
+ * It displays all owned territories, current troops on each, and interactive controls
+ * for distributing available troops. It also shows owned territory cards and enables
+ * trading if a valid combination is selected.
+ *
+ * @param owner Reference to the main game window.
+ * @param territories List of owned territories (wrapped as UITerritory).
+ * @param initialTroops Initial number of troops to place.
+ * @param currentPhase Current phase of the game ("SetupPhase" or "MainPhase").
+ * @param territoryCards List of territory cards held by the player.
+ */
 class TroopPlacementDialog(
   owner: GameWindow,
   territories: ObservableBuffer[UITerritory], 
@@ -27,13 +43,14 @@ class TroopPlacementDialog(
   currentPhase: String,
   territoryCards: Seq[TerritoryCard] 
 ) extends Stage {
-  
-  println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")
-  
+
+  // Number of troops remaining to assign
   val remainingTroops = IntegerProperty(initialTroops)
-  
+
+  // Internal tracking of how many troops are assigned to each territory
   private val troopAssignments = collection.mutable.Map[String, Int]()
-  
+
+  // Initialize dialog properties
   initOwner(owner)
   initModality(Modality.APPLICATION_MODAL)
   initStyle(StageStyle.UTILITY)
@@ -60,15 +77,15 @@ class TroopPlacementDialog(
     troopsSpinner.editable = true
     
     troopAssignments(territory.name) = 0
-    
+
+    // Listener: handle troop count changes
     troopsSpinner.valueProperty().addListener { (_, oldValue, newValue) =>
       val oldVal = oldValue.intValue()
       val newVal = newValue.intValue()
-      
+
       if (newVal > oldVal) {
         val diff = newVal - oldVal
         if (diff > remainingTroops.value) {
-          // Limitiamo il valore al massimo consentito
           val maxAllowed = oldVal + remainingTroops.value
           Platform.runLater {
             troopsSpinner.getValueFactory.setValue(maxAllowed)
@@ -83,14 +100,12 @@ class TroopPlacementDialog(
         troopAssignments(territory.name) = newVal
       }
     }
-    
-    // Aggiorna il massimo dello spinner quando cambiano le truppe rimanenti
+
+    // Update spinner max value when remaining troops change
     remainingTroops.onChange { (_, _, newValue) =>
       Platform.runLater {
         val currentTroopCount = troopAssignments(territory.name)
         val maxAllowed = currentTroopCount + newValue.intValue
-        
-        
         val factory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0, maxAllowed, currentTroopCount)
         troopsSpinner.valueFactory = factory.asInstanceOf[SpinnerValueFactory[Int]]
       }
@@ -115,7 +130,6 @@ class TroopPlacementDialog(
   
   val showObjectiveButton = new Button("Mostra Obiettivo")
   showObjectiveButton.onAction = handle {
-    //chiude temporaneamente questo dialogo per mostrare l'obiettivo
     val wasShowing = showing.value
     hide()
     owner.showObjectiveDialog()
@@ -127,7 +141,6 @@ class TroopPlacementDialog(
   
   val showTerritoriesButton = new Button("Mostra Territori")
   showTerritoriesButton.onAction = handle {
-    //chiude temporaneamente questo dialogo per mostrare i territori
     val wasShowing = showing.value
     hide()
     owner.showTerritoriesDialog()
@@ -160,14 +173,14 @@ class TroopPlacementDialog(
     
     close()
   }
-  
+
+  /** Row of action buttons */
   val buttonsBox = new HBox(10) {
     children = Seq(showObjectiveButton, showTerritoriesButton, confirmButton)
     alignment = Pos.CenterRight
   }
 
-  
-  // --- SEZIONE CARTE TERRITORIO E TRIS ---
+  /** ListView displaying the player's current territory cards */
   val cardsListView = new ListView[TerritoryCard](ObservableBuffer(territoryCards: _*)) {
     selectionModel().setSelectionMode(SelectionMode.Multiple)
     cellFactory = (_: ListView[TerritoryCard]) => new ListCell[TerritoryCard] {
@@ -182,24 +195,24 @@ class TroopPlacementDialog(
     disable = true
     onAction = handle {
       val selected = cardsListView.selectionModel().getSelectedItems.toSet
-      val cardNames = selected.map(_.territory.name).toList // oppure usa un altro identificativo se necessario
+      val cardNames = selected.map(_.territory.name).toList
       owner.actionHandler.tradeCards(owner.getGameId, cardNames)
-      // Dopo la risposta dal server aggiorna le armate bonus e le carte (gestito in GameWindow)
     }
   }
 
-  // Abilita solo se tris valido
+  // Enable trade only if a valid set of 3 cards is selected
   cardsListView.selectionModel().selectedItems.onChange { (_, _) =>
     refreshTradeButtonState()
   }
 
+  /** Refreshes the enabled state of the trade button based on selection */
   def refreshTradeButtonState(): Unit = {
     val selected = cardsListView.selectionModel().getSelectedItems.toList
     val bonus = BonusCalculator.calculateTradeBonus(selected)
-    println(s"[DEBUG] refreshTradeButtonState: selected=$selected, bonus=$bonus, disable=${tradeButton.disable.value}")
     tradeButton.disable = selected.size != 3 || bonus == 0
   }
 
+  /** Section displaying card-related controls */
   val cardsSection = new VBox(8) {
     children = Seq(
       new Label("Le tue carte territorio:"),
@@ -209,10 +222,11 @@ class TroopPlacementDialog(
     padding = Insets(10, 0, 10, 0)
   }
 
+  /** Main layout of the dialog */
   val root = new BorderPane {
     padding = Insets(15)
     top = new VBox(10) {
-      children = Seq(headerLabel, troopsLabel) 
+      children = Seq(headerLabel, troopsLabel)
       alignment = Pos.Center
     }
     center = scrollPane
@@ -225,17 +239,29 @@ class TroopPlacementDialog(
       alignment = Pos.BottomCenter
     }
   }
-  
+
+  /** Scene initialization */
   scene = new Scene(root)
-  
+
+  /**
+   * Updates the number of remaining troops when new reinforcements are received.
+   * Should be called externally if the available troop count changes dynamically.
+   *
+   * @param newTroopsCount The new total number of troops available.
+   */
   def updateTroops(newTroopsCount: Int): Unit = {
     val assignedTroops = troopAssignments.values.sum
-    
     Platform.runLater {
       remainingTroops.value = newTroopsCount - assignedTroops
     }
   }
-  
+
+  /**
+   * Updates the card list shown in the dialog.
+   * Call this after card trades or updates from the game state.
+   *
+   * @param newCards The updated list of cards to display.
+   */
   def updateCards(newCards: Seq[TerritoryCard]): Unit = {
     Platform.runLater {
       println(s"[DEBUG] updateCards: ${newCards.map(_.cardImg)}")
