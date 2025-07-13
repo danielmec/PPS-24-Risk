@@ -13,8 +13,6 @@ object BonusCalculator:
     else if (imgs.forall(_ == CardImg.Artillery)) 4
     else if (imgs.forall(_ == CardImg.Infantry)) 6
     else if (imgs.forall(_ == CardImg.Cavalry)) 8
-    else if (imgs.distinct.size == 3 && !imgs.contains(CardImg.Jolly)) 10
-    else if (imgs.count(_ == CardImg.Jolly) == 1 && imgs.diff(Seq(CardImg.Jolly)).distinct.size == 1) 12
     else 0
 
   def calculateStartTurnBonus(playerId: String, board: Board): Int =

@@ -316,8 +316,7 @@ class GameWindow(
                     case "Infantry"  => CardImg.Infantry
                     case "Cavalry"   => CardImg.Cavalry
                     case "Artillery" => CardImg.Artillery
-                    case "Jolly"     => CardImg.Jolly
-                    case _           => CardImg.Infantry // fallback di sicurezza
+                    case _           => CardImg.Infantry
                   }
                   client.ui.dialogs.CardInfo(
                     fields.getOrElse("territoryName", "???"),
@@ -376,8 +375,7 @@ class GameWindow(
                       case "Infantry"  => CardImg.Infantry
                       case "Cavalry"   => CardImg.Cavalry
                       case "Artillery" => CardImg.Artillery
-                      case "Jolly"     => CardImg.Jolly
-                      case _           => CardImg.Infantry // fallback di sicurezza
+                      case _           => CardImg.Infantry
                     }
                     println(s"[DEBUG] Card parsed: name=${fields.getOrElse("territoryName", "???")}, type=$cardTypeRaw, cardImg=$cardImg")
                     // Adatta qui se hai un costruttore diverso!
