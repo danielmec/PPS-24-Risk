@@ -124,26 +124,35 @@ class GameEngine(
     state: EngineState,
     to: String,
     troops: Int
-  ): EngineState =
-    val attackerTerritory = gameState.getTerritoryByName(from).get
-    val defenderTerritory = gameState.getTerritoryByName(to).get
-    Battle.battleRound(attackerTerritory.owner.get, defenderTerritory.owner.get, attackerTerritory, defenderTerritory, troops) match
-      case Left(error) =>
-        throw new IllegalStateException(s"Battle failed: $error")
-      case Right(battleResult) =>
-        val updatedBoard = gameState.board
-          .updatedTerritory(battleResult.attackerTerritory)
-          .updatedTerritory(battleResult.defenderTerritory)
-        var updatedGameState = gameState
-          .updateBoard(updatedBoard)
-          .updateLastBattleResult(battleResult)
-        val conquered = battleResult.result == BattleResult.AttackerWins
-        if conquered && !updatedBoard.territoriesOwnedBy(defenderId).nonEmpty then
-          updatedGameState = transferCardsOnElimination(updatedGameState, defenderId, attackerId)
-        state.copy(
-          gameState = updatedGameState,
-          territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
-        )
+  ): EngineState = {
+    val attackerTerritoryOpt = gameState.getTerritoryByName(from).flatMap(t => t.owner.map(owner => (owner, t)))
+    val defenderTerritoryOpt = gameState.getTerritoryByName(to).flatMap(t => t.owner.map(owner => (owner, t)))
+
+    (attackerTerritoryOpt, defenderTerritoryOpt) match {
+      case (Some((attacker, attackerTerritory)), Some((defender, defenderTerritory))) =>
+        Battle.battleRound(attacker, defender, attackerTerritory, defenderTerritory, troops) match
+          case Left(error) =>
+            throw new IllegalStateException(s"Battle failed: $error")
+          case Right(battleResult) =>
+            val updatedBoard = gameState.board
+              .updatedTerritory(battleResult.attackerTerritory)
+              .updatedTerritory(battleResult.defenderTerritory)
+            val updatedGameState = gameState
+              .updateBoard(updatedBoard)
+              .updateLastBattleResult(battleResult)
+            val conquered = battleResult.result == BattleResult.AttackerWins
+            val finalGameState =
+              if conquered && updatedBoard.territoriesOwnedBy(defenderId).isEmpty
+              then transferCardsOnElimination(updatedGameState, defenderId, attackerId)
+              else updatedGameState
+            state.copy(
+              gameState = finalGameState,
+              territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
+            )
+      case _ =>
+        throw new IllegalStateException("Invalid attacker or defender territory/owner")
+    }
+  }
 
   private def tradeCardsAction(playerId: String, cardNames: Set[String], gameState: GameState, state: EngineState): EngineState =
     val playerState = gameState.getPlayerState(playerId).get
