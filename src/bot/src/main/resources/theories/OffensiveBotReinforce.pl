@@ -13,5 +13,5 @@ offensivebotreinforce(Territories, Neighbors, 'MainPhase', PlayerId, Action, Sco
     ),   
     TroopsToMove < Troops,
     Action = reinforce(From, To, TroopsToMove),
-    Score = 1.0,
+    Score is TroopsToMove,
     Description = 'Move troops from strongest territory to neighbor'.

@@ -62,7 +62,12 @@ class BotPlayer(
             else strategyRules.filter(_.isInstanceOf[DefensiveBotAttackRule])
           val attackActions = attackRules.evaluateAction(gameState, id)
           if attackActions.nonEmpty then
+            println(s"[BOT DEBUG] Possible attacks for $name:")
+            attackActions.foreach { ra =>
+              println(s" Action: ${ra.action}, Score: ${ra.score}, Explanation: ${ra.explaination}")
+            }
             val bestAttack = attackActions.max
+            println(s"[BOT DEBUG] Chosen attack for $name: ${bestAttack.action} (Score: ${bestAttack.score})")
             bestAttack.action match
               case _: GameAction.Attack => Thread.sleep(3000)
               case _ =>
@@ -73,7 +78,14 @@ class BotPlayer(
             else strategyRules.filter(_.isInstanceOf[DefensiveBotReinforceRule])
           val reinforceActions = reinforceRules.evaluateAction(gameState, id)
           
-          if reinforceActions.nonEmpty then return reinforceActions.max.action
+          if reinforceActions.nonEmpty then
+            println(s"[BOT DEBUG] Possible reinforces for $name:")
+            reinforceActions.foreach { ra =>
+              println(s" Action: ${ra.action}, Score: ${ra.score}, Explanation: ${ra.explaination}")
+            }
+            val bestReinforce = reinforceActions.max
+            println(s"[BOT DEBUG] Chosen reinforce for $name: ${bestReinforce.action} (Score: ${bestReinforce.score})")
+            return bestReinforce.action
           
           return GameAction.EndTurn
   
