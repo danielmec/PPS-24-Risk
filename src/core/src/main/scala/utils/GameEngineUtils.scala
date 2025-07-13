@@ -11,26 +11,6 @@ import scala.util.Random
   * Utility object with helper methods for game engine operations such as card transfer, territory assignment, and victory checks.
   */
 object GameEngineUtils:
-  
-  /**
-    * Transfers all territory cards from an eliminated player to the conqueror.
-    * @param gameState The current game state.
-    * @param eliminatedPlayerId The ID of the eliminated player.
-    * @param conquererPlayerId The ID of the player who eliminated the other.
-    * @return The updated game state.
-    */
-  def transferCardsOnElimination(
-    gameState: GameState, 
-    eliminatedPlayerId: String,
-    conquererPlayerId: String
-  ): GameState = 
-    val eliminatedPlayer = gameState.getPlayerState(eliminatedPlayerId).getOrElse(throw new InvalidPlayerException())
-    val conquererPlayer = gameState.getPlayerState(conquererPlayerId).getOrElse(throw new InvalidPlayerException())
-    val eliminatedCards = eliminatedPlayer.territoryCards
-    val updatedConquerState = conquererPlayer.addTerritoryCards(eliminatedCards)
-    gameState
-      .updatePlayerState(conquererPlayerId, updatedConquerState)
-      .updatePlayerState(eliminatedPlayerId, eliminatedPlayer.removeTerritoryCards(eliminatedPlayer.territoryCards))
 
   /**
     * Draws a territory card for a player.

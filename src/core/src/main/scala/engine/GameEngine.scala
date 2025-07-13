@@ -141,12 +141,8 @@ class GameEngine(
               .updateBoard(updatedBoard)
               .updateLastBattleResult(battleResult)
             val conquered = battleResult.result == BattleResult.AttackerWins
-            val finalGameState =
-              if conquered && updatedBoard.territoriesOwnedBy(defenderId).isEmpty
-              then transferCardsOnElimination(updatedGameState, defenderId, attackerId)
-              else updatedGameState
             state.copy(
-              gameState = finalGameState,
+              gameState = updatedGameState,
               territoryConqueredThisTurn = state.territoryConqueredThisTurn || conquered
             )
       case _ =>
