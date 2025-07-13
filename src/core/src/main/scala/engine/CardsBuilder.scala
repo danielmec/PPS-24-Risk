@@ -11,10 +11,19 @@ import scala.util.Random
 import play.api.libs.json._
 import exceptions._
 
+/**
+  * Utility object for building cards, continents, and objectives from JSON files.
+  */
 object CardsBuilder:
     private val boardPath = "src/core/src/main/scala/json/Board.json"
     private val objectivesPath = "src/core/src/main/scala/json/Objectives.json"
 
+    /**
+      * Loads a JSON file from the given path.
+      * @param path The path to the JSON file.
+      * @return The parsed JsValue.
+      * @throws RuntimeException if the file cannot be loaded.
+      */
     private def loadJsonFromFile(path: String): JsValue =
         Try {
             val jsonContent = Source.fromFile(path).getLines().mkString
@@ -23,14 +32,26 @@ object CardsBuilder:
             throw new RuntimeException(s"Failed to load JSON from $path")
         }
 
+    /**
+      * Returns all territories from the board.
+      * @return A set of all territories.
+      */
     def getTerritories(): Set[Territory] =
         val (_, territoriesMap) = createBoard()
         territoriesMap.values.toSet
-    
+
+    /**
+      * Returns all continents from the board.
+      * @return A set of all continents.
+      */
     def getContinents(): Set[Continent] =
         val (continents, _) = createBoard()
         continents
 
+    /**
+      * Creates the board (continents and territories) from the JSON file.
+      * @return A tuple of (Set of continents, Map of territory name to Territory).
+      */
     def createBoard(): (Set[Continent], Map[String, Territory]) = 
         val json = loadJsonFromFile(boardPath)
         val continentsFromJson = (json \ "continents").as[JsArray].value.toSeq  
@@ -38,7 +59,12 @@ object CardsBuilder:
         val territoriesWithNeighbors = addNeighborsToTerritories(continentsFromJson, initialTerritories)
         val continents = createContinentsFromJson(continentsFromJson, territoriesWithNeighbors)
         (continents, territoriesWithNeighbors)
-    
+
+    /**
+      * Creates initial territories from the JSON continents.
+      * @param continentsJson The JSON array of continents.
+      * @return A map of territory name to Territory.
+      */
     private def createInitialTerritories(continentsJson: Seq[JsValue]): Map[String, Territory] =
     continentsJson.flatMap { continentJson =>
         (continentJson \ "territories").as[JsArray].value.map { territoryJson =>
@@ -46,7 +72,13 @@ object CardsBuilder:
             name -> Territory(name)
         }
     }.toMap
-    
+
+    /**
+      * Adds neighbors to each territory based on the JSON data.
+      * @param continentsJson The JSON array of continents.
+      * @param territoriesMap The map of territory name to Territory.
+      * @return The updated map of territory name to Territory with neighbors set.
+      */
     private def addNeighborsToTerritories(
         continentsJson: Seq[JsValue],
         territoriesMap: Map[String, Territory]
@@ -60,7 +92,13 @@ object CardsBuilder:
                 mapAcc + (name -> updatedTerritory)
             }
         }
-    
+
+    /**
+      * Creates continents from the JSON data.
+      * @param continentsJson The JSON array of continents.
+      * @param territoriesMap The map of territory name to Territory.
+      * @return A set of Continent objects.
+      */
     private def createContinentsFromJson(
         continentsJson: Seq[JsValue], 
         territoriesMap: Map[String, Territory]
@@ -73,6 +111,10 @@ object CardsBuilder:
             Continent(name, continentTerritories, bonusTroops)
         }.toSet
 
+    /**
+      * Creates the deck of territory cards.
+      * @return A list of TerritoryCard objects.
+      */
     def createTerritoriesDeck(): List[TerritoryCard] =
         val (_, territoriesMap) = createBoard()
         val territories = territoriesMap.values.toList
@@ -84,6 +126,10 @@ object CardsBuilder:
                     case 2 => CardImg.Artillery
                 TerritoryCard(territory, cardImg)
 
+    /**
+      * Creates the deck of objective cards from the JSON file.
+      * @return A list of ObjectiveCard objects.
+      */
     def createObjectivesDeck(): List[ObjectiveCard] =
         val continents = getContinents()
         val continentsMap = continents.map(c => (c.name, c)).toMap
@@ -93,6 +139,12 @@ object CardsBuilder:
         val territoryObjectives = createTerritoryObjectives(json)
         continentObjectives ++ nContinentsObjectives ++ territoryObjectives
 
+    /**
+      * Creates continent objectives from the JSON data.
+      * @param json The parsed objectives JSON.
+      * @param continentsMap The map of continent name to Continent.
+      * @return A list of ObjectiveCard.ConquerContinents.
+      */
     private def createContinentObjectives(json: JsValue, continentsMap: Map[String, Continent]): List[ObjectiveCard] =
         (json \\ "continents").headOption.map { continentsJson =>
             continentsJson.as[JsArray].value.map { objJson =>
@@ -101,7 +153,12 @@ object CardsBuilder:
                 ObjectiveCard.ConquerContinents(continentsToConquer)
             }.toList
         }.getOrElse(List.empty)
-    
+
+    /**
+      * Creates N-continents objectives from the JSON data.
+      * @param json The parsed objectives JSON.
+      * @return A list of ObjectiveCard.ConquerNContinents.
+      */
     private def createNContinentsObjectives(json: JsValue): List[ObjectiveCard] =
         (json \\ "nContinents").headOption.map { nContinentsJson =>
             nContinentsJson.as[JsArray].value.map { objJson =>
@@ -109,7 +166,12 @@ object CardsBuilder:
                 ObjectiveCard.ConquerNContinents(count)
             }.toList
         }.getOrElse(List.empty)
-    
+
+    /**
+      * Creates territory objectives from the JSON data.
+      * @param json The parsed objectives JSON.
+      * @return A list of ObjectiveCard.ConquerTerritories.
+      */
     private def createTerritoryObjectives(json: JsValue): List[ObjectiveCard] =
         (json \\ "territories").headOption.map { territoriesJson =>
             territoriesJson.as[JsArray].value.map { objJson =>

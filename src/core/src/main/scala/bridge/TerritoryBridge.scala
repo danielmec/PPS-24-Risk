@@ -2,20 +2,20 @@ package bridge
 
 import model.board.{Territory => CoreTerritory, Continent => CoreContinent}
 import engine.CardsBuilder
-import scala.collection.immutable.{Map => ImmutableMap}  // Usa Map immutabile
+import scala.collection.immutable.{Map => ImmutableMap}
 
 /**
- * Bridge che permette al client di accedere ai territori definiti nel core
- */
+  * Bridge object that allows the client to access territories and continents defined in the core module.
+  * Provides methods to load, cache, and query territory and continent data.
+  */
 object TerritoryBridge {
-  
   
   private var territoriesCache: Option[ImmutableMap[String, CoreTerritory]] = None
   private var continentsCache: Option[Set[CoreContinent]] = None
   
   /**
-   * Carica i territori dal core
-   * @return Mappa dei territori con il nome come chiave
+   * Loads territories from the core module.
+   * @return A map of territory names to CoreTerritory objects.
    */
   def loadTerritories(): ImmutableMap[String, CoreTerritory] = {
     territoriesCache match {
@@ -29,14 +29,13 @@ object TerritoryBridge {
   }
   
   /**
-   * Carica i territori e i continenti dal core
-   * @return Tuple con il set di continenti e la mappa dei territori 
+   * Loads both territories and continents from the core module.
+   * @return A tuple containing the set of continents and the map of territories.
    */
   def loadTerritoriesAndContinents(): (Set[CoreContinent], ImmutableMap[String, CoreTerritory]) = {
     territoriesCache match {
       case Some(_) if continentsCache.isDefined => 
         (continentsCache.get, territoriesCache.get)
-      
       case _ =>
         val (continents, territoriesMap) = CardsBuilder.createBoard()
         continentsCache = Some(continents)
@@ -46,17 +45,17 @@ object TerritoryBridge {
   }
   
   /**
-   * Ottiene tutti i nomi dei territori
-   * @return Lista dei nomi dei territori
+   * Gets the names of all territories.
+   * @return A sorted list of territory names.
    */
   def getTerritoryNames(): List[String] = {
     loadTerritories().keys.toList.sorted
   }
   
   /**
-   * Ottiene i nomi dei territori adiacenti a un territorio dato
-   * @param territoryName Nome del territorio
-   * @return Lista dei nomi dei territori adiacenti
+   * Gets the names of neighboring territories for a given territory.
+   * @param territoryName The name of the territory.
+   * @return A sorted list of neighboring territory names.
    */
   def getNeighborNames(territoryName: String): List[String] = {
     loadTerritories().get(territoryName) match {
@@ -66,9 +65,9 @@ object TerritoryBridge {
   }
   
   /**
-   * Ottiene il continente a cui appartiene un territorio
-   * @param territoryName Nome del territorio
-   * @return Nome del continente, o None se non trovato
+   * Gets the continent to which a territory belongs.
+   * @param territoryName The name of the territory.
+   * @return The name of the continent, or None if not found.
    */
   def getContinentForTerritory(territoryName: String): Option[String] = {
     val continents = continentsCache.getOrElse {
@@ -76,7 +75,6 @@ object TerritoryBridge {
       continentsCache = Some(conts)
       conts
     }
-    
     continents.find(_.territories.exists(_.name == territoryName)).map(_.name)
   }
 }

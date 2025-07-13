@@ -9,14 +9,14 @@ sealed trait ObjectiveCard:
 object ObjectiveCard:
 
   case class ConquerTerritories(num: Int, minTroopsToOwn: Int = 1) extends ObjectiveCard:
-    override def description: String = 
-      s"Conquista $num territori con almeno $minTroopsToOwn truppe."
+    override def description: String =
+      s"Conquer $num territories with at least $minTroopsToOwn troops each."
 
   case class ConquerContinents(continents: Set[Continent]) extends ObjectiveCard:
-    override def description: String = 
+    override def description: String =
       val continentNames = continents.map(_.name).mkString(", ")
-      s"Conquista i seguenti continenti: $continentNames."
+      s"Conquer the following continents: $continentNames."
 
   case class ConquerNContinents(n: Int) extends ObjectiveCard:
-    override def description: String = 
-      s"Conquista $n continenti."
+    override def description: String =
+      s"Conquer any $n continents"

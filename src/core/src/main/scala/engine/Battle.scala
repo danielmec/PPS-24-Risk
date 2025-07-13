@@ -4,11 +4,29 @@ import model.board.Territory
 import model.player.Player
 import utils.Dice
 
+/**
+  * Enumeration representing the possible results of a battle round.
+  */
 enum BattleResult:
-  case AttackerWins, DefenderWins, BattleContinues
+  /** The attacker wins the battle. */
+  case AttackerWins
+  /** The defender wins the battle. */
+  case DefenderWins
+  /** The battle continues for another round. */
+  case BattleContinues
 
 import BattleResult._
 
+/**
+  * Represents the state of a battle between two players.
+  *
+  * @param attacker The attacking player.
+  * @param defender The defending player.
+  * @param attackerTerritory The attacking territory.
+  * @param defenderTerritory The defending territory.
+  * @param attackingTroops The number of attacking troops.
+  * @param defendingTroops The number of defending troops.
+  */
 case class BattleState(
   attacker: Player,
   defender: Player,
@@ -18,6 +36,17 @@ case class BattleState(
   defendingTroops: Int
 )
 
+/**
+  * Represents the result of a single battle round.
+  *
+  * @param attackerTerritory The updated attacking territory.
+  * @param defenderTerritory The updated defending territory.
+  * @param attackerLosses The number of troops lost by the attacker.
+  * @param defenderLosses The number of troops lost by the defender.
+  * @param result The result of the battle round.
+  * @param attackerDice The dice rolled by the attacker.
+  * @param defenderDice The dice rolled by the defender.
+  */
 case class BattleRoundResult(
   attackerTerritory: Territory,
   defenderTerritory: Territory,
@@ -28,8 +57,18 @@ case class BattleRoundResult(
   defenderDice: Seq[Int]  
 )
 
+/**
+  * Object containing utility methods for resolving battles between players.
+  */
 object Battle:
 
+  /**
+    * Resolves a single battle round using the provided dice rolls.
+    * @param state The current battle state.
+    * @param attackerDice The dice rolled by the attacker.
+    * @param defenderDice The dice rolled by the defender.
+    * @return The updated battle state after the round.
+    */
   def resolveBattleRoundWithDice(state: BattleState, attackerDice: Seq[Int], defenderDice: Seq[Int]): BattleState =
     val pairs = attackerDice.zip(defenderDice)
     val (attackerLosses, defenderLosses) = pairs.foldLeft((0, 0)):
@@ -41,6 +80,15 @@ object Battle:
       defendingTroops = state.defendingTroops - defenderLosses
     )
 
+  /**
+    * Validates the parameters for a battle.
+    * @param attacker The attacking player.
+    * @param defender The defending player.
+    * @param attackerTerritory The attacking territory.
+    * @param defenderTerritory The defending territory.
+    * @param attackingTroops The number of attacking troops.
+    * @return Either an error message or Unit if valid.
+    */
   def validateBattle(
     attacker: Player,
     defender: Player,
@@ -54,6 +102,16 @@ object Battle:
     else if (attackingTroops >= attackerTerritory.troops) Left("Cannot attack with all troops - must leave at least 1 to defend")
     else Right(())
 
+  /**
+    * Executes a single round of battle between two players.
+    * @param attacker The attacking player.
+    * @param defender The defending player.
+    * @param attackerTerritory The attacking territory.
+    * @param defenderTerritory The defending territory.
+    * @param attackingTroops The number of attacking troops.
+    * @param rollDice The function to roll dice.
+    * @return Either an error message or the result of the battle round.
+    */
   def battleRound(
     attacker: Player,
     defender: Player,

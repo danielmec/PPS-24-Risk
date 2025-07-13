@@ -7,8 +7,18 @@ import engine.*
 import exceptions._
 import scala.util.Random
 
+/**
+  * Utility object with helper methods for game engine operations such as card transfer, territory assignment, and victory checks.
+  */
 object GameEngineUtils:
   
+  /**
+    * Transfers all territory cards from an eliminated player to the conqueror.
+    * @param gameState The current game state.
+    * @param eliminatedPlayerId The ID of the eliminated player.
+    * @param conquererPlayerId The ID of the player who eliminated the other.
+    * @return The updated game state.
+    */
   def transferCardsOnElimination(
     gameState: GameState, 
     eliminatedPlayerId: String,
@@ -22,6 +32,13 @@ object GameEngineUtils:
       .updatePlayerState(conquererPlayerId, updatedConquerState)
       .updatePlayerState(eliminatedPlayerId, eliminatedPlayer.removeTerritoryCards(eliminatedPlayer.territoryCards))
 
+  /**
+    * Draws a territory card for a player.
+    * @param gameState The current game state.
+    * @param decksManager The decks manager.
+    * @param playerId The ID of the player.
+    * @return A tuple of the updated game state and decks manager.
+    */
   def drawTerritoryCard(
     gameState: GameState,
     decksManager: DecksManager,
@@ -39,14 +56,39 @@ object GameEngineUtils:
       case e: Exception => (gameState, decksManager)
     }
 
+  /**
+    * Checks if a player has any remaining territories.
+    * @param gameState The current game state.
+    * @param playerId The ID of the player.
+    * @return True if the player owns at least one territory, false otherwise.
+    */
   def hasRemainingTerritories(gameState: GameState, playerId: String): Boolean = gameState.board.territoriesOwnedBy(playerId).nonEmpty
 
+  /**
+    * Counts the number of territories owned by a player.
+    * @param gameState The current game state.
+    * @param playerId The ID of the player.
+    * @return The number of territories owned.
+    */
   def countPlayerTerritories(gameState: GameState, playerId: String): Int = gameState.board.territoriesOwnedBy(playerId).size
 
+  /**
+    * Gets the adjacent territories owned by a player.
+    * @param gameState The current game state.
+    * @param territoryName The name of the territory.
+    * @param playerId The ID of the player.
+    * @return A set of adjacent territories owned by the player.
+    */
   def getAdjacentTerritories(gameState: GameState, territoryName: String, playerId: String): Set[Territory] =
     val territory = gameState.getTerritoryByName(territoryName).getOrElse(throw new InvalidTerritoryException())
     territory.neighbors.filter(_.isOwnedBy(playerId)).toSet 
 
+  /**
+    * Distributes all territories among players at the start of the game.
+    * @param board The game board.
+    * @param players The list of players.
+    * @return The updated board with territories assigned.
+    */
   def distributeInitialTerritories(board: Board, players: List[PlayerImpl]): Board =
     val shuffledTerritories = Random.shuffle(board.territories)
     val assignedTerritories = shuffledTerritories.zipWithIndex.map: 
@@ -57,6 +99,13 @@ object GameEngineUtils:
     assignedTerritories.foldLeft(board):
       (updatedBoard, territory) => updatedBoard.updatedTerritory(territory)
   
+  /**
+    * Assigns objectives to each player from the deck.
+    * @param currentDecksManager The current decks manager.
+    * @param players The list of players.
+    * @param playerStates The list of player states.
+    * @return A tuple of the updated decks manager and player states.
+    */
   def assignObjectivesToPlayers(currentDecksManager: DecksManager, players: List[PlayerImpl], playerStates: List[PlayerState]): (DecksManager, List[PlayerState]) = 
     players.foldLeft((currentDecksManager, List.empty[PlayerState])):
       case ((dm, states), player) =>
@@ -64,6 +113,12 @@ object GameEngineUtils:
         val playerState = playerStates.find(_.playerId == player.id).get
         (updatedDM, states :+ playerState.setObjectiveCard(objective))
   
+  /**
+    * Handles the reward of a territory card after a successful conquest.
+    * @param state The current engine state.
+    * @param action The action performed.
+    * @return The updated engine state.
+    */
   def handleTerritoryCardReward(state: EngineState, action: GameAction): EngineState =
     val gameState = state.gameState
     if (action == GameAction.EndTurn && state.territoryConqueredThisTurn)
@@ -72,6 +127,11 @@ object GameEngineUtils:
       state.copy(gameState = updatedGameState, territoryConqueredThisTurn = false)
     else state
 
+  /**
+    * Moves the game to the next player's turn, updating bonuses if needed.
+    * @param state The current engine state.
+    * @return The updated engine state.
+    */
   def moveToNextPlayer(state: EngineState): EngineState =
     val gameState = state.gameState
     val nextTurnManager = gameState.turnManager.nextPlayer()
@@ -87,6 +147,11 @@ object GameEngineUtils:
       territoryConqueredThisTurn = state.territoryConqueredThisTurn
     )
 
+  /**
+    * Checks if any player has met the victory condition and throws GameOverException if so.
+    * @param state The current engine state.
+    * @return The engine state if no winner, otherwise throws exception.
+    */
   def checkVictoryCondition(state: EngineState): EngineState =
     val optPlayerState = state.gameState.checkWinCondition
     optPlayerState match

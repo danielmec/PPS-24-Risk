@@ -4,8 +4,18 @@ import model.cards.*
 import model.player.*
 import model.board.*
 
+/**
+  * Utility object for validating if a player has completed their objective.
+  */
 object ObjectiveValidator:
 
+  /**
+    * Checks if the given objective is completed by the player in the current game state.
+    * @param objective The objective card to check.
+    * @param gameState The current state of the game.
+    * @param playerState The state of the player.
+    * @return True if the objective is completed, false otherwise.
+    */
   def done(objective: Option[ObjectiveCard], gameState: GameState, playerState: PlayerState): Boolean =
     objective.exists(card => evaluateObjective(card, gameState, playerState))
     
