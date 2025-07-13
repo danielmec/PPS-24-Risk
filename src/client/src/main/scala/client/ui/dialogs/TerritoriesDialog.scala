@@ -15,32 +15,47 @@ import scalafx.collections.ObservableBuffer
 import scalafx.beans.property.StringProperty
 import client.AdapterMap.UITerritory
 
+/**
+ * A dialog window that displays a table of all territories grouped by continent.
+ * It shows details such as the territory name, owner ID, username (if available),
+ * and number of armies stationed.
+ *
+ * The table updates automatically when the owner of a territory changes.
+ *
+ * @param owner the parent stage of this dialog
+ * @param territories the list of all territories currently in the game
+ * @param playerIdToUsername a map to resolve player IDs to usernames
+ */
 class TerritoriesDialog(
-    owner: Stage, 
+    owner: Stage,
     territories: ObservableBuffer[UITerritory],
     playerIdToUsername: Map[String, String] = Map.empty
 ) extends Stage {
-  
+
   initOwner(owner)
   initModality(Modality.ApplicationModal)
   title = "Territori di gioco"
   width = 900
   height = 600
-  
+
+  /** The main tab pane containing a tab for each continent. */
   val tabPane = new TabPane {
     tabClosingPolicy = TabClosingPolicy.Unavailable
   }
-  
+
+  /** The distinct list of continent names. */
   val continents = territories.map(_.continent).distinct.sorted.toList
-  
-  //listener ai territori per rimanere aggiornati sui cambi di proprietà
+
+  /** A map from continent name to its corresponding table view. */
   val territoryTables = scala.collection.mutable.Map[String, TableView[UITerritory]]()
-  
+
+  // Create a tab for each continent with a table of its territories
   for (continent <- continents) {
     val tab = new Tab {
       text = continent
       closable = false
-      
+
+      /** Table showing territories of a given continent. */
       val territoryTable = new TableView[UITerritory] {
         columns ++= List(
           new TableColumn[UITerritory, String] {
@@ -53,7 +68,6 @@ class TerritoriesDialog(
           new TableColumn[UITerritory, String] {
             text = "ID Proprietario"
             cellValueFactory = { cellData =>
-              //legge direttamente l'ID dalla proprietà owner di UITerritory
               cellData.value.owner
             }
             prefWidth = 120
@@ -61,11 +75,8 @@ class TerritoriesDialog(
           new TableColumn[UITerritory, String] {
             text = "Username"
             cellValueFactory = { cellData =>
-              //crea una StringProperty che si aggiorna automaticamente
-              // quando cambia il proprietario del territorio
               val usernameProperty = new StringProperty()
-              
-              //funzione che aggiorna lo username in base all'ID
+
               def updateUsername(): Unit = {
                 val playerId = cellData.value.owner.value
                 val username = if (playerId.nonEmpty) {
@@ -75,14 +86,14 @@ class TerritoriesDialog(
                 }
                 usernameProperty.value = username
               }
-              //inizializza lo username all'apertura della tabella
+
               updateUsername()
               
               //listener che aggiorna lo username quando cambia il proprietario
               cellData.value.owner.onChange { (_, _, newValue) =>
                 updateUsername()
               }
-              
+
               usernameProperty
             }
             prefWidth = 150
@@ -98,18 +109,19 @@ class TerritoriesDialog(
         
         items = ObservableBuffer.from(territories.filter(t => t.continent == continent))
       }
-      
+
       content = new BorderPane {
         center = territoryTable
         padding = Insets(10)
       }
-      
+
       territoryTables(continent) = territoryTable
     }
-    
+
     tabPane.tabs += tab
   }
-  
+
+  /** Sets the scene and adds the update/close buttons. */
   scene = new Scene(new BorderPane {
     center = tabPane
     bottom = new HBox {
@@ -132,4 +144,3 @@ class TerritoriesDialog(
     }
   })
 }
-

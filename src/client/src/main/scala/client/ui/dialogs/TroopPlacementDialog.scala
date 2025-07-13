@@ -17,7 +17,7 @@ import scalafx.beans.binding.Bindings
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 import model.cards.TerritoryCard
-import utils.BonusCalculator // Assicurati di avere accesso a questa logica
+import utils.BonusCalculator 
 
 
 class TroopPlacementDialog(
@@ -25,7 +25,7 @@ class TroopPlacementDialog(
   territories: ObservableBuffer[UITerritory], 
   initialTroops: Int,
   currentPhase: String,
-  territoryCards: Seq[TerritoryCard] // <-- aggiungi questo parametro
+  territoryCards: Seq[TerritoryCard] 
 ) extends Stage {
   
   println(s"TroopPlacementDialog inizializzato con ${territories.size} territori e $initialTroops truppe")
@@ -212,7 +212,7 @@ class TroopPlacementDialog(
   val root = new BorderPane {
     padding = Insets(15)
     top = new VBox(10) {
-      children = Seq(headerLabel, troopsLabel) // <-- rimosso cardsSection
+      children = Seq(headerLabel, troopsLabel) 
       alignment = Pos.Center
     }
     center = scrollPane

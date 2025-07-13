@@ -14,6 +14,14 @@ import scalafx.util.StringConverter
 import client.AdapterMap.UITerritory
 import client.ui.GameWindow
 
+/**
+ * A modal dialog for transferring troops between two adjacent territories.
+ * The user can choose a source territory, a destination territory (neighbor),
+ * and the number of troops to move.
+ *
+ * @param owner the main game window that owns this dialog
+ * @param myTerritories a list of the player's current territories
+ */
 class ReinforcementDialog(
   owner: GameWindow,
   myTerritories: ObservableBuffer[UITerritory]
@@ -25,12 +33,14 @@ class ReinforcementDialog(
   width = 400
   height = 250
 
+  /** Converter to display UITerritory objects in combo boxes. */
   private val territoryConverter = new StringConverter[UITerritory] {
     override def toString(territory: UITerritory): String =
       if (territory == null) "" else s"${territory.name} (${territory.armies.value} truppe)"
     override def fromString(string: String): UITerritory = null
   }
 
+  /** Combo box to select the source territory for troop movement. */
   private val fromCombo = new ComboBox[UITerritory] {
     items = ObservableBuffer.from(myTerritories.filter(_.armies.value > 1))
     promptText = "Seleziona il territorio di partenza"
@@ -38,6 +48,7 @@ class ReinforcementDialog(
     onAction = _ => updateToCombo()
   }
 
+  /** Combo box to select the destination territory (must be adjacent). */
   private val toCombo = new ComboBox[UITerritory] {
     promptText = "Seleziona il territorio di destinazione"
     disable = true
@@ -45,6 +56,7 @@ class ReinforcementDialog(
     onAction = _ => updateTroopsSpinner()
   }
 
+  /** Spinner to choose the number of troops to move. */
   private val troopsSpinner = new Spinner[Int](1, 1, 1) {
     disable = true
     editable = true
@@ -55,6 +67,7 @@ class ReinforcementDialog(
     onAction = _ => executeReinforcement()
   }
 
+  /** Scene and layout definition for the dialog. */
   scene = new Scene {
     root = new VBox(15) {
       padding = Insets(20)
@@ -88,17 +101,27 @@ class ReinforcementDialog(
     }
   }
 
+  /**
+   * Updates the list of valid destination territories based on the selected source territory.
+   * Only adjacent territories that are not the same as the source are included.
+   * Disables destination selection if none are valid.
+   */
   private def updateToCombo(): Unit = {
     Option(fromCombo.value.value).foreach { from =>
-      val destinazioni = myTerritories.filter(t => from.isNeighbor(t) && t.name != from.name)
-      toCombo.items = ObservableBuffer.from(destinazioni)
-      toCombo.disable = destinazioni.isEmpty
+      val destinations = myTerritories.filter(t => from.isNeighbor(t) && t.name != from.name)
+      toCombo.items = ObservableBuffer.from(destinations)
+      toCombo.disable = destinations.isEmpty
       toCombo.selectionModel().clearSelection()
       troopsSpinner.disable = true
       confirmButton.disable = true
     }
   }
 
+  /**
+   * Updates the spinner to select the number of troops to move, based on the selected source.
+   * The max value is (armies - 1) to ensure at least one troop remains.
+   * Enables spinner and confirm button if both territories are selected.
+   */
   private def updateTroopsSpinner(): Unit = {
     for {
       from <- Option(fromCombo.value.value)
@@ -114,6 +137,11 @@ class ReinforcementDialog(
     }
   }
 
+  /**
+   * Executes the troop movement by sending the action to the game logic.
+   * Updates the game state and disables the reinforce button.
+   * Ends the player's turn automatically after the action.
+   */
   private def executeReinforcement(): Unit = {
     for {
       from <- Option(fromCombo.value.value)
@@ -129,10 +157,8 @@ class ReinforcementDialog(
       owner.reinforcementDoneThisTurn = true
       owner.actionPane.reinforceButton.disable = true
       owner.actionHandler.endTurn(owner.getGameId)
-     
+
       close()
     }
   }
 }
-
-
