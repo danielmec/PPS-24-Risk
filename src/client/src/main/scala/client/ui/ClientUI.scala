@@ -19,8 +19,31 @@ import client.ClientJsonSupport
 import client.ClientJsonSupport._  
 import scalafx.application.Platform
 
+/**
+ * Main entry point for the Risk client application.
+ * 
+ * This object represents the initial UI that users interact with when launching the game.
+ * It provides a simple login screen that connects to the game server and then transitions
+ * to the lobby interface when successfully authenticated.
+ * 
+ * The UI is implemented using ScalaFX and follows a reactive pattern where server
+ * communication happens asynchronously, with UI updates occurring on the JavaFX thread.
+ */
 object ClientUI extends JFXApp3:
 
+  /**
+   * Initializes and starts the client application UI.
+   * 
+   * This method sets up the initial login screen with a button to connect to the server.
+   * It handles the login process and transitions to the game lobby upon successful authentication.
+   * 
+   * The method creates the main window components including:
+   * - Title label
+   * - Login button
+   * - Status label for feedback
+   * 
+   * It also configures event handlers for user interactions and server responses.
+   */
   override def start(): Unit =
     
     val networkManager = new ClientNetworkManager()
@@ -81,6 +104,17 @@ object ClientUI extends JFXApp3:
       }
     }
 
+  /**
+   * Establishes a WebSocket connection to the game server.
+   *
+   * This method attempts to connect to the game server via WebSocket after a successful login.
+   * Upon connection, it transitions the UI from the login screen to the game lobby.
+   * It handles success and failure cases, updating the status label accordingly.
+   *
+   * @param networkManager The network manager responsible for server communication
+   * @param statusLabel The label to update with connection status information
+   * @param playerId The ID of the authenticated player
+   */
   def connectWebSocket(networkManager: ClientNetworkManager, statusLabel: Label, playerId: String): Unit =
     implicit val ec = networkManager.executionContext
     

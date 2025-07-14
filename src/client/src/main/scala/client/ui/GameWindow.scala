@@ -26,6 +26,33 @@ import dialogs.AttackDialog
 import dialogs.ReinforcementDialog
 import model.cards.{TerritoryCard, CardImg}
 
+/**
+ * Main game window for the Risk client application.
+ *
+ * This class manages the main game interface, displaying the map, player information,
+ * action panels, dice display, and handling all user interactions during the match.
+ * It is responsible for receiving and processing messages from the server, updating the UI state,
+ * and showing dialogs and alerts.
+ *
+ * Main features:
+ * - Visualization of the game map and territories
+ * - Handling attack, reinforce, end turn, and card actions
+ * - Dynamic update of the player list and their colors
+ * - Displaying battle results with dice animations
+ * - Managing game phases (setup, main, troop placement, etc.)
+ * - Showing secret objectives and informational dialogs
+ * - Handling game end and player exit events
+ *
+ * Key methods and properties:
+ *
+ * @param networkManager Network manager for server communication
+ * @param gameId Unique game identifier
+ * @param gameName Name of the game session
+ * @param initPlayers Initial list of players
+ * @param myUsername Username of the local player
+ * @param myPlayerId ID of the local player
+ * @param playerColors Map of player IDs to their assigned colors
+ */
 class GameWindow(
   networkManager: ClientNetworkManager,
   gameId: String,
@@ -213,7 +240,6 @@ class GameWindow(
 
   }
     
-
   /** 
    * Setup the UI event handlers for the action buttons.
    */
@@ -332,7 +358,6 @@ class GameWindow(
     }
   }
 
-
   /*
    * Show Error Alert
    */
@@ -347,7 +372,7 @@ class GameWindow(
       alert.showAndWait()
     }
   }
-  
+
 
   /*
     * Create a Dialog to show the reinforcement options.
@@ -357,14 +382,12 @@ class GameWindow(
       try {
         println("Tentativo di creare e mostrare il dialogo di piazzamento...")
 
-        // Estrai le carte territorio dal playerState
         val territoryCards: Seq[TerritoryCard] = {
           val stateOpt = networkManager.getLastGameState()
           stateOpt.flatMap { gs =>
             gs.state.playerStates.find(_("playerId") == myPlayerId)
               .flatMap { playerState =>
                 playerState.get("territoryCards").map { raw =>
-                  // Adatta questo parsing al formato reale delle tue carte!
                   val regex = """\{([^}]+)\}""".r
                   regex.findAllIn(raw.toString).toList.map { cardStr =>
                     val fields = cardStr.stripPrefix("{").stripSuffix("}").split(",").map(_.split(":", 2)).collect {
@@ -378,13 +401,12 @@ class GameWindow(
                       case _           => CardImg.Infantry
                     }
                     println(s"[DEBUG] Card parsed: name=${fields.getOrElse("territoryName", "???")}, type=$cardTypeRaw, cardImg=$cardImg")
-                    // Adatta qui se hai un costruttore diverso!
                     TerritoryCard(
                       territory = model.board.Territory(
                         name = fields.getOrElse("territoryName", "???"),
-                        owner = None,           // Non hai info sull'owner per la carta
-                        troops = 0,             // Non ti serve il numero di truppe per la carta
-                        neighbors = Set.empty   // Non ti servono i vicini per la carta
+                        owner = None,
+                        troops = 0,
+                        neighbors = Set.empty
                       ),
                       cardImg = cardImg
                     )
@@ -399,7 +421,7 @@ class GameWindow(
           myTerritories,
           bonusTroops,
           currentPhase,
-          territoryCards // <-- passa le carte territorio qui!
+          territoryCards
         )
 
         placementDialogOpen = true
@@ -640,10 +662,8 @@ class GameWindow(
   */
     
   def showTerritoriesDialog(): Unit = {
-    //mappa id -> username dai giocatori
     val playerIdToUsername = playersList.map { playerInfoView =>
       val playerInfo = playerInfoView.nameLabel.text.value
-      //estrae l'ID tra parentesi alla fine del testo "username (id)"
       val idPattern = ".*\\((.+?)\\)$".r
       val playerId = playerInfo match {
         case idPattern(id) => id
@@ -653,7 +673,6 @@ class GameWindow(
       playerId -> username
     }.toMap
     
-    //passa la mappa al dialog
     val dialog = new TerritoriesDialog(this, territories, playerIdToUsername)
     dialog.showAndWait()
   }
@@ -719,19 +738,16 @@ class GameWindow(
     Platform.runLater {
       playersLabel.text = s"Giocatori: ${newPlayers.size}"
       
-      // Debug: stampiamo la lista dei colori ricevuti dal server
       println("\n=== DEBUG COLORI GIOCATORI ===")
       println(s"Colori ricevuti dal server: ${newColors}")
       
       newPlayers.foreach { playerInfo =>
-        // Estrai l'ID del giocatore
         val idPattern = ".*\\((.+?)\\)$".r
         val playerId = playerInfo match {
           case idPattern(id) => id
           case _ => playerInfo
         }
         
-        // Stampa l'ID del giocatore e il suo colore
         val colorName = newColors.getOrElse(playerId, "NON TROVATO")
         println(s"Giocatore: $playerInfo (ID: $playerId) -> Colore: $colorName")
       }

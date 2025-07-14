@@ -9,16 +9,27 @@ import client.ClientJsonSupport._
 import client.ClientNetworkManager
 
 /**
- * Punto di ingresso dell'applicazione client Risiko -- TEST
+ * Test client application entry point for the Risk game.
+ * 
+ * This object provides a simple command-line interface to test the client's
+ * connectivity with the game server. It handles user authentication, WebSocket
+ * connection, and basic message sending to verify functionality.
  */
 object ClientApp:
+  /**
+   * Main entry point for the test client application.
+   * 
+   * Prompts the user for a username, attempts to log in to the server,
+   * and establishes a WebSocket connection if login is successful.
+   *
+   * @param args Command-line arguments (not used)
+   */
   def main(args: Array[String]): Unit =
     val client = new ClientNetworkManager()
     
     println("Avvio login...")
     println("Inserisci il nome del giocatore:")
     
-    // Leggi il nome utente da tastiera
     val username = StdIn.readLine().trim
     
     val isNameEmpty: String => Boolean = name => name.trim.isEmpty()
@@ -34,11 +45,9 @@ object ClientApp:
     println(s"Tentativo di login come '$username'...")
     val loginFuture = client.login(username)
     
-    // Attende il completamento del login e gestisce il risultato
     loginFuture.onComplete {
       case Success(true) => 
         println(s"Hai completato il login! ID giocatore: ${client.getPlayerId.getOrElse("sconosciuto")}")
-        // Connessione al WebSocket dopo il login
         connectWebSocket(client)
         
       case Success(false) => 
@@ -46,13 +55,19 @@ object ClientApp:
       case Failure(ex) => 
         println(s"Errore durante il login: ${ex.getMessage}")
     }(client.executionContext)
-    
-    // Attendi il completamento prima di terminare
     println("Premi Invio per terminare il client...")
     StdIn.readLine()
     client.shutdown()
     println("Client terminato")
 
+  /**
+   * Establishes a WebSocket connection to the game server and sends a test message.
+   * 
+   * This method connects to the WebSocket endpoint after successful authentication,
+   * then sends a JoinLobbyMessage as a test to verify the connection is working.
+   *
+   * @param client The ClientNetworkManager instance to use for the connection
+   */
   def connectWebSocket(client: ClientNetworkManager): Unit =
     
     implicit val ec = client.executionContext  
@@ -62,8 +77,6 @@ object ClientApp:
     client.connectWebSocket().onComplete {
       case Success(true) => 
         println("Connessione WebSocket stabilita con successo")
-        
-        // Usa ClientJsonSupport per creare il messaggio JSON
         val joinLobbyMsg = JoinLobbyMessage()
         val testMessage = toJson(joinLobbyMsg).toString
         
