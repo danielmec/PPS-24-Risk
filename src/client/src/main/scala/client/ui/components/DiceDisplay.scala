@@ -14,12 +14,11 @@ import scalafx.scene.text.FontWeight
 import javafx.scene.paint.Color
 import scalafx.application.Platform
 
-
 /**
   * This class represents a display for the dice used in the game.
   * It shows the dice for both the attacker and defender, along with their values.
   * The dice are displayed in a visually appealing way, with colors and styles.
-  */ 
+  */
 class DiceDisplay extends VBox(10) {
   
   alignment = Pos.Center
@@ -40,8 +39,9 @@ class DiceDisplay extends VBox(10) {
   }
 
   /**
-    * This class represents a die with a label that displays its value.
-    * @param color
+    * Represents a die with a label that displays its value.
+    *
+    * @param color the background color of the die
     */
   private class DieWithLabel(color: Color) {
     val label = new Label("?") {
@@ -95,10 +95,11 @@ class DiceDisplay extends VBox(10) {
   }
   
   /**
-    * This method creates a VBox containing a title label and a HBox for the dice.
-    * @param title
-    * @param diceBox is an HBox (container for the dice) that will be displayed below the title.
-    * @return a VBox with the title and dice box
+    * Creates a VBox containing a title label and a HBox for the dice.
+    *
+    * @param title the title of the dice section
+    * @param diceBox the container HBox for the dice
+    * @return a VBox containing the title label and the diceBox
     */
   private def createDiceSection(title: String, diceBox: HBox): VBox = {
     val titleLabel = new Label(title) {
@@ -116,20 +117,21 @@ class DiceDisplay extends VBox(10) {
     }
   }
 
-  //coda di animazione per gestire le animazioni dei dadi in sequenza per i bot che attaccano a sequenza
+  // Animation queue to handle sequential dice animations, useful for bots attacking in sequence
   private val animationQueue = new scala.collection.mutable.Queue[(List[Int], List[Int])]()
   private var animationInProgress = false
   
 
   /**
     * Updates the values of the attacker and defender dice.
-    * @param attackerValues
-    * @param defenderValues
+    * Queues the animation if one is already in progress.
+    *
+    * @param attackerValues list of integers representing attacker dice values
+    * @param defenderValues list of integers representing defender dice values
     */
   def updateValues(attackerValues: List[Int], defenderValues: List[Int]): Unit = {
     println(s"DiceDisplay: Accodamento dadi - Attaccante: ${attackerValues.mkString(",")}, Difensore: ${defenderValues.mkString(",")}")
     
-    //inizia l'animazione se non è già in corso
     animationQueue.enqueue((attackerValues, defenderValues))
     if (!animationInProgress) {
       processNextAnimation()
@@ -139,8 +141,8 @@ class DiceDisplay extends VBox(10) {
 
   /**
     * Processes the next animation in the queue.
-    * It updates the dice display with the values from the queue.
-    * If the queue is empty, it sets animationInProgress to false.
+    * Updates the dice display with the queued values and schedules the next animation.
+    * If queue is empty, marks animation as not in progress.
     */
   private def processNextAnimation(): Unit = {
     if (animationQueue.isEmpty) {
@@ -194,32 +196,28 @@ class DiceDisplay extends VBox(10) {
         val originalStyle = style.value
         style = originalStyle + "-fx-background-color: #ffcccc;"
         
-        //prrogramma il prossimo aggiornamento dopo 3.5 secondi
+        // Schedule the next update after 3 seconds + 0.5 seconds pause between animations
         new java.util.Timer().schedule(new java.util.TimerTask {
           override def run(): Unit = {
             Platform.runLater {
               style = originalStyle
-              // breve ritardo
               new java.util.Timer().schedule(new java.util.TimerTask {
                 override def run(): Unit = {
                   Platform.runLater {
                     processNextAnimation()
                   }
                 }
-              }, 500) // 0.5 secondi di pausa tra animazioni
+              }, 500) // 0.5 seconds pause
             }
           }
-        }, 3000) // 3 secondi di visualizzazione per ogni set di dadi
+        }, 3000) // 3 seconds display time
         
       } catch {
         case ex: Exception =>
           println(s"DiceDisplay: ERRORE durante l'animazione dei dadi: ${ex.getMessage}")
           ex.printStackTrace()
-      
           processNextAnimation()
       }
     }
   }
-
-
 }

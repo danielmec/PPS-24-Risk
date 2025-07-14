@@ -15,8 +15,20 @@ import client.AdapterMap
 import client.AdapterMap.UITerritory
 import bridge.TerritoryBridge
 
+/**
+  * A UI component that displays information about territories, including:
+  * - A combo box for selecting player's territories,
+  * - Details of the selected territory (name, armies, continent),
+  * - A grid showing continent control status (owned territories count / total territories).
+  *
+  * @param territories An observable buffer of UITerritory instances representing the territories. 
+  *                    If null, all territories will be loaded from AdapterMap.
+  */
 class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) extends HBox(20) {
   
+  /**
+    * A map of continents to the total number of territories in each continent.
+    */
   private val continentToTerritories = {
     val allTerritories = if (territories != null) territories else AdapterMap.loadTerritories()
     val result = collection.mutable.Map[String, Int]()
@@ -33,21 +45,26 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
   private val armiesLabel = new Label("--")
   private val continentLabel = new Label("--")
   
+  /**
+    * ComboBox allowing the player to select one of their territories.
+    * Updates the territory details on selection.
+    */
   private val territoriesComboBox = new ComboBox[String] {
     items = ObservableBuffer("Seleziona territorio...")
     prefWidth = 200
     onAction = _ => {
       val selectedTerritory = value.value
       if (selectedTerritory != "Seleziona territorio..." && territories != null) { 
-        
         territories.find(_.name == selectedTerritory).foreach { territory =>
           updateTerritoryDetails(territory.name, territory.armies.value, territory.continent)
-
         }
       }
     }
   }
   
+  /**
+    * A GridPane showing continent names with the count of owned territories over total territories.
+    */
   private val continentsGrid = new GridPane {
     hgap = 10
     vgap = 5
@@ -59,6 +76,7 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
       row += 1
     }
   }
+  
   padding = Insets(10)
   alignment = Pos.CenterLeft
   style = "-fx-background-color: #f5f5f5; -fx-border-color: #aaaaaa; -fx-border-width: 1 0 1 0;"
@@ -106,12 +124,24 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     }
   )
   
+  /**
+    * Updates the territory detail labels with the given name, armies count, and continent.
+    * 
+    * @param name The name of the territory
+    * @param armies The number of armies stationed in the territory
+    * @param continent The continent to which the territory belongs
+    */
   def updateTerritoryDetails(name: String, armies: Int, continent: String): Unit = {
     nameLabel.text = name
     armiesLabel.text = armies.toString
     continentLabel.text = continent
   }
   
+  /**
+    * Updates the combo box with territories owned by the specified player.
+    *
+    * @param playerName The name of the player whose territories will be displayed
+    */
   def updatePlayerTerritories(playerName: String): Unit = {
     if (territories != null) {
       val playerTerritories = territories.filter(_.owner.value == playerName).map(_.name).toSeq.sorted
@@ -120,7 +150,11 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     }
   }
   
-
+  /**
+    * Updates the continent control grid with the count of territories owned by the player for each continent.
+    *
+    * @param playerName The name of the player whose continent control will be updated
+    */
   def updateContinentControl(playerName: String): Unit = {
     if (territories != null) {
       
@@ -144,4 +178,3 @@ class TerritoryInfoPane(territories: ObservableBuffer[UITerritory] = null) exten
     }
   }
 }
-
