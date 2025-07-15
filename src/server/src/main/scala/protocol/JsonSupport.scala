@@ -9,6 +9,10 @@ import server.GameSession.PlayerStateDto
 import server.GameSession.GameStateDto
 import server.GameSession.TerritoryCardDto
 
+/**
+ * Provides JSON serialization/deserialization support for the Risk game protocol.
+ * Extends DefaultJsonProtocol to implement JSON formats for various message types.
+ */
 object JsonSupport extends DefaultJsonProtocol:
   implicit val createGameFormat: RootJsonFormat[ClientMessages.CreateGame] = jsonFormat6(protocol.ClientMessages.CreateGame.apply)
   implicit val joinGameFormat: RootJsonFormat[ClientMessages.JoinGame] = jsonFormat2(protocol.ClientMessages.JoinGame.apply)
@@ -28,11 +32,27 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val playerStateDtoFormat: RootJsonFormat[PlayerStateDto] = jsonFormat5(server.GameSession.PlayerStateDto.apply)
   implicit val gameStateDtoFormat: RootJsonFormat[GameStateDto] = jsonFormat6(server.GameSession.GameStateDto.apply)
 
+  /** 
+   * Converts an Option[MissionCardDto] to and from JSON.
+   * - Some(mission) is serialized as the mission's JSON representation
+   * - None is serialized as JsNull
+   */
   implicit object MissionCardDtoOptionFormat extends RootJsonFormat[Option[MissionCardDto]] {
+    /**
+     * Converts an Option[MissionCardDto] to JSON.
+     * @param option the mission card option to convert
+     * @return JsValue representing the mission card option
+     */
     def write(option: Option[MissionCardDto]): JsValue = option match {
       case Some(mission) => mission.toJson
       case None => JsNull
     }
+    
+    /**
+     * Converts JSON to an Option[MissionCardDto].
+     * @param json the JSON value to convert
+     * @return Option[MissionCardDto] parsed from JSON
+     */
     def read(json: JsValue): Option[MissionCardDto] = json match {
       case JsNull => None
       case js => Some(js.convertTo[MissionCardDto])
@@ -41,6 +61,11 @@ object JsonSupport extends DefaultJsonProtocol:
 
   implicit val gameSetupStartedFormat: RootJsonFormat[ServerMessages.GameSetupStarted] = jsonFormat2(protocol.ServerMessages.GameSetupStarted.apply)
   implicit object GameStateFormat extends RootJsonFormat[ServerMessages.GameState] {
+    /**
+     * Converts a GameState to JSON.
+     * @param gs the GameState to convert
+     * @return JsValue representing the GameState
+     */
     def write(gs: ServerMessages.GameState): JsValue = {
       JsObject(
         "gameId" -> JsString(gs.gameId),
@@ -49,6 +74,12 @@ object JsonSupport extends DefaultJsonProtocol:
         "state" -> mapToJson(gs.state)
       )
     }
+    
+    /**
+     * Converts JSON to a GameState.
+     * @param json the JSON value to convert
+     * @return GameState parsed from JSON
+     */
     def read(json: JsValue): ServerMessages.GameState = {
       val fields = json.asJsObject.fields
       val gameId = fields("gameId").convertTo[String]
@@ -63,6 +94,12 @@ object JsonSupport extends DefaultJsonProtocol:
       }
       ServerMessages.GameState(gameId, players, currentPlayer, state)
     }
+    
+    /**
+     * Helper method to convert a JsObject to a Map[String, Any].
+     * @param json the JsObject to convert
+     * @return Map[String, Any] representation of the JSON object
+     */
     private def jsonToMap(json: JsObject): Map[String, Any] = {
       json.fields.map { 
         case (key, JsString(value)) => key -> value
@@ -88,6 +125,12 @@ object JsonSupport extends DefaultJsonProtocol:
   implicit val troopMovementFormat: RootJsonFormat[ServerMessages.TroopMovement] = jsonFormat5(protocol.ServerMessages.TroopMovement.apply)
 
   implicit object ClientMessageJsonFormat extends RootJsonReader[ProtocolMessage]:
+    /**
+     * Converts JSON to a protocol message.
+     * @param json the JSON value to convert
+     * @return ProtocolMessage parsed from JSON
+     * @throws DeserializationException if the message type is not recognized or missing
+     */
     def read(json: JsValue): ProtocolMessage =
       val fields = json.asJsObject.fields
       fields.get("type") match
@@ -143,7 +186,16 @@ object JsonSupport extends DefaultJsonProtocol:
         case _ => 
           throw DeserializationException("Campo 'type' mancante")
   
+  /** 
+   * JSON writer for server messages from the protocol.
+   * Serializes different types of messages to JSON.
+   */
   implicit object ServerMessageJsonFormat extends RootJsonWriter[ProtocolMessage]:
+    /**
+     * Converts a protocol message to JSON.
+     * @param obj the message to convert
+     * @return JsValue representing the message
+     */
     def write(obj: ProtocolMessage): JsValue =
       obj match
         case msg: ServerMessages.GameCreated =>
@@ -279,8 +331,20 @@ object JsonSupport extends DefaultJsonProtocol:
           println(s"[WARN] Messaggio di tipo sconosciuto: ${obj.getClass.getName}")
           JsObject("type" -> JsString("unknown"))
   
+  /**
+   * Implicitly converts a ProtocolMessage to its JSON representation.
+   * @param msg the message to convert
+   * @return JsValue representing the message
+   */
   implicit def messageToJson(msg: ProtocolMessage): JsValue = ServerMessageJsonFormat.write(msg)
 
+  /**
+   * Converts a Map[String, Any] to a JsObject.
+   * Handles various value types appropriately (String, Int, Long, Double, Boolean, Lists, Maps).
+   *
+   * @param map the map to convert to JSON
+   * @return JsObject representation of the map
+   */
   private def mapToJson(map: Map[String, Any]): JsObject =
     JsObject(map.map {
       case (key, value: String) => key -> JsString(value)
