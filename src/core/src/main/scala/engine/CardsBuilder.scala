@@ -15,21 +15,29 @@ import exceptions._
   * Utility object for building cards, continents, and objectives from JSON files.
   */
 object CardsBuilder:
-    private val boardPath = "src/core/src/main/scala/json/Board.json"
-    private val objectivesPath = "src/core/src/main/scala/json/Objectives.json"
-
+   
     /**
-      * Loads a JSON file from the given path.
-      * @param path The path to the JSON file.
+      * Loads a JSON file from the resources folder.
+      * @param fileName The name of the JSON file.
       * @return The parsed JsValue.
       * @throws RuntimeException if the file cannot be loaded.
       */
-    private def loadJsonFromFile(path: String): JsValue =
+    private def loadJsonFromFile(fileName: String): JsValue =
         Try {
-            val jsonContent = Source.fromFile(path).getLines().mkString
+            val resourcePath = s"/json/$fileName"
+            val inputStream = getClass.getResourceAsStream(resourcePath)
+            
+            if (inputStream == null) {
+                throw new RuntimeException(s"Resource not found: $resourcePath")
+            }
+            
+            val source = Source.fromInputStream(inputStream)
+            val jsonContent = source.mkString
+            source.close()
+            
             Json.parse(jsonContent)
         }.getOrElse {
-            throw new RuntimeException(s"Failed to load JSON from $path")
+            throw new RuntimeException(s"Failed to load JSON from $fileName")
         }
 
     /**
@@ -53,7 +61,7 @@ object CardsBuilder:
       * @return A tuple of (Set of continents, Map of territory name to Territory).
       */
     def createBoard(): (Set[Continent], Map[String, Territory]) = 
-        val json = loadJsonFromFile(boardPath)
+        val json = loadJsonFromFile("Board.json") 
         val continentsFromJson = (json \ "continents").as[JsArray].value.toSeq  
         val initialTerritories = createInitialTerritories(continentsFromJson) 
         val territoriesWithNeighbors = addNeighborsToTerritories(continentsFromJson, initialTerritories)
@@ -133,7 +141,7 @@ object CardsBuilder:
     def createObjectivesDeck(): List[ObjectiveCard] =
         val continents = getContinents()
         val continentsMap = continents.map(c => (c.name, c)).toMap
-        val json = loadJsonFromFile(objectivesPath)       
+        val json = loadJsonFromFile("Objectives.json")  
         val continentObjectives = createContinentObjectives(json, continentsMap)
         val nContinentsObjectives = createNContinentsObjectives(json)
         val territoryObjectives = createTerritoryObjectives(json)

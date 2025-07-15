@@ -22,11 +22,20 @@ import scalafx.scene.text.FontWeight
 class GameMapView(onMapClicked: => Unit) extends ScrollPane {
   
   /**
-    * The map image loaded from a file.
+    * The map image loaded from resources.
     * If loading fails, this will be null and an error message will be printed.
     */
   val mapImage = try {
-    new Image("file:src/client/src/main/scala/client/ui/resources/RiskMap.drawio.png")
+    // Prova prima dal classpath (per JAR)
+    val resourcePath = "/images/RiskMap.drawio.png"
+    val imageUrl = getClass.getResource(resourcePath)
+    
+    if (imageUrl != null) {
+      new Image(imageUrl.toString)
+    } else {
+      // Fallback al path originale (per sviluppo)
+      new Image("file:src/client/src/main/scala/client/ui/resources/RiskMap.drawio.png")
+    }
   } catch {
     case e: Exception => 
       println(s"Error loading map image: ${e.getMessage}")
