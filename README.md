@@ -22,8 +22,8 @@ Risk is a multiplayer desktop application inspired by the board game Risiko, dev
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/danielmec/PPS-25-Risk.git
-   cd PPS-25-Risk
+   git clone https://github.com/danielmec/PPS-24-Risk.git
+   cd PPS-24-Risk
    ```
 
 2. **Ensure Java, Scala, and SBT are installed**
