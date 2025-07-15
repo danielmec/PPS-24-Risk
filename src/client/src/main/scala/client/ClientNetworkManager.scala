@@ -162,7 +162,7 @@ class ClientNetworkManager:
               if (playerColors.isDefined) {
                 println(s"   Colori assegnati: ${playerColors.get.size}")
               }
-              messageCallbacks.get("gameJoined").foreach(_(msg))
+              messageCallbacks.get("gameJoined").foreach(_(msg)) //chiama il callback in tutti i file che lo hanno registrato
 
             case msg @ GameListMessage(games) =>
               println(s"Lista partite disponibili")

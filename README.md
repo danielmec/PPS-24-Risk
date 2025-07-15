@@ -72,6 +72,29 @@ You can start multiple clients to simulate multiple players.
 - If you encounter issues with JavaFX on Mac/Linux, ensure the JavaFX libraries are correctly installed and configured in your environment.
 - In case of dependency errors, run `sbt clean` followed by `sbt compile`.
 
+## Windows Requirements for Running Release Executables
+
+### Option 1: JDK with JavaFX included (RECOMMENDED)
+- Download **Liberica JDK Full**: https://bell-sw.com/pages/downloads/
+- Or **Azul Zulu JDK FX**: https://www.azul.com/downloads/?package=jdk-fx
+
+### Option 2: Separate JavaFX SDK
+1. Download JavaFX SDK: https://gluonhq.com/products/javafx/
+2. Extract to a folder (e.g., `C:\javafx-sdk-21\`)
+3. Run with:
+```cmd
+java --module-path "C:\javafx-sdk-21\lib" --add-modules javafx.controls,javafx.fxml -jar RiskClient.jar
+```
+
+### Running the Application
+```cmd
+# For Windows with JavaFX included
+java -jar RiskClient.jar
+
+# For Windows with separate JavaFX SDK
+java --module-path "C:\javafx-sdk-21\lib" --add-modules javafx.controls,javafx.fxml -jar RiskClient.jar
+```
+
 ---
 
 ## Contact

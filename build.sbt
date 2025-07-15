@@ -19,6 +19,10 @@ lazy val client = (project in file("src/client"))
     name := "RiskClient",
     libraryDependencies ++= Seq(
       "org.scalafx" %% "scalafx" % "20.0.0-R31",
+      "org.openjfx" % "javafx-controls" % "20.0.2",
+      "org.openjfx" % "javafx-fxml" % "20.0.2",
+      "org.openjfx" % "javafx-web" % "20.0.2",
+      "org.openjfx" % "javafx-swing" % "20.0.2",
       "com.typesafe.akka" %% "akka-actor-typed" % "2.8.3",
       "com.typesafe.akka" %% "akka-stream-typed" % "2.8.3",
       "io.spray" %% "spray-json" % "1.3.6",
