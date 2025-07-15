@@ -15,8 +15,10 @@ permissions:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -28,12 +30,20 @@ jobs:
         distribution: 'temurin'
         cache: 'sbt'
 
-    - name: Install sbt
+    - name: Install sbt (Linux)
+      if: runner.os == 'Linux'
       run: |
         echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
         curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x99E82A75642AC823" | sudo apt-key add
         sudo apt-get update
         sudo apt-get install -y sbt
+
+    - name: Install sbt (Windows/macOS)
+      if: runner.os != 'Linux'
+      run: |
+        curl -L -o sbt.zip https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.zip
+        unzip sbt.zip -d $HOME/sbt
+        echo "$HOME/sbt/sbt/bin" >> $GITHUB_PATH
 
     - name: Run tests
       run: sbt test
