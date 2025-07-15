@@ -1,11 +1,25 @@
 package protocol
 
+/**
+ * Base trait for all messages in the Risk game protocol.
+ * Provides a common interface for client-server communication messages.
+ */
 sealed trait Message {
     
+  /**
+   * Returns the simple class name of the message with any '$' characters removed.
+   * This provides a standardized way to identify message types across the protocol.
+   * 
+   * @return String representation of the message type
+   */
   def messageType: String = this.getClass.getSimpleName.replace("$", "")
 }
 
-
+/**
+ * Contains message types sent from clients to the server.
+ * These messages represent client actions like logging in, joining games,
+ * creating games, and performing in-game actions.
+ */
 object ClientMessages:
 
   case class Login(username: String ) extends Message
@@ -40,6 +54,11 @@ object ClientMessages:
 
 
 
+/**
+ * Contains message types sent from the server to clients.
+ * These messages represent server responses and notifications about
+ * game state changes, player actions, and system events.
+ */
 object ServerMessages:
     case class LoginResponse(
         success: Boolean, 
