@@ -15,10 +15,28 @@ import akka.pattern.ask
 import scala.concurrent.duration._
 import akka.util.Timeout
 
+/**
+ * Companion object for GameManager that defines message types and factory methods.
+ * Contains command types for managing game sessions and player interactions.
+ */
 object GameManager:
 
+    /**
+     * Base trait for all commands that can be sent to the GameManager.
+     */
     sealed trait Command
 
+    /**
+     * Command to create a new game session.
+     * 
+     * @param gameName The name of the new game
+     * @param maxPlayers Maximum number of players allowed in the game
+     * @param creator ActorRef of the client that created the game
+     * @param username Username of the creator
+     * @param numBots Number of AI bots to add to the game
+     * @param botStrategies Optional list of strategy names for the bots
+     * @param botNames Optional list of names for the bots
+     */
     case class CreateGameSession(
       gameName: String, 
       maxPlayers: Int, 
@@ -28,36 +46,122 @@ object GameManager:
       botStrategies: Option[List[String]] = None,
       botNames: Option[List[String]] = None
     ) extends Command
-    case class JoinGameSession(gameId: String, player: ActorRef, username :String) extends Command
+    
+    /**
+     * Command to join an existing game session.
+     * 
+     * @param gameId ID of the game to join
+     * @param player ActorRef of the client joining the game
+     * @param username Username of the joining player
+     */
+    case class JoinGameSession(gameId: String, player: ActorRef, username: String) extends Command
+    
+    /**
+     * Command to leave a game session.
+     * 
+     * @param gameId ID of the game to leave
+     * @param player ActorRef of the client leaving the game
+     */
     case class LeaveGameSession(gameId: String, player: ActorRef) extends Command
+    
+    /**
+     * Command to retrieve all active games.
+     * 
+     * @param replyTo ActorRef to send the list of games to
+     */
     case class GetAllGames(replyTo: ActorRef) extends Command
+    
+    /**
+     * Command to forward a message to a specific game session.
+     * 
+     * @param gameId ID of the target game
+     * @param message Message to forward
+     */
     case class ForwardToGame(gameId: String, message: Message) extends Command
+    
+    /**
+     * Command to notify that a player has disconnected.
+     * 
+     * @param player ActorRef of the disconnected client
+     */
     case class PlayerDisconnected(player: ActorRef) extends Command
+    
+    /**
+     * Command to register a new client with the GameManager.
+     * 
+     * @param client ActorRef of the client to register
+     */
     case class RegisterClient(client: ActorRef) extends Command
+    
+    /**
+     * Command to notify that a game session has ended.
+     * 
+     * @param gameId ID of the ended game
+     */
     case class GameSessionEnded(gameId: String) extends Command 
 
+    /**
+     * Command to process a game action from a player.
+     * 
+     * @param gameId ID of the game
+     * @param playerId ID of the player performing the action
+     * @param action The game action to process
+     */
     case class ProcessGameAction(gameId: String, playerId: String, action: ClientMessages.GameAction) extends Command
 
+    /**
+     * Creates Props for a GameManager actor.
+     * 
+     * @return Props for creating a GameManager actor
+     */
     def props: Props = Props(new GameManager())
 
+    /**
+     * Empty message used for initialization.
+     */
     private case object Empty
 
+/**
+ * Actor that manages game sessions in the Risk game server.
+ * Handles creating, joining, and ending game sessions, as well as tracking connected clients
+ * and routing messages between clients and game sessions.
+ */
 class GameManager extends Actor with ActorLogging:
 
     import GameManager._
    
+    /**
+     * Initializes the GameManager with empty state when started.
+     * Transitions to the running state with empty collections.
+     */
     override def preStart(): Unit =
         log.info("GameManager started")
         context.become(running(Map.empty, Set.empty, Map.empty, Map.empty)) 
 
+    /**
+     * Initial receive method, only handles the Empty message.
+     * 
+     * @return Receive function for handling messages
+     */
     def receive: Receive =
         case Empty => log.info("GameManager initialized with empty state") 
     
+    /**
+     * Main receive method that handles all GameManager commands.
+     * Maintains state for active games, connected clients, player-to-game mappings,
+     * and game name mappings.
+     *
+     * @param games Map of game IDs to GameSession actor references
+     * @param connectedClients Set of connected client actor references
+     * @param playerToGame Map of player actor references to their current game ID
+     * @param gameNameMap Map of game IDs to game names
+     * @return Receive function for handling messages with the current state
+     */
     def running(
-        games: Map[String, ActorRef], //mappa di gameId a GameSession ActorRef
+        games: Map[String, ActorRef], 
         connectedClients: Set[ActorRef],
         playerToGame: Map[ActorRef, String],
-        gameNameMap: Map[String, String] //Mappa di gameId a gameName
+        gameNameMap: Map[String, String]
     ): Receive = 
 
         case RegisterClient(client) =>
@@ -164,7 +268,6 @@ class GameManager extends Actor with ActorLogging:
             val updatedGameNameMap = gameNameMap - gameId     
             context.become(running(updatedGames, connectedClients, updatedPlayerToGame, updatedGameNameMap))
 
-       
         case ProcessGameAction(gameId, playerId, action) =>
             games.get(gameId) match 
                 case Some(gameSession) =>

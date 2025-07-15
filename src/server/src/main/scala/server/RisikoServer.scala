@@ -17,7 +17,19 @@ import scala.concurrent.duration._
 import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 
 
+/**
+ * Main server entry point for the Risk game application.
+ * Sets up the HTTP and WebSocket server using Akka HTTP.
+ */
 object RisikoServer:
+  
+  /**
+   * The main entry point for the Risk game server.
+   * Creates an ActorSystem, initializes the GameManager, and sets up HTTP routes
+   * including a health check endpoint, WebSocket connection handler, and API endpoints.
+   *
+   * @param args Command line arguments (not used)
+   */
   def main(args: Array[String]): Unit =
     
     implicit val system = ActorSystem("RiskServer")

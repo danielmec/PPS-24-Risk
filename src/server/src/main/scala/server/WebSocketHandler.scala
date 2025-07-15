@@ -19,11 +19,38 @@ import spray.json._
 import protocol.JsonSupport._
 import scala.concurrent.duration._
 
+/**
+ * Handles WebSocket connections for the Risk game server.
+ * Provides functionality for bidirectional communication between clients and the server.
+ */
 object WebSocketHandler:
+  /**
+   * Represents a message received from a client.
+   * 
+   * @param text The raw text content of the message
+   */
   case class IncomingMessage(text: String)
+  
+  /**
+   * Represents a connection to a client for sending messages.
+   * 
+   * @param client Reference to the client actor
+   */
   case class OutgoingConnection(client: ActorRef)
+  
+  /**
+   * Message sent periodically to trigger a ping to the client.
+   */
   case object SendPing
   
+  /**
+   * Creates a Flow that handles WebSocket messages for a client connection.
+   * Sets up bidirectional communication between clients and the server.
+   * 
+   * @param gameManager Reference to the game manager actor
+   * @param system The actor system
+   * @return Flow that processes WebSocket messages
+   */
   def apply(gameManager: ActorRef)(implicit system: ActorSystem): Flow[Message, Message, NotUsed] =
     
     val connectionId = java.util.UUID.randomUUID().toString.take(8)
@@ -48,10 +75,20 @@ object WebSocketHandler:
       NotUsed
     }
 
+  /**
+   * Actor that handles a single WebSocket connection.
+   * Processes messages to and from a connected client and communicates with the game manager.
+   * 
+   * @param gameManager Reference to the game manager actor
+   */
   private class ConnectionActor(gameManager: ActorRef) extends Actor:
     var clientConnection: Option[ActorRef] = None
     private var pingScheduler: Option[akka.actor.Cancellable] = None
     
+    /**
+     * Initializes the connection actor.
+     * Sets up a ping scheduler to keep the connection alive.
+     */
     override def preStart(): Unit = {      
       import context.dispatcher
       pingScheduler = Some(context.system.scheduler.scheduleWithFixedDelay(
@@ -59,6 +96,10 @@ object WebSocketHandler:
       ))
     }
     
+    /**
+     * Cleans up resources when the connection actor is stopped.
+     * Cancels the ping scheduler and notifies the game manager of disconnection.
+     */
     override def postStop(): Unit = {
       pingScheduler.foreach(_.cancel())
       try {
@@ -70,6 +111,12 @@ object WebSocketHandler:
       }
     }
     
+    /**
+     * Processes incoming and outgoing messages for this connection.
+     * Handles protocol messages, connection setup, and client commands.
+     * 
+     * @return Receive function for handling messages
+     */
     def receive = {
       case SendPing =>
         sendProtocolMessage(protocol.ServerMessages.Ping())
@@ -97,6 +144,12 @@ object WebSocketHandler:
       case _ => 
     }
     
+    /**
+     * Sends a protocol message to the connected client.
+     * Converts the message to JSON and sends it as a TextMessage.
+     * 
+     * @param msg The protocol message to send
+     */
     private def sendProtocolMessage(msg: ProtocolMessage): Unit =
       try {
         val jsonValue = messageToJson(msg)
@@ -110,10 +163,21 @@ object WebSocketHandler:
           ex.printStackTrace()
       }
     
+    /**
+     * Sends an error message to the connected client.
+     * 
+     * @param message The error message text
+     */
     private def sendError(message: String): Unit =
       val errorMsg = protocol.ServerMessages.Error(message)
       sendProtocolMessage(errorMsg)
     
+    /**
+     * Processes a client protocol message and routes it to the appropriate handler.
+     * Forwards game-related messages to the game manager.
+     * 
+     * @param msg The client message to process
+     */
     private def handleClientMessage(msg: ProtocolMessage): Unit =
       msg match {
         case protocol.ClientMessages.CreateGame(name, maxPlayers, username, numBots, botStrategies, botNames) =>
@@ -149,7 +213,12 @@ object WebSocketHandler:
           sendProtocolMessage(errorMessage)
       }
     
-    
+    /**
+     * Parses a JSON string into a protocol message.
+     * 
+     * @param text The JSON string to parse
+     * @return Success with the parsed message or Failure with an exception
+     */
     private def parseJsonMessage(text: String): Try[ProtocolMessage] = Try {
       text.parseJson.convertTo[ProtocolMessage]
     }
