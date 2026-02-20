@@ -28,6 +28,8 @@ object TerritoryBridge {
     }
   }
   
+  //
+
   /**
    * Loads both territories and continents from the core module.
    * @return A tuple containing the set of continents and the map of territories.
